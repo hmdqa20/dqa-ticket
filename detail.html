@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DQA Ticket Manager</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ─── 상단 바 ─────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <button id="btn-back" class="btn btn-ghost" data-i18n="btn_back">← 목록</button>
+  <h1 id="page-title" class="app-title" data-i18n="page_title_edit">티켓 상세</h1>
+  <div class="lang-switcher" style="margin-left:auto">
+    <button class="lang-btn" data-lang="ko" onclick="setLang('ko')">KO</button>
+    <button class="lang-btn" data-lang="jp" onclick="setLang('jp')">JP</button>
+    <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" data-lang="vi" onclick="setLang('vi')">VI</button>
+  </div>
+</header>
+
+<!-- ─── 폼 ──────────────────────────────────────────────────────────────── -->
+<main class="detail-main">
+  <form id="ticket-form" class="ticket-form" onsubmit="return false">
+
+    <!-- 1. 티켓번호 -->
+    <div class="form-group">
+      <label data-i18n="label_ticket_id">티켓번호</label>
+      <div class="input-with-btn">
+        <input type="text" id="ticket-id-input" placeholder="XAX2-1234">
+        <span id="ticket-id-static" class="static-value" style="display:none"></span>
+        <button type="button" id="btn-fetch" class="btn btn-secondary" data-i18n="btn_fetch">가져오기</button>
+      </div>
+    </div>
+
+    <!-- 2. 이슈명 -->
+    <div class="form-group">
+      <label data-i18n="label_title">이슈명</label>
+      <input type="text" id="title-input" placeholder="이슈명">
+    </div>
+
+    <!-- 3. 생성날짜 -->
+    <div class="form-group">
+      <label data-i18n="label_created_date">생성날짜</label>
+      <span id="created-date" class="static-value">-</span>
+    </div>
+
+    <!-- 4. 확인버전 -->
+    <div class="form-group">
+      <label data-i18n="label_check_version">확인버전</label>
+      <input type="text" id="check-version" placeholder="v1.0.0">
+    </div>
+
+    <!-- 5. 담당자 -->
+    <div class="form-group">
+      <label data-i18n="label_assignee">담당자</label>
+      <select id="assignee">
+        <option value="">—</option>
+        <option value="박수원">박수원</option>
+        <option value="홍경두">홍경두</option>
+        <option value="MVN">MVN</option>
+      </select>
+    </div>
+
+    <!-- 6. 진행 우선도 -->
+    <div class="form-group">
+      <label data-i18n="label_priority">진행 우선도</label>
+      <select id="priority">
+        <option value="">—</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+    </div>
+
+    <!-- 7. 진행상태 -->
+    <div class="form-group">
+      <label data-i18n="label_status">진행상태</label>
+      <select id="status">
+        <option value="진행전">진행전</option>
+        <option value="진행중">진행중</option>
+        <option value="완료">완료</option>
+        <option value="보류">보류</option>
+        <option value="N/A">N/A</option>
+      </select>
+    </div>
+
+    <!-- 8. 판정 -->
+    <div class="form-group">
+      <label data-i18n="label_verdict">판정</label>
+      <select id="verdict">
+        <option value="">—</option>
+        <option value="OK">OK</option>
+        <option value="NG">NG</option>
+      </select>
+    </div>
+
+    <!-- 9. 확인내용 -->
+    <div class="form-group form-group-wide">
+      <label data-i18n="label_check_content">확인내용</label>
+      <textarea id="check-content" rows="6" placeholder="확인내용을 입력하세요"></textarea>
+    </div>
+
+    <!-- 10. 파일 첨부 -->
+    <div class="form-group form-group-wide">
+      <label data-i18n="label_files">파일 첨부</label>
+      <div id="drop-zone" class="drop-zone" data-i18n="drag_drop">파일을 드래그하거나 클릭하여 업로드</div>
+      <input type="file" id="file-input" style="display:none" multiple>
+      <div id="file-list" class="file-list"></div>
+    </div>
+
+    <!-- 11. 비고 -->
+    <div class="form-group form-group-wide">
+      <label data-i18n="label_note">비고</label>
+      <textarea id="note" rows="3" placeholder="비고를 입력하세요"></textarea>
+    </div>
+
+    <!-- 12. WJIRA 업데이트 -->
+    <div class="form-group">
+      <label data-i18n="label_wjira">WJIRA 업데이트</label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="wjira-updated">
+        <span>OK</span>
+      </label>
+    </div>
+
+  </form>
+
+  <!-- ─── 하단 버튼 ─────────────────────────────────────────────────────── -->
+  <div class="form-actions">
+    <button id="btn-cancel" class="btn btn-ghost" data-i18n="btn_cancel">취소</button>
+    <button id="btn-save" class="btn btn-primary" data-i18n="btn_save">저장</button>
+  </div>
+</main>
+
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script src="js/detail.js"></script>
+</body>
+</html>

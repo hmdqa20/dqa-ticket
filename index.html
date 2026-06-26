@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DQA Ticket Manager</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ─── 상단 바 ─────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <h1 class="app-title" data-i18n="app_title">DQA Ticket Manager</h1>
+  <div class="topbar-right">
+    <div class="lang-switcher">
+      <button class="lang-btn" data-lang="ko" onclick="setLang('ko')">KO</button>
+      <button class="lang-btn" data-lang="jp" onclick="setLang('jp')">JP</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" data-lang="vi" onclick="setLang('vi')">VI</button>
+    </div>
+    <input id="search-input" type="text" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="검색...">
+    <button id="btn-new" class="btn btn-primary" data-i18n="new_ticket">+ 새 티켓</button>
+  </div>
+</header>
+
+<!-- ─── 로딩 스피너 ────────────────────────────────────────────────────── -->
+<div id="loading" class="loading-overlay" style="display:none">
+  <div class="spinner"></div>
+</div>
+
+<!-- ─── 에러 메시지 ────────────────────────────────────────────────────── -->
+<div id="error-msg" class="error-msg" style="display:none">
+  <span class="error-text"></span>
+  <button class="btn btn-secondary" onclick="loadTickets()" data-i18n="btn_retry">재시도</button>
+</div>
+
+<!-- ─── 메인 콘텐츠 ────────────────────────────────────────────────────── -->
+<main class="main-content">
+
+  <!-- 섹션 1: 활성 WW -->
+  <section class="ticket-section section-ww">
+    <div class="section-header">
+      <span>🔵</span>
+      <span data-i18n="section_activeWW">활성 - WW</span>
+      <span class="count-badge" id="count-activeWW">0</span>
+    </div>
+    <table class="ticket-table">
+      <thead>
+        <tr>
+          <th data-i18n="col_ticket_id">티켓번호</th>
+          <th data-i18n="col_title">이슈명</th>
+          <th data-i18n="col_check_version">확인버전</th>
+          <th data-i18n="col_assignee">담당자 / 우선도</th>
+          <th data-i18n="col_status">진행상태</th>
+          <th data-i18n="col_verdict">판정</th>
+          <th data-i18n="col_wjira">WJIRA 업데이트</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-activeWW"></tbody>
+    </table>
+  </section>
+
+  <!-- 섹션 2: 활성 MVN -->
+  <section class="ticket-section section-mvn">
+    <div class="section-header">
+      <span>🟢</span>
+      <span data-i18n="section_activeMVN">활성 - MVN</span>
+      <span class="count-badge" id="count-activeMVN">0</span>
+    </div>
+    <table class="ticket-table">
+      <thead>
+        <tr>
+          <th data-i18n="col_ticket_id">티켓번호</th>
+          <th data-i18n="col_title">이슈명</th>
+          <th data-i18n="col_check_version">확인버전</th>
+          <th data-i18n="col_assignee">담당자 / 우선도</th>
+          <th data-i18n="col_status">진행상태</th>
+          <th data-i18n="col_verdict">판정</th>
+          <th data-i18n="col_wjira">WJIRA 업데이트</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-activeMVN"></tbody>
+    </table>
+  </section>
+
+  <!-- 구분선 -->
+  <div class="section-divider"></div>
+
+  <!-- 섹션 3: 완료 (기본 접힘) -->
+  <section class="ticket-section section-done">
+    <div class="section-header collapsible" id="section-done-header">
+      <span class="toggle-icon" id="toggle-done">▶</span>
+      <span>⚫</span>
+      <span data-i18n="section_done">완료</span>
+      <span class="count-badge" id="count-done">0</span>
+    </div>
+    <div id="section-done-body" class="collapsed">
+      <table class="ticket-table">
+        <thead>
+          <tr>
+            <th data-i18n="col_ticket_id">티켓번호</th>
+            <th data-i18n="col_title">이슈명</th>
+            <th data-i18n="col_check_version">확인버전</th>
+            <th data-i18n="col_assignee">담당자 / 우선도</th>
+            <th data-i18n="col_status">진행상태</th>
+            <th data-i18n="col_verdict">판정</th>
+            <th data-i18n="col_wjira">WJIRA 업데이트</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-done"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 섹션 4: 보류/N/A (기본 접힘) -->
+  <section class="ticket-section section-hold">
+    <div class="section-header collapsible" id="section-hold-header">
+      <span class="toggle-icon" id="toggle-hold">▶</span>
+      <span>⚪</span>
+      <span data-i18n="section_hold">보류 / N/A</span>
+      <span class="count-badge" id="count-hold">0</span>
+    </div>
+    <div id="section-hold-body" class="collapsed">
+      <table class="ticket-table">
+        <thead>
+          <tr>
+            <th data-i18n="col_ticket_id">티켓번호</th>
+            <th data-i18n="col_title">이슈명</th>
+            <th data-i18n="col_check_version">확인버전</th>
+            <th data-i18n="col_assignee">담당자 / 우선도</th>
+            <th data-i18n="col_status">진행상태</th>
+            <th data-i18n="col_verdict">판정</th>
+            <th data-i18n="col_wjira">WJIRA 업데이트</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-hold"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script src="js/index.js"></script>
+</body>
+</html>
