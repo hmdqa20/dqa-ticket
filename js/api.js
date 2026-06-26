@@ -1,4 +1,4 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzl3UgVMiLvHaUgBXCmL0xF61xAfN1Ua5r000HJzlK9cXs7L0270JBMrf_D8RbKifwfJQ/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzUsXwJ4oOrX63HmSyScYRtzCnpUD5shGTRwwxfwg1KX_UfVdpoflcex6vvdvnlrZc0A/exec';
 
 // POST 공통 함수 — URLSearchParams로 form-encoded 전송
 async function callGAS(type, params = {}) {
@@ -8,6 +8,10 @@ async function callGAS(type, params = {}) {
     body,
     redirect: 'follow'
   });
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`GAS가 JSON이 아닌 응답을 반환했습니다 (${res.status}). 배포 설정 또는 스크립트 권한을 확인하세요.`);
+  }
   const json = await res.json();
   if (!json.success) throw new Error(json.error || '알 수 없는 오류');
   return json;

@@ -23,7 +23,15 @@ const HOLD_STATUSES   = ['보류', 'N/A'];
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getSheet() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('tickets');
+  const props = PropertiesService.getScriptProperties();
+  const ssId  = props.getProperty('SPREADSHEET_ID');
+  const ss    = ssId
+    ? SpreadsheetApp.openById(ssId)
+    : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('Spreadsheet not found. Set SPREADSHEET_ID in Script Properties.');
+  const sheet = ss.getSheetByName('tickets');
+  if (!sheet) throw new Error('Sheet "tickets" not found in the spreadsheet.');
+  return sheet;
 }
 
 function getJSTISOString() {
@@ -109,6 +117,7 @@ function doGet(e) {
 // ─── doPost router ────────────────────────────────────────────────────────────
 
 function doPost(e) {
+  Logger.log('doPost called. type=%s, params=%s', e.parameter.type, JSON.stringify(e.parameter));
   const type = e.parameter.type;
   try {
     switch (type) {
@@ -119,6 +128,7 @@ function doPost(e) {
       default: return jsonResponse({ success: false, error: 'Unknown type: ' + type });
     }
   } catch (err) {
+    Logger.log('doPost error: %s\n%s', err.message, err.stack);
     return jsonResponse({ success: false, error: err.message });
   }
 }
