@@ -17,13 +17,40 @@ async function callGAS(type, params = {}) {
   return json;
 }
 
-// 전체 티켓 조회 (doGet)
-async function getTickets() {
-  const res = await fetch(GAS_URL, { redirect: 'follow' });
+// 전체 티켓 조회 (doGet) — versionId 주면 해당 버전 티켓만
+async function getTickets(versionId) {
+  const url = versionId ? `${GAS_URL}?version_id=${encodeURIComponent(versionId)}` : GAS_URL;
+  const res = await fetch(url, { redirect: 'follow' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const json = await res.json();
   if (!json.success) throw new Error(json.error || '알 수 없는 오류');
   return json.data;
+}
+
+// 버전 목록 조회
+async function getVersions() {
+  const json = await callGAS('getVersions', {});
+  return json.versions || [];
+}
+
+// 버전 추가
+async function addVersion(versionName) {
+  return callGAS('addVersion', { version_name: versionName });
+}
+
+// 버전 수정 (version_name, sort_order, status 중 변경 필드만 전달)
+async function updateVersion(data) {
+  return callGAS('updateVersion', data);
+}
+
+// 버전 삭제 (소속 티켓 version_id 초기화)
+async function deleteVersion(versionId) {
+  return callGAS('deleteVersion', { version_id: versionId });
+}
+
+// 티켓을 다른 버전으로 이동
+async function moveTicket(rowId, targetVersionId) {
+  return callGAS('moveTicket', { row_id: rowId, target_version_id: targetVersionId });
 }
 
 // 티켓 추가
@@ -34,6 +61,16 @@ async function addTicket(data) {
 // 티켓 수정
 async function updateTicket(data) {
   return callGAS('updateTicket', data);
+}
+
+// 티켓 삭제
+async function deleteTicket(rowId) {
+  return callGAS('deleteTicket', { row_id: rowId });
+}
+
+// Drive 파일 휴지통 이동 (URL 배열)
+async function trashDriveFiles(urls) {
+  return callGAS('trashFiles', { file_urls: urls.join(',') });
 }
 
 // JIRA 이슈 조회

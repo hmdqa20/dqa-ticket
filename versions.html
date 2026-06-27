@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>버전 관리 — DQA Ticket Manager</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
+</head>
+<body>
+
+<!-- ─── 상단 바 ─────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <button id="btn-back" class="btn btn-back">← 목록</button>
+  <h1 class="app-title">버전 관리</h1>
+  <div class="lang-dropdown" style="margin-left:auto">
+    <button type="button" class="lang-dropdown-btn" id="lang-dropdown-btn"></button>
+    <div class="lang-dropdown-menu" id="lang-dropdown-menu">
+      <button type="button" class="lang-option" data-lang="ko"><span class="fi fi-kr"></span> 한국어</button>
+      <button type="button" class="lang-option" data-lang="jp"><span class="fi fi-jp"></span> 日本語</button>
+      <button type="button" class="lang-option" data-lang="en"><span class="fi fi-gb"></span> English</button>
+      <button type="button" class="lang-option" data-lang="vi"><span class="fi fi-vn"></span> Tiếng Việt</button>
+    </div>
+  </div>
+</header>
+
+<!-- ─── 로딩 오버레이 ───────────────────────────────────────────────────── -->
+<div id="loading" class="loading-overlay" style="display:none">
+  <div class="spinner"></div>
+</div>
+
+<!-- ─── 메인 ────────────────────────────────────────────────────────────── -->
+<main class="ver-main">
+
+  <!-- 버전 목록 테이블 -->
+  <section class="ver-section">
+    <div class="ver-section-header">버전 목록</div>
+    <div class="table-scroll">
+      <table class="ver-table" id="ver-table">
+        <thead>
+          <tr>
+            <th>버전명</th>
+            <th style="width:80px">티켓 수</th>
+            <th style="width:110px">생성일</th>
+            <th style="width:160px">작업</th>
+            <th style="width:80px">순서</th>
+          </tr>
+        </thead>
+        <tbody id="ver-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 새 버전 추가 폼 -->
+  <section class="ver-section ver-add-section">
+    <div class="ver-section-header">새 버전 추가</div>
+    <div class="ver-add-form">
+      <input type="text" id="new-version-name" class="ver-name-input" placeholder="예) V09.02.20" maxlength="50">
+      <button type="button" id="btn-add-ver" class="btn btn-primary">추가</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script src="js/versions.js"></script>
+</body>
+</html>

@@ -13,10 +13,21 @@ const COL = {
   WJIRA_UPDATED:    10,  // K
   STATUS_CHANGED_AT:11,  // L
   FILE_URLS:        12,  // M
-  ROW_ID:           13   // N
+  ROW_ID:           13,  // N
+  RETEST_REF:       14,  // O — 복제 원본 ticket_id
+  VERSION_ID:       15   // P — 소속 버전 탭 ID
 };
 
-const ACTIVE_STATUSES = ['진행중', '진행전'];
+// ─── versions 시트 컬럼 인덱스 (0-based) ─────────────────────────────────────
+const VCOL = {
+  VERSION_ID:   0,  // A
+  VERSION_NAME: 1,  // B
+  STATUS:       2,  // C  진행중 / 완료
+  CREATED_AT:   3,  // D
+  SORT_ORDER:   4   // E
+};
+
+const ACTIVE_STATUSES = ['진행중', '진행전', '재테스트'];
 const DONE_STATUS     = '완료';
 const HOLD_STATUSES   = ['보류', 'N/A'];
 
@@ -31,6 +42,23 @@ function getSheet() {
   if (!ss) throw new Error('Spreadsheet not found. Set SPREADSHEET_ID in Script Properties.');
   const sheet = ss.getSheetByName('tickets');
   if (!sheet) throw new Error('Sheet "tickets" not found in the spreadsheet.');
+  return sheet;
+}
+
+// versions 시트 반환 (없으면 헤더와 함께 자동 생성)
+function getVersionSheet() {
+  const props = PropertiesService.getScriptProperties();
+  const ssId  = props.getProperty('SPREADSHEET_ID');
+  const ss    = ssId
+    ? SpreadsheetApp.openById(ssId)
+    : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('Spreadsheet not found. Set SPREADSHEET_ID in Script Properties.');
+  let sheet = ss.getSheetByName('versions');
+  if (!sheet) {
+    sheet = ss.insertSheet('versions');
+    sheet.getRange(1, 1, 1, 5).setValues([['version_id', 'version_name', 'status', 'created_at', 'sort_order']]);
+    sheet.setFrozenRows(1);
+  }
   return sheet;
 }
 
@@ -59,7 +87,20 @@ function rowToObj(row) {
     wjira_updated:     String(row[COL.WJIRA_UPDATED]     || ''),
     status_changed_at: String(row[COL.STATUS_CHANGED_AT] || ''),
     file_urls:         String(row[COL.FILE_URLS]         || ''),
-    row_id:            String(row[COL.ROW_ID]            || '')
+    row_id:            String(row[COL.ROW_ID]            || ''),
+    retest_ref:        String(row[COL.RETEST_REF]        || ''),
+    version_id:        String(row[COL.VERSION_ID]        || '')
+  };
+}
+
+// versions 시트 행 → 객체
+function versionRowToObj(row) {
+  return {
+    version_id:   String(row[VCOL.VERSION_ID]   || ''),
+    version_name: String(row[VCOL.VERSION_NAME] || ''),
+    status:       String(row[VCOL.STATUS]       || '진행중'),
+    created_at:   String(row[VCOL.CREATED_AT]   || ''),
+    sort_order:   Number(row[VCOL.SORT_ORDER])  || 0
   };
 }
 
@@ -78,7 +119,10 @@ function doGet(e) {
 
     if (data.length <= 1) return jsonResponse({ success: true, data: empty });
 
-    const rows = data.slice(1).map(rowToObj).filter(r => r.row_id !== '');
+    // version_id 파라미터가 있으면 해당 버전 티켓만 (없으면 전체 — 하위 호환)
+    const versionId = e && e.parameter ? e.parameter.version_id : '';
+    let rows = data.slice(1).map(rowToObj).filter(r => r.row_id !== '');
+    if (versionId) rows = rows.filter(r => r.version_id === versionId);
 
     const activeWW  = [];
     const activeMVN = [];
@@ -123,6 +167,13 @@ function doPost(e) {
     switch (type) {
       case 'addTicket':    return addTicket(e);
       case 'updateTicket': return updateTicket(e);
+      case 'deleteTicket': return deleteTicket(e);
+      case 'trashFiles':   return trashFiles(e);
+      case 'getVersions':  return getVersions(e);
+      case 'addVersion':   return addVersion(e);
+      case 'updateVersion':return updateVersion(e);
+      case 'deleteVersion':return deleteVersion(e);
+      case 'moveTicket':   return moveTicket(e);
       case 'fetchJira':    return fetchJira(e);
       case 'uploadFile':   return uploadFile(e);
       default: return jsonResponse({ success: false, error: 'Unknown type: ' + type });
@@ -161,7 +212,9 @@ function addTicket(e) {
       p.wjira_updated || '',
       now,                                        // status_changed_at: auto-set in JST
       p.file_urls     || '',
-      rowId
+      rowId,
+      p.retest_ref    || '',
+      p.version_id    || ''
     ];
 
     sheet.appendRow(newRow);
@@ -225,13 +278,15 @@ function updateTicket(e) {
       pick('wjira_updated', COL.WJIRA_UPDATED),
       statusChanged ? getJSTISOString() : old[COL.STATUS_CHANGED_AT],
       pick('file_urls',     COL.FILE_URLS),
-      rowId
+      rowId,
+      pick('retest_ref',    COL.RETEST_REF) || '',
+      pick('version_id',    COL.VERSION_ID) || ''
     ];
 
     sheet.getRange(sheetRow, 1, 1, updatedRow.length).setValues([updatedRow]);
 
     if (movingToInactive) {
-      renumberActiveGroup(sheet, String(old[COL.ASSIGNEE] || ''));
+      renumberActiveGroup(sheet, String(old[COL.ASSIGNEE] || ''), String(old[COL.VERSION_ID] || ''));
     }
 
     return jsonResponse({ success: true });
@@ -241,9 +296,226 @@ function updateTicket(e) {
   }
 }
 
-// Re-number all active tickets in the same group (WW or MVN) from 1,
-// preserving relative order by current priority.
-function renumberActiveGroup(sheet, assignee) {
+// ─── deleteTicket ─────────────────────────────────────────────────────────────
+
+function deleteTicket(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet  = getSheet();
+    const data   = sheet.getDataRange().getValues();
+    const rowId  = e.parameter.row_id;
+
+    if (!rowId) return jsonResponse({ success: false, error: 'row_id is required' });
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][COL.ROW_ID]) === rowId) {
+        const assignee  = String(data[i][COL.ASSIGNEE]   || '');
+        const status    = String(data[i][COL.STATUS]     || '');
+        const fileUrls  = String(data[i][COL.FILE_URLS]  || '');
+        const versionId = String(data[i][COL.VERSION_ID] || '');
+
+        sheet.deleteRow(i + 1);
+
+        // Drive 첨부 파일 휴지통으로 이동
+        if (fileUrls) {
+          fileUrls.split(',').forEach(url => {
+            const m = url.trim().match(/\/d\/([^\/]+)\//);
+            if (m) {
+              try { DriveApp.getFileById(m[1]).setTrashed(true); }
+              catch (err) { Logger.log('Drive file trash failed: %s', err.message); }
+            }
+          });
+        }
+
+        if (ACTIVE_STATUSES.includes(status)) {
+          renumberActiveGroup(sheet, assignee, versionId);
+        }
+        return jsonResponse({ success: true });
+      }
+    }
+    return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── trashFiles ───────────────────────────────────────────────────────────────
+
+function trashFiles(e) {
+  const fileUrls = e.parameter.file_urls || '';
+  if (!fileUrls) return jsonResponse({ success: true });
+  fileUrls.split(',').forEach(url => {
+    const m = url.trim().match(/\/d\/([^\/]+)\//);
+    if (m) {
+      try { DriveApp.getFileById(m[1]).setTrashed(true); }
+      catch (err) { Logger.log('trashFiles: %s', err.message); }
+    }
+  });
+  return jsonResponse({ success: true });
+}
+
+// ─── getVersions ───────────────────────────────────────────────────────────────
+
+function getVersions(e) {
+  const sheet = getVersionSheet();
+  const data  = sheet.getDataRange().getValues();
+  if (data.length <= 1) return jsonResponse({ success: true, versions: [] });
+
+  const versions = data.slice(1)
+    .map(versionRowToObj)
+    .filter(v => v.version_id !== '')
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  return jsonResponse({ success: true, versions: versions });
+}
+
+// ─── addVersion ────────────────────────────────────────────────────────────────
+
+function addVersion(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getVersionSheet();
+    const p     = e.parameter;
+    const name  = (p.version_name || '').trim();
+    if (!name) return jsonResponse({ success: false, error: 'version_name is required' });
+
+    const data      = sheet.getDataRange().getValues();
+    const versionId = Utilities.getUuid();
+    const now       = getJSTISOString();
+    const status    = p.status || '진행중';
+
+    // 현재 마지막 sort_order + 1
+    let maxOrder = 0;
+    for (let i = 1; i < data.length; i++) {
+      const o = Number(data[i][VCOL.SORT_ORDER]) || 0;
+      if (o > maxOrder) maxOrder = o;
+    }
+
+    sheet.appendRow([versionId, name, status, now, maxOrder + 1]);
+    return jsonResponse({ success: true, version_id: versionId });
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── updateVersion ─────────────────────────────────────────────────────────────
+// version_name, sort_order, status 중 전달된 필드만 수정
+
+function updateVersion(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet     = getVersionSheet();
+    const data      = sheet.getDataRange().getValues();
+    const p         = e.parameter;
+    const versionId = p.version_id;
+
+    if (!versionId) return jsonResponse({ success: false, error: 'version_id is required' });
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][VCOL.VERSION_ID]) === versionId) {
+        const sheetRow = i + 1;
+        if (p.version_name !== undefined) {
+          sheet.getRange(sheetRow, VCOL.VERSION_NAME + 1).setValue(p.version_name);
+        }
+        if (p.sort_order !== undefined) {
+          sheet.getRange(sheetRow, VCOL.SORT_ORDER + 1).setValue(Number(p.sort_order));
+        }
+        if (p.status !== undefined) {
+          sheet.getRange(sheetRow, VCOL.STATUS + 1).setValue(p.status);
+        }
+        return jsonResponse({ success: true });
+      }
+    }
+    return jsonResponse({ success: false, error: 'Version not found: ' + versionId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── deleteVersion ─────────────────────────────────────────────────────────────
+// versions 시트에서 해당 행 삭제. 소속 티켓의 version_id는 빈칸으로 초기화.
+
+function deleteVersion(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const versionId = e.parameter.version_id;
+    if (!versionId) return jsonResponse({ success: false, error: 'version_id is required' });
+
+    // versions 시트에서 해당 행 삭제
+    const vSheet = getVersionSheet();
+    const vData  = vSheet.getDataRange().getValues();
+    for (let i = 1; i < vData.length; i++) {
+      if (String(vData[i][VCOL.VERSION_ID]) === versionId) {
+        vSheet.deleteRow(i + 1);
+        break;
+      }
+    }
+
+    // tickets 시트에서 해당 version_id 빈칸으로 초기화
+    const tSheet = getSheet();
+    const tData  = tSheet.getDataRange().getValues();
+    for (let i = 1; i < tData.length; i++) {
+      if (String(tData[i][COL.VERSION_ID]) === versionId) {
+        tSheet.getRange(i + 1, COL.VERSION_ID + 1).setValue('');
+      }
+    }
+
+    return jsonResponse({ success: true });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── moveTicket ────────────────────────────────────────────────────────────────
+// 티켓을 다른 버전으로 이동. 이동 후 원래 버전·새 버전 모두 실시순서 재번호.
+
+function moveTicket(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet    = getSheet();
+    const data     = sheet.getDataRange().getValues();
+    const rowId    = e.parameter.row_id;
+    const targetId = e.parameter.target_version_id || '';
+
+    if (!rowId) return jsonResponse({ success: false, error: 'row_id is required' });
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][COL.ROW_ID]) === rowId) {
+        const assignee  = String(data[i][COL.ASSIGNEE]   || '');
+        const status    = String(data[i][COL.STATUS]     || '');
+        const oldVerId  = String(data[i][COL.VERSION_ID] || '');
+        const sheetRow  = i + 1;
+
+        if (oldVerId === targetId) return jsonResponse({ success: true }); // 변경 없음
+
+        // 버전 변경 + 활성 티켓이면 새 버전 그룹 맨 뒤로 보내기 위해 큰 값 부여
+        sheet.getRange(sheetRow, COL.VERSION_ID + 1).setValue(targetId);
+        if (ACTIVE_STATUSES.includes(status)) {
+          sheet.getRange(sheetRow, COL.PRIORITY + 1).setValue(9999);
+        }
+
+        // 원래 버전·새 버전 모두 재번호 (같은 assignee 그룹 기준)
+        renumberActiveGroup(sheet, assignee, oldVerId);
+        renumberActiveGroup(sheet, assignee, targetId);
+
+        return jsonResponse({ success: true });
+      }
+    }
+    return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// 같은 그룹(WW 또는 MVN)의 활성 티켓 실시순서를 1부터 다시 매김.
+// 현재 priority 순서를 유지. versionId가 주어지면 해당 버전 내에서만 매김.
+function renumberActiveGroup(sheet, assignee, versionId) {
   const data   = sheet.getDataRange().getValues();
   const isMVN  = assignee === 'MVN';
   const active = [];
@@ -252,9 +524,11 @@ function renumberActiveGroup(sheet, assignee) {
     const row         = data[i];
     const rowStatus   = String(row[COL.STATUS]   || '');
     const rowAssignee = String(row[COL.ASSIGNEE] || '');
+    const rowVersion  = String(row[COL.VERSION_ID] || '');
     const sameGroup   = isMVN ? rowAssignee === 'MVN' : rowAssignee !== 'MVN';
+    const sameVersion = versionId === undefined || rowVersion === versionId;
 
-    if (ACTIVE_STATUSES.includes(rowStatus) && sameGroup) {
+    if (ACTIVE_STATUSES.includes(rowStatus) && sameGroup && sameVersion) {
       active.push({ sheetRow: i + 1, priority: Number(row[COL.PRIORITY]) || 999 });
     }
   }
@@ -350,8 +624,23 @@ function setupInitialHeaders() {
     'ticket_id', 'created_date', 'title', 'check_version',
     'assignee', 'priority', 'status', 'verdict',
     'check_content', 'note', 'wjira_updated', 'status_changed_at',
-    'file_urls', 'row_id'
+    'file_urls', 'row_id', 'retest_ref', 'version_id'
   ];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.setFrozenRows(1);
+
+  // versions 시트도 함께 생성
+  setupVersionHeaders();
+}
+
+// ─── versions 시트 헤더 생성 (수동 1회 실행) ──────────────────────────────────
+
+function setupVersionHeaders() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('versions');
+  if (!sheet) sheet = ss.insertSheet('versions');
+
+  const headers = ['version_id', 'version_name', 'status', 'created_at', 'sort_order'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.setFrozenRows(1);
 }
