@@ -1,4 +1,4 @@
-// 수정: 2026-06-28 12:30 — renumberActiveGroup 전 SpreadsheetApp.flush() 추가 (재번호 버그 수정)
+// 수정: 2026-06-28 14:00 — 실시순서 로직 전면 재작성: renumberActiveGroup 제거, cascade 프론트엔드 위임
 // 수정: 2026-06-28 10:00 — doGet에 versions 포함, API 호출 2회→1회 감소
 // ─── Column indices (0-based for array access) ───────────────────────────────
 const COL = {
@@ -293,12 +293,6 @@ function updateTicket(e) {
 
     sheet.getRange(sheetRow, 1, 1, updatedRow.length).setValues([updatedRow]);
 
-    if (movingToInactive) {
-      // GAS가 setValues를 버퍼링하므로 flush 후 재번호 → 이동된 티켓이 비활성으로 반영된 상태에서 읽음
-      SpreadsheetApp.flush();
-      renumberActiveGroup(sheet, String(old[COL.ASSIGNEE] || ''), String(old[COL.VERSION_ID] || ''));
-    }
-
     return jsonResponse({ success: true });
 
   } finally {
@@ -338,10 +332,6 @@ function deleteTicket(e) {
           });
         }
 
-        if (ACTIVE_STATUSES.includes(status)) {
-          SpreadsheetApp.flush(); // deleteRow 반영 후 재번호
-          renumberActiveGroup(sheet, assignee, versionId);
-        }
         return jsonResponse({ success: true });
       }
     }
@@ -483,7 +473,7 @@ function deleteVersion(e) {
 }
 
 // ─── moveTicket ────────────────────────────────────────────────────────────────
-// 티켓을 다른 버전으로 이동. 이동 후 원래 버전·새 버전 모두 실시순서 재번호.
+// 티켓을 다른 버전으로 이동. 활성 티켓이면 priority 초기화 (새 버전에서 사용자가 직접 지정).
 
 function moveTicket(e) {
   const lock = LockService.getScriptLock();
@@ -505,16 +495,11 @@ function moveTicket(e) {
 
         if (oldVerId === targetId) return jsonResponse({ success: true }); // 변경 없음
 
-        // 버전 변경 + 활성 티켓이면 새 버전 그룹 맨 뒤로 보내기 위해 큰 값 부여
+        // 버전 변경. 활성 티켓이면 priority 초기화 (새 버전에서 사용자가 직접 지정).
         sheet.getRange(sheetRow, COL.VERSION_ID + 1).setValue(targetId);
         if (ACTIVE_STATUSES.includes(status)) {
-          sheet.getRange(sheetRow, COL.PRIORITY + 1).setValue(9999);
+          sheet.getRange(sheetRow, COL.PRIORITY + 1).setValue('');
         }
-
-        // 원래 버전·새 버전 모두 재번호 (같은 assignee 그룹 기준)
-        SpreadsheetApp.flush(); // setValue 버퍼 반영 후 재번호
-        renumberActiveGroup(sheet, assignee, oldVerId);
-        renumberActiveGroup(sheet, assignee, targetId);
 
         return jsonResponse({ success: true });
       }
@@ -523,32 +508,6 @@ function moveTicket(e) {
   } finally {
     lock.releaseLock();
   }
-}
-
-// 같은 그룹(WW 또는 MVN)의 활성 티켓 실시순서를 1부터 다시 매김.
-// 현재 priority 순서를 유지. versionId가 주어지면 해당 버전 내에서만 매김.
-function renumberActiveGroup(sheet, assignee, versionId) {
-  const data   = sheet.getDataRange().getValues();
-  const isMVN  = assignee === 'MVN';
-  const active = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row         = data[i];
-    const rowStatus   = String(row[COL.STATUS]   || '');
-    const rowAssignee = String(row[COL.ASSIGNEE] || '');
-    const rowVersion  = String(row[COL.VERSION_ID] || '');
-    const sameGroup   = isMVN ? rowAssignee === 'MVN' : rowAssignee !== 'MVN';
-    const sameVersion = versionId === undefined || rowVersion === versionId;
-
-    if (ACTIVE_STATUSES.includes(rowStatus) && sameGroup && sameVersion) {
-      active.push({ sheetRow: i + 1, priority: Number(row[COL.PRIORITY]) || 999 });
-    }
-  }
-
-  active.sort((a, b) => a.priority - b.priority);
-  active.forEach((item, idx) => {
-    sheet.getRange(item.sheetRow, COL.PRIORITY + 1).setValue(idx + 1);
-  });
 }
 
 // ─── fetchJira ────────────────────────────────────────────────────────────────

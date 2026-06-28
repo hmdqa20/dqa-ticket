@@ -2,7 +2,7 @@
 
 ## 현재 버전
 
-**v0.2.0** (2026-06-28)
+**v0.3.0** (2026-06-28)
 
 ## 버전 관리 규칙 (SemVer)
 
@@ -192,6 +192,7 @@
 
 | 날짜 | 변경 내용 |
 |------|-----------|
+| 2026-06-28 | 실시순서 로직 전면 재작성: Rule1(그룹+버전 max+1), Rule4(연속 cascade), renumberActiveGroup 제거 |
 | 2026-06-28 | detail.js loadTicket data 미정의 버그 수정, GAS renumber 전 flush 추가 (재번호 버그 수정) |
 | 2026-06-28 | th overflow:hidden 추가로 항상 가로 스크롤 버그 수정, min-width 800px, WJIRA 레이블 단축 |
 | 2026-06-28 | 메인 콘텐츠 max-width/margin 제거, padding 축소, 테이블 min-width 750px, 전체 폭 채움 |

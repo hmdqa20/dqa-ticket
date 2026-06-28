@@ -1,4 +1,4 @@
-// 수정: 2026-06-28 12:00 — WJIRA 헤더 레이블 단축, 항상 가로 스크롤 버그 수정
+// 수정: 2026-06-28 14:00 — 실시순서 Rule4: 같은 그룹+버전 필터, 연속된 번호만 cascade (빈칸에서 중지)
 // 수정: 2026-06-28 10:00 — loadVersions 제거, loadTickets에서 versions 포함 처리
 // 티켓 데이터 캐시
 let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
@@ -432,30 +432,30 @@ async function handleInlineChange(e) {
   }
   if (!ticket) return;
 
-  // ── 실시순서: 중복 확인 + 캐스케이드 밀기 ─────────────────────────────────
+  // ── 실시순서: 같은 그룹+버전 기준 중복 확인 + 연속된 번호만 cascade (Rule 4) ──
   if (field === 'priority') {
     const prevValue = String(ticket.priority ?? '');
     if (value === prevValue) return; // 변경 없음
 
     if (value !== '') {
-      const activeAll = [...allTickets.activeWW, ...allTickets.activeMVN];
-      const conflict = activeAll.find(tk => tk.row_id !== rowId && String(tk.priority) === value);
+      // 같은 그룹(WW/MVN) + 같은 버전 티켓만 대상
+      const isMVN = ticket.assignee === 'MVN';
+      const sameGroup = isMVN ? allTickets.activeMVN : allTickets.activeWW;
+      const ticketVersionId = ticket.version_id || '';
+      const sameScopeTickets = sameGroup.filter(tk => tk.version_id === ticketVersionId);
+
+      const conflict = sameScopeTickets.find(tk => tk.row_id !== rowId && String(tk.priority) === value);
 
       if (conflict) {
-        const msg = `${conflict.ticket_id} 티켓이 이미 ${value}순서로 배정되어 있습니다.\n\n확인하면 ${value}순서부터 기존 항목들이 뒤로 한 칸씩 밀립니다.`;
+        const msg = `${conflict.ticket_id} 티켓이 이미 ${value}순서로 배정되어 있습니다.\n확인하면 ${value}순서부터 연속된 항목들이 뒤로 한 칸씩 밀립니다.`;
         const ok = isCascadeSkippedToday() || await confirmCascade(msg);
         if (!ok) {
           el.value = prevValue;
           return;
         }
-        // 내림차순으로 처리해 연쇄 충돌 방지
-        activeAll
-          .filter(tk => tk.row_id !== rowId && Number(tk.priority) >= Number(value))
-          .sort((a, b) => Number(b.priority) - Number(a.priority))
-          .forEach(tk => {
-            tk.priority = String(Number(tk.priority) + 1);
-            updateTicket({ row_id: tk.row_id, priority: tk.priority }).catch(console.error);
-          });
+        // 연속된 번호만 밀기 (빈칸에서 중지)
+        const changed = cascadeShift(sameScopeTickets, Number(value), rowId);
+        changed.forEach(tk => updateTicket({ row_id: tk.row_id, priority: tk.priority }).catch(console.error));
       }
     }
 

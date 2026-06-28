@@ -350,3 +350,42 @@ function confirmCascade(msg) {
     cancelBtn.addEventListener('click', onCancel);
   });
 }
+
+// ─── 실시순서 cascade 공용 유틸 ────────────────────────────────────────────────
+
+// 연속된 번호만 +1씩 밀기. tickets 배열 내 객체를 직접 수정하고 변경된 티켓 반환.
+// fromPriority부터 연속된 번호(빈칸 없이 이어지는 번호)만 밀기; 빈칸에서 중지.
+function cascadeShift(tickets, fromPriority, excludeRowId) {
+  const occupiedSet = new Set(
+    tickets
+      .filter(tk => tk.row_id !== excludeRowId && Number(tk.priority) > 0)
+      .map(tk => Number(tk.priority))
+  );
+  const toShift = [];
+  let cur = Number(fromPriority);
+  while (occupiedSet.has(cur)) { toShift.push(cur); cur++; }
+
+  const changed = [];
+  toShift.reverse().forEach(p => {
+    const tk = tickets.find(t => t.row_id !== excludeRowId && Number(t.priority) === p);
+    if (tk) { tk.priority = String(p + 1); changed.push(tk); }
+  });
+  return changed;
+}
+
+// 메모리 변경 없이 cascade 적용 결과를 [{row_id, priority}, ...] 형태로 반환.
+function computeCascadeUpdates(tickets, fromPriority, excludeRowId) {
+  const priorityMap = new Map(
+    tickets
+      .filter(tk => tk.row_id !== excludeRowId && Number(tk.priority) > 0)
+      .map(tk => [Number(tk.priority), tk])
+  );
+  const toShift = [];
+  let cur = Number(fromPriority);
+  while (priorityMap.has(cur)) { toShift.push(cur); cur++; }
+
+  return toShift.reverse().map(p => {
+    const tk = priorityMap.get(p);
+    return tk ? { row_id: tk.row_id, priority: String(p + 1) } : null;
+  }).filter(Boolean);
+}
