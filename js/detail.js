@@ -1,3 +1,4 @@
+// 수정: 2026-06-28 12:30 — loadTicket data 미정의 버그 수정 (cachedAllTickets로 통일)
 // 수정: 2026-06-28 10:00 — API 1회 호출로 통합, 초기 로딩 오버레이 즉시 표시
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -146,7 +147,7 @@ async function loadTicket(rowId) {
   try {
     cachedAllTickets = await getTickets();
     allVersions = cachedAllTickets.versions || [];
-    const all = [...data.activeWW, ...data.activeMVN, ...data.done, ...data.hold];
+    const all = [...cachedAllTickets.activeWW, ...cachedAllTickets.activeMVN, ...cachedAllTickets.done, ...cachedAllTickets.hold];
     currentTicket = all.find(tk => tk.row_id === rowId);
     if (!currentTicket) throw new Error('티켓을 찾을 수 없습니다: ' + rowId);
     fillForm(currentTicket);

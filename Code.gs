@@ -1,3 +1,4 @@
+// 수정: 2026-06-28 12:30 — renumberActiveGroup 전 SpreadsheetApp.flush() 추가 (재번호 버그 수정)
 // 수정: 2026-06-28 10:00 — doGet에 versions 포함, API 호출 2회→1회 감소
 // ─── Column indices (0-based for array access) ───────────────────────────────
 const COL = {
@@ -293,6 +294,8 @@ function updateTicket(e) {
     sheet.getRange(sheetRow, 1, 1, updatedRow.length).setValues([updatedRow]);
 
     if (movingToInactive) {
+      // GAS가 setValues를 버퍼링하므로 flush 후 재번호 → 이동된 티켓이 비활성으로 반영된 상태에서 읽음
+      SpreadsheetApp.flush();
       renumberActiveGroup(sheet, String(old[COL.ASSIGNEE] || ''), String(old[COL.VERSION_ID] || ''));
     }
 
@@ -336,6 +339,7 @@ function deleteTicket(e) {
         }
 
         if (ACTIVE_STATUSES.includes(status)) {
+          SpreadsheetApp.flush(); // deleteRow 반영 후 재번호
           renumberActiveGroup(sheet, assignee, versionId);
         }
         return jsonResponse({ success: true });
@@ -508,6 +512,7 @@ function moveTicket(e) {
         }
 
         // 원래 버전·새 버전 모두 재번호 (같은 assignee 그룹 기준)
+        SpreadsheetApp.flush(); // setValue 버퍼 반영 후 재번호
         renumberActiveGroup(sheet, assignee, oldVerId);
         renumberActiveGroup(sheet, assignee, targetId);
 
