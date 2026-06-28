@@ -1,3 +1,4 @@
+/* 수정: 2026-06-28 19:00 — 그룹헤더 mid 배경, 섹션별 th 색상 계열 연동, 보류&N/A */
 /* 수정: 2026-06-28 18:30 — DnD 드래그핸들 CSS 제거 (.drag-handle/.draggable-row/.priority-num) */
 /* 수정: 2026-06-28 18:00 — 헤더 행 스타일 개선: --text-secondary, 11px/500/0.04em/6px 14px */
 /* 수정: 2026-06-28 16:00 — 테이블 헤더 스타일 개선, DnD 드래그핸들 스타일 추가 */
@@ -5,13 +6,17 @@
 /* ─── CSS 변수 ───────────────────────────────────────────────────────────── */
 :root {
   --ww:          #2563eb;
-  --ww-light:    #eff6ff;
+  --ww-light:    #eff6ff;  /* WW 티켓 헤더(th) 배경 */
+  --ww-mid:      #dbeafe;  /* WW 그룹 헤더 배경 (th보다 한 단계 진함) */
   --mvn:         #16a34a;
-  --mvn-light:   #f0fdf4;
+  --mvn-light:   #f0fdf4;  /* MVN 티켓 헤더(th) 배경 */
+  --mvn-mid:     #dcfce7;  /* MVN 그룹 헤더 배경 */
   --done-color:  #6b7280;
-  --done-light:  #f9fafb;
+  --done-light:  #f9fafb;  /* 완료 티켓 헤더(th) 배경 */
+  --done-mid:    #e5e7eb;  /* 완료 그룹 헤더 배경 */
   --hold-color:  #9ca3af;
-  --hold-light:  #f3f4f6;
+  --hold-light:  #f3f4f6;  /* 보류 티켓 헤더(th) 배경 */
+  --hold-mid:    #d1d5db;  /* 보류 그룹 헤더 배경 */
   --p1:          #ef4444;
   --p2:          #f97316;
   --p3:          #22c55e;
@@ -245,21 +250,22 @@ body {
 .th-filter-wrap::after {
   content: '▼';
   font-size: 10px;
-  color: var(--muted);
+  color: inherit;  /* 섹션 th 색상 상속 */
+  opacity: 0.5;
   pointer-events: none;
   line-height: 1;
   margin-left: 2px;
 }
-.th-filter-wrap.active::after { color: var(--ww); }
+.th-filter-wrap.active::after { opacity: 1; }
 
 .th-filter-label {
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: inherit;  /* 섹션별 th 색상 상속 */
   white-space: nowrap;
   pointer-events: none;
 }
-.th-filter-wrap.active .th-filter-label { color: var(--ww); }
+.th-filter-wrap.active .th-filter-label { font-weight: 700; }
 
 .th-filter-select {
   position: absolute;
@@ -467,10 +473,11 @@ body {
   user-select: none;
 }
 
-.section-ww  .section-header { background: var(--ww-light);   border-left: 4px solid var(--ww);         }
-.section-mvn .section-header { background: var(--mvn-light);  border-left: 4px solid var(--mvn);        }
-.section-done .section-header{ background: var(--done-light); border-left: 4px solid var(--done-color); }
-.section-hold .section-header{ background: var(--hold-light); border-left: 4px solid var(--hold-color); }
+/* 그룹 헤더: mid 배경 (th보다 진해 계층감 부여) */
+.section-ww  .section-header { background: var(--ww-mid);   border-left: 4px solid var(--ww);         }
+.section-mvn .section-header { background: var(--mvn-mid);  border-left: 4px solid var(--mvn);        }
+.section-done .section-header{ background: var(--done-mid); border-left: 4px solid var(--done-color); }
+.section-hold .section-header{ background: var(--hold-mid); border-left: 4px solid var(--hold-color); }
 
 .section-header.collapsible { cursor: pointer; }
 .section-header.collapsible:hover { filter: brightness(0.96); }
@@ -529,6 +536,12 @@ body {
   letter-spacing: 0.04em;
   overflow: hidden; /* th-filter-wrap inline-flex 오버플로우가 테이블 밖으로 나가 스크롤 유발하는 것 방지 */
 }
+
+/* 섹션별 티켓 헤더(th): 그룹과 동일 계열, light 배경으로 살짝 연하게 */
+.section-ww  .ticket-table th { background: var(--ww-light);   color: var(--ww); }
+.section-mvn .ticket-table th { background: var(--mvn-light);  color: var(--mvn); }
+.section-done .ticket-table th { background: var(--done-light); color: var(--done-color); }
+.section-hold .ticket-table th { background: var(--hold-light); color: var(--muted); }
 
 .ticket-table td {
   padding: 9px 12px;
