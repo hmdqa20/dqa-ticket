@@ -1,3 +1,4 @@
+// 수정: 2026-06-28 16:00 — WJIRA 바로가기 → 티켓 바로 가기 (4개 언어)
 // 수정: 2026-06-28 15:20 — 확인내용 → 확인결과 (4개 언어)
 // 다국어 번역 테이블
 const I18N = {
@@ -51,7 +52,7 @@ const I18N = {
     status_done_opt: '완료',
     status_hold_opt: '보류',
     status_na: 'N/A',
-    btn_wjira_link: 'WJIRA 바로가기',
+    btn_wjira_link: '티켓 바로 가기',
     btn_clone: '복제',
     badge_retest: '재테스트',
     placeholder_version: '버전',
@@ -116,7 +117,7 @@ const I18N = {
     status_done_opt: '完了',
     status_hold_opt: '保留',
     status_na: 'N/A',
-    btn_wjira_link: '移動',
+    btn_wjira_link: 'チケットへ',
     btn_clone: '複製',
     badge_retest: '再テスト',
     placeholder_version: 'バージョン',
@@ -181,7 +182,7 @@ const I18N = {
     status_done_opt: 'Done',
     status_hold_opt: 'Hold',
     status_na: 'N/A',
-    btn_wjira_link: 'Go',
+    btn_wjira_link: 'Open Ticket',
     btn_clone: 'Clone',
     badge_retest: 'Retest',
     placeholder_version: 'Version',
@@ -246,7 +247,7 @@ const I18N = {
     status_done_opt: 'Hoàn thành',
     status_hold_opt: 'Tạm giữ',
     status_na: 'N/A',
-    btn_wjira_link: 'Đến trang',
+    btn_wjira_link: 'Đến vé',
     btn_clone: 'Nhân bản',
     badge_retest: 'Kiểm tra lại',
     placeholder_version: 'Phiên bản',

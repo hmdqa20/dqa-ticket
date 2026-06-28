@@ -1,3 +1,4 @@
+/* 수정: 2026-06-28 16:00 — 테이블 헤더 스타일 개선, DnD 드래그핸들 스타일 추가 */
 /* 수정: 2026-06-28 12:00 — th overflow:hidden 추가, min-width 800px */
 /* ─── CSS 변수 ───────────────────────────────────────────────────────────── */
 :root {
@@ -17,6 +18,8 @@
   --border:      #e5e7eb;
   --text:        #111827;
   --muted:       #6b7280;
+  --text-muted:  #9ca3af;  /* 테이블 헤더 텍스트: --muted보다 연해 그룹 헤더보다 하위 느낌 */
+  --surface-1:   #f1f5f9;  /* 테이블 헤더 배경: 데이터 행(흰색)과 그룹 헤더 사이 중간 톤 */
   --radius:      6px;
   --shadow:      0 1px 3px rgba(0,0,0,0.08);
   --surface-2:   #ffffff;
@@ -514,11 +517,13 @@ body {
   text-align: center;
   font-weight: 600;
   font-size: 12px;
-  color: var(--muted);
-  background: #fafafa;
+  color: var(--text-muted);
+  background: var(--surface-1);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
   vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   overflow: hidden; /* th-filter-wrap inline-flex 오버플로우가 테이블 밖으로 나가 스크롤 유발하는 것 방지 */
 }
 
@@ -657,11 +662,26 @@ body {
 .inline-select:hover { border-color: var(--border); }
 .inline-select:focus { outline: none; border-color: var(--ww); box-shadow: 0 0 0 2px #dbeafe; }
 
-/* 실시 순서 색상 */
-.order-select       { color: var(--muted); }
-.order-select.order-1 { background-color: #fee2e2; color: var(--p1); }
-.order-select.order-2 { background-color: #ffedd5; color: var(--p2); }
-.order-select.order-3 { background-color: #dcfce7; color: var(--p3); }
+/* 실시순서 — 드래그앤드롭 핸들 */
+.drag-handle {
+  display: inline-block;
+  cursor: grab;
+  color: var(--muted);
+  font-size: 15px;
+  opacity: 0.3;
+  margin-right: 5px;
+  vertical-align: middle;
+  user-select: none;
+  line-height: 1;
+}
+.draggable-row:hover .drag-handle { opacity: 0.75; }
+.draggable-row.dragging { opacity: 0.4; background: var(--ww-light) !important; }
+
+/* 실시순서 숫자 */
+.priority-num { font-size: 12px; font-weight: 700; vertical-align: middle; }
+.priority-num.order-1 { color: var(--p1); }
+.priority-num.order-2 { color: var(--p2); }
+.priority-num.order-3 { color: var(--p3); }
 
 /* 진행상태 색상 */
 .status-select.status-active  { background-color: #dbeafe; color: #1d4ed8; }

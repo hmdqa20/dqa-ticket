@@ -1,3 +1,4 @@
+// 수정: 2026-06-28 16:00 — DnD 실시순서 변경, 목록 헤더 스타일 개선
 // 수정: 2026-06-28 14:00 — 실시순서 Rule4: 같은 그룹+버전 필터, 연속된 번호만 cascade (빈칸에서 중지)
 // 수정: 2026-06-28 10:00 — loadVersions 제거, loadTickets에서 versions 포함 처리
 // 티켓 데이터 캐시
@@ -31,6 +32,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   setupVersionSidebar();
+  setupDragDrop(document.getElementById('tbody-activeWW'),  'activeWW');
+  setupDragDrop(document.getElementById('tbody-activeMVN'), 'activeMVN');
 
 
   document.getElementById('search-input').addEventListener('input', (e) => {
@@ -270,7 +273,7 @@ function renderSection(group, tickets, dimmed) {
     return;
   }
 
-  tbody.innerHTML = tickets.map(ticket => buildRow(ticket, dimmed)).join('');
+  tbody.innerHTML = tickets.map(ticket => buildRow(ticket, dimmed, group)).join('');
 
   tbody.querySelectorAll('.navigate-cell').forEach(td => {
     td.addEventListener('click', () => {
@@ -285,7 +288,7 @@ function renderSection(group, tickets, dimmed) {
 
 }
 
-function buildRow(ticket, dimmed) {
+function buildRow(ticket, dimmed, group) {
   const pri = String(ticket.priority ?? '');
   const orderClass = pri === '1' ? 'order-1' : pri === '2' ? 'order-2' : pri === '3' ? 'order-3' : '';
   const statusClass = { '진행중': 'status-active', '진행전': 'status-pending', '재테스트': 'status-retest', '완료': 'status-done', '보류': 'status-hold', 'N/A': 'status-na' }[ticket.status] || '';
@@ -293,17 +296,12 @@ function buildRow(ticket, dimmed) {
   const hasFiles = ticket.file_urls && ticket.file_urls.trim();
   const isActive = ['진행중', '진행전', '재테스트'].includes(ticket.status);
 
-  // 활성 티켓만 실시순서 드롭다운, 완료/보류는 — 표시
-  const activeCount = allTickets.activeWW.length + allTickets.activeMVN.length;
-  const maxOrder = Math.max(5, activeCount);
+  // 활성 행: 드래그 핸들 + 순서 번호, 완료/보류: — 표시
   const orderCell = isActive
-    ? (() => {
-        const opts = ['', ...Array.from({length: maxOrder}, (_, i) => String(i + 1))].map(v =>
-          `<option value="${v}"${pri === v ? ' selected' : ''}>${v || '—'}</option>`
-        ).join('');
-        return `<select class="inline-select order-select ${orderClass}" data-field="priority" data-row-id="${escHtml(ticket.row_id)}">${opts}</select>`;
-      })()
+    ? `<span class="drag-handle" title="드래그하여 순서 변경">⠿</span><span class="priority-num ${orderClass}">${pri}</span>`
     : `<span class="order-dash">—</span>`;
+
+  const rowClass = [isActive ? 'draggable-row' : '', dimmed ? 'dimmed' : ''].filter(Boolean).join(' ');
 
   const statusOptions = ['진행중', '진행전', '재테스트', '완료', '보류', 'N/A'].map(v =>
     `<option value="${v}"${ticket.status === v ? ' selected' : ''}>${statusLabel(v)}</option>`
@@ -320,7 +318,7 @@ function buildRow(ticket, dimmed) {
     .map(v => `<div class="version-line">${escHtml(v)}</div>`).join('');
 
   return `
-    <tr data-row-id="${escHtml(ticket.row_id)}" class="${dimmed ? 'dimmed' : ''}">
+    <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}"${isActive ? ' draggable="true"' : ''}>
       <td class="clip-cell">${hasFiles ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
       <td class="ticket-id-cell"><a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
       <td class="title-cell navigate-cell" title="${escHtml(ticket.title)}">${escHtml(ticket.title)}</td>
@@ -432,40 +430,6 @@ async function handleInlineChange(e) {
   }
   if (!ticket) return;
 
-  // ── 실시순서: 같은 그룹+버전 기준 중복 확인 + 연속된 번호만 cascade (Rule 4) ──
-  if (field === 'priority') {
-    const prevValue = String(ticket.priority ?? '');
-    if (value === prevValue) return; // 변경 없음
-
-    if (value !== '') {
-      // 같은 그룹(WW/MVN) + 같은 버전 티켓만 대상
-      const isMVN = ticket.assignee === 'MVN';
-      const sameGroup = isMVN ? allTickets.activeMVN : allTickets.activeWW;
-      const ticketVersionId = ticket.version_id || '';
-      const sameScopeTickets = sameGroup.filter(tk => tk.version_id === ticketVersionId);
-
-      const conflict = sameScopeTickets.find(tk => tk.row_id !== rowId && String(tk.priority) === value);
-
-      if (conflict) {
-        const msg = `${conflict.ticket_id} 티켓이 이미 ${value}순서로 배정되어 있습니다.\n확인하면 ${value}순서부터 연속된 항목들이 뒤로 한 칸씩 밀립니다.`;
-        const ok = isCascadeSkippedToday() || await confirmCascade(msg);
-        if (!ok) {
-          el.value = prevValue;
-          return;
-        }
-        // 연속된 번호만 밀기 (빈칸에서 중지)
-        const changed = cascadeShift(sameScopeTickets, Number(value), rowId);
-        changed.forEach(tk => updateTicket({ row_id: tk.row_id, priority: tk.priority }).catch(console.error));
-      }
-    }
-
-    ticket.priority = value;
-    renderAll();
-    try { await updateTicket({ row_id: rowId, priority: value }); }
-    catch (err) { alert('저장에 실패했습니다: ' + err.message); }
-    return;
-  }
-
   // ── 완료 → 재테스트: 원본 유지 + 복제 티켓 생성 (값 변경 전에 검사) ──────────
   if (field === 'status' && value === '재테스트' && ticket.status === '완료') {
     el.value = '완료'; // 셀렉트 원상복구
@@ -536,6 +500,61 @@ async function handleInlineChange(e) {
     console.error('업데이트 실패:', err);
     alert('저장에 실패했습니다: ' + err.message);
   }
+}
+
+// ─── 드래그앤드롭으로 실시순서 변경 ──────────────────────────────────────────────
+
+function setupDragDrop(tbody, group) {
+  let dragRow = null;
+
+  tbody.addEventListener('dragstart', e => {
+    const row = e.target.closest('tr.draggable-row');
+    if (!row) { e.preventDefault(); return; }
+    dragRow = row;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', row.dataset.rowId);
+    // 다음 프레임에서 dragging 클래스 추가 (즉시 추가 시 드래그 이미지가 사라져 보임 방지)
+    requestAnimationFrame(() => { if (dragRow) dragRow.classList.add('dragging'); });
+  });
+
+  tbody.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragRow) return;
+    const row = e.target.closest('tr.draggable-row');
+    if (!row || row === dragRow) return;
+    const rect = row.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) row.before(dragRow);
+    else row.after(dragRow);
+  });
+
+  tbody.addEventListener('dragenter', e => e.preventDefault());
+
+  tbody.addEventListener('dragend', async () => {
+    if (!dragRow) return;
+    dragRow.classList.remove('dragging');
+
+    // DOM 순서에서 새 priority 결정 (1부터 순번 부여)
+    const rows = [...tbody.querySelectorAll('tr.draggable-row[data-row-id]')];
+    const updates = [];
+    rows.forEach((row, idx) => {
+      const rowId = row.dataset.rowId;
+      const ticket = allTickets[group].find(tk => tk.row_id === rowId);
+      if (!ticket) return;
+      const newPri = String(idx + 1);
+      if (ticket.priority !== newPri) {
+        ticket.priority = newPri;
+        updates.push({ row_id: rowId, priority: newPri });
+      }
+    });
+
+    dragRow = null;
+    renderAll(); // priority 숫자 칩 갱신
+
+    // 변경된 항목만 GAS에 저장
+    if (updates.length) {
+      await Promise.all(updates.map(u => updateTicket(u).catch(console.error)));
+    }
+  });
 }
 
 // ─── 섹션 접기/펼치기 ─────────────────────────────────────────────────────────

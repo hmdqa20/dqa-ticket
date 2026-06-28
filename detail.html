@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <!--
-  수정: 2026-06-28 15:20 — WJIRA 바로가기 버튼 신규 모드 전용, 확인내용→확인결과
+  수정: 2026-06-28 16:00 — DnD 실시순서, 헤더 스타일, 티켓 바로 가기 버튼
 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -139,14 +139,8 @@
           </div>
           <div class="form-group">
             <label data-i18n="label_priority">실시순서</label>
-            <select id="priority">
-              <option value="">—</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
+            <!-- 목록에서 드래그로 변경, 상세/등록은 읽기전용 -->
+            <input type="text" id="priority" readonly>
           </div>
           <div class="form-group">
             <label data-i18n="label_status">진행상태</label>
