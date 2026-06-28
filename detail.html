@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <!--
-  수정: 2026-06-28 14:10 — 바로가기 버튼 레이블 "WJIRA 바로가기"로 변경
+  수정: 2026-06-28 14:20 — Row1 래퍼 제거, outer 3단 그리드에 직접 배치 (확인버전 컬럼과 정렬)
 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -57,31 +57,29 @@
 <main class="detail-main">
   <form id="ticket-form" class="ticket-form" onsubmit="return false">
 
-    <!-- Row 1: 티켓번호 | 등록날짜 | WJIRA 결과기재 -->
-    <div class="form-row-3">
-      <div class="form-group">
-        <label data-i18n="label_ticket_id">티켓번호</label>
-        <div class="ticket-id-row">
-          <div class="ticket-id-wrap" id="ticket-id-edit-wrap">
-            <span class="ticket-prefix">XAX2-</span>
-            <input type="text" id="ticket-id-num" inputmode="numeric" pattern="[0-9]+" placeholder="1234">
-          </div>
-          <span id="ticket-id-static" class="static-value" style="display:none"></span>
-          <button type="button" id="btn-wjira-link" class="btn btn-secondary" disabled data-i18n="btn_wjira_link">바로가기</button>
-          <button type="button" id="btn-fetch" class="btn btn-secondary" data-i18n="btn_fetch" style="display:none">가져오기</button>
+    <!-- Row 1: 티켓번호 | 등록날짜 | WJIRA 결과기재 (outer 3단 그리드 직접 배치) -->
+    <div class="form-group">
+      <label data-i18n="label_ticket_id">티켓번호</label>
+      <div class="ticket-id-row">
+        <div class="ticket-id-wrap" id="ticket-id-edit-wrap">
+          <span class="ticket-prefix">XAX2-</span>
+          <input type="text" id="ticket-id-num" inputmode="numeric" pattern="[0-9]+" placeholder="1234">
         </div>
+        <span id="ticket-id-static" class="static-value" style="display:none"></span>
+        <button type="button" id="btn-wjira-link" class="btn btn-secondary" disabled data-i18n="btn_wjira_link">바로가기</button>
+        <button type="button" id="btn-fetch" class="btn btn-secondary" data-i18n="btn_fetch" style="display:none">가져오기</button>
       </div>
-      <div class="form-group">
-        <label data-i18n="label_created_date">등록날짜</label>
-        <span id="created-date" class="static-value">-</span>
-      </div>
-      <div class="form-group">
-        <label data-i18n="label_wjira">WJIRA 결과기재</label>
-        <label class="checkbox-label">
-          <input type="checkbox" id="wjira-updated">
-          <span>OK</span>
-        </label>
-      </div>
+    </div>
+    <div class="form-group">
+      <label data-i18n="label_created_date">등록날짜</label>
+      <span id="created-date" class="static-value">-</span>
+    </div>
+    <div class="form-group">
+      <label data-i18n="label_wjira">WJIRA 결과기재</label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="wjira-updated">
+        <span>OK</span>
+      </label>
     </div>
 
     <!-- Row 2: 이슈명 -->

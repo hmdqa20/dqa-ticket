@@ -712,14 +712,6 @@ body {
 
 .form-group-wide { grid-column: 1 / -1; }
 
-/* Row 1: 티켓번호|등록날짜|WJIRA 3열 */
-.form-row-3 {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 22px 36px;
-  align-items: start;
-}
 
 /* 확인버전 우측 스택 (담당자·실시순서·진행상태·결과) */
 .form-group-stack {
