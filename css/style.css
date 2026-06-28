@@ -173,8 +173,8 @@ body {
 .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
 .btn-ghost:hover:not(:disabled) { background: var(--done-light); }
 
-.btn-back { background: #fef9c3; color: #713f12; border: 1px solid #fde68a; font-weight: 600; }
-.btn-back:hover:not(:disabled) { background: #fef08a; border-color: #fbbf24; }
+.btn-back { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; font-weight: 600; }
+.btn-back:hover:not(:disabled) { background: #bbf7d0; border-color: #86efac; }
 
 /* ─── 로딩 / 에러 ─────────────────────────────────────────────────────────── */
 .loading-overlay {
@@ -1091,13 +1091,50 @@ body {
 }
 
 .ver-section-header {
-  padding: 14px 20px;
+  padding: 12px 20px;
   font-weight: 700;
   font-size: 14px;
   border-bottom: 1px solid var(--border);
   background: #f8fafc;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
+
+/* 헤더 오른쪽 버튼 그룹 */
+.ver-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+/* "순서 변경됨" 노란 뱃지 */
+.ver-changed-badge {
+  font-size: 11px;
+  font-weight: 600;
+  background: #fef9c3;
+  color: #713f12;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  padding: 2px 8px;
+}
+
+/* 순서 저장 버튼 — 기본: 회색(비활성), 활성: 주황색 */
+.ver-btn-save-order {
+  background: #e2e8f0;
+  color: #94a3b8;
+  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+.ver-btn-save-order.ver-btn-save-active {
+  background: #E65C00;
+  color: #fff;
+  border-color: #c04e00;
+  cursor: pointer;
+}
+.ver-btn-save-order.ver-btn-save-active:hover { background: #c04e00; }
 
 /* 버전 목록 테이블 */
 .ver-table {
@@ -1139,33 +1176,61 @@ body {
   margin-left: 2px;
 }
 
-.ver-order-cell {
+/* 가운데 정렬 (헤더 th + 데이터 td 공용) */
+.ver-col-center { text-align: center; }
+
+.ver-name-cell   { font-weight: 500; }
+.ver-count-cell  { color: var(--muted); }
+.ver-date-cell   { color: var(--muted); font-size: 13px; }
+.ver-action-cell { white-space: nowrap; }
+
+/* 드래그 핸들 셀 */
+.ver-handle-cell {
   text-align: center;
-  white-space: nowrap;
+  width: 44px;
+  padding: 10px 8px;
 }
-.btn-ver-order {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  width: 26px;
-  height: 24px;
-  cursor: pointer;
-  font-size: 10px;
-  color: var(--muted);
-  transition: all 0.1s;
-  padding: 0;
+.ver-drag-handle {
+  font-size: 18px;
+  color: #94a3b8;
+  cursor: grab;
+  user-select: none;
+  display: inline-block;
   line-height: 1;
 }
-.btn-ver-order:hover:not(:disabled) { background: var(--ww-light); color: var(--ww); border-color: var(--ww); }
-.btn-ver-order:disabled { opacity: 0.3; cursor: not-allowed; }
-.btn-ver-up  { margin-right: 3px; }
+.ver-drag-handle:active { cursor: grabbing; }
+.ver-drag-disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
 
-.ver-name-cell { font-weight: 500; }
-.ver-name-text { }
+/* 드래그 중인 행 */
+.ver-row-dragging { opacity: 0.4; }
 
-.ver-count-cell { text-align: center; color: var(--muted); }
-.ver-date-cell  { color: var(--muted); font-size: 13px; }
-.ver-action-cell { white-space: nowrap; }
+/* 드롭 위치 인디케이터 (파란 구분선) */
+.ver-drop-above { box-shadow: inset 0 3px 0 #2563eb; }
+.ver-drop-below { box-shadow: inset 0 -3px 0 #2563eb; }
+
+/* 드롭 완료 하이라이트 (초록, 잠깐 후 제거) */
+@keyframes verRowMoved {
+  0%   { background: #EAF3DE; }
+  70%  { background: #EAF3DE; }
+  100% { background: transparent; }
+}
+.ver-row-moved td { animation: verRowMoved 1.5s ease forwards; }
+
+/* 하단 안내 문구 */
+.ver-hint {
+  margin: 0;
+  padding: 8px 20px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+.ver-hint-warn {
+  color: #c05621;
+  background: #fffbeb;
+}
 
 .ver-empty {
   text-align: center;

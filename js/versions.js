@@ -1,11 +1,15 @@
 // 버전 목록과 티켓 수를 담는 상태
-let versionList = [];      // [{version_id, version_name, status, created_at, sort_order}] — sort_order 기준 정렬 유지
+let versionList = [];      // sort_order 기준 정렬 유지
 let ticketCounts = {};     // { version_id: count }
+let originalOrder = [];    // 페이지 로드(또는 저장) 시 version_id 순서 스냅샷
+let isDirtyOrder  = false; // 드래그로 순서가 변경된 상태
+let dragSrcRow    = null;  // 현재 드래그 중인 행 참조
 
-// 정렬 상태 (페이지 메모리에서만 관리, 저장 불필요)
-let sortState = { col: null, dir: 'asc' }; // col: 'name' | 'count' | 'date' | null
+// 정렬 상태 (페이지 메모리에서만 관리, DB 저장 안 함)
+let sortState = { col: null, dir: 'asc' }; // col: 'name'|'count'|'date'|null
 
-// 페이지 진입 시 초기화
+// ─── 초기화 ──────────────────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-back').addEventListener('click', () => {
     location.href = 'index.html';
@@ -16,21 +20,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Enter') handleAdd();
   });
 
-  // 정렬 가능한 헤더 클릭 이벤트
+  // 헤더 클릭 정렬
   document.querySelectorAll('.ver-th-sortable').forEach(th => {
     th.addEventListener('click', () => {
       const col = th.dataset.col;
       if (sortState.col === col) {
-        // 같은 컬럼 재클릭 → 방향 토글
-        sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+        // 같은 컬럼 재클릭: 방향 토글, 두 번째 클릭 후 세 번째 클릭은 정렬 해제
+        if (sortState.dir === 'desc') {
+          sortState.col = null; // 정렬 해제
+        } else {
+          sortState.dir = 'desc';
+        }
       } else {
-        // 다른 컬럼 클릭 → 해당 컬럼 오름차순으로 전환
         sortState.col = col;
         sortState.dir = 'asc';
       }
       renderTable();
     });
   });
+
+  document.getElementById('btn-reset-order').addEventListener('click', handleResetOrder);
+  document.getElementById('btn-save-order').addEventListener('click', handleSaveOrder);
 
   await loadData();
 });
@@ -46,8 +56,9 @@ async function loadData() {
       getTickets()
     ]);
 
-    // versionList는 항상 sort_order 기준으로 유지 (수동 순서 이동을 위해)
-    versionList = vers;
+    // versionList는 항상 sort_order 기준 유지 (드래그 순서 이동을 위해)
+    versionList   = vers;
+    originalOrder = versionList.map(v => v.version_id);
 
     // 버전별 티켓 수 집계
     const flat = [
@@ -72,7 +83,7 @@ async function loadData() {
 
 // ─── 정렬 ─────────────────────────────────────────────────────────────────────
 
-// 현재 sortState에 따라 표시용 정렬 배열 반환 (versionList 원본은 변경하지 않음)
+// 현재 sortState에 따라 표시용 배열 반환 (versionList 원본 불변)
 function getSortedDisplay() {
   if (!sortState.col) return [...versionList];
 
@@ -94,7 +105,7 @@ function getSortedDisplay() {
   });
 }
 
-// 헤더의 정렬 아이콘(▲/▼) 갱신
+// 헤더 정렬 아이콘 갱신: 기본 ↕ (연회색) / 활성 ▲▼ (파란색)
 function updateSortHeaders() {
   document.querySelectorAll('.ver-th-sortable').forEach(th => {
     const icon = th.querySelector('.ver-sort-icon');
@@ -103,7 +114,8 @@ function updateSortHeaders() {
       icon.textContent = sortState.dir === 'asc' ? ' ▲' : ' ▼';
       th.classList.add('ver-th-active');
     } else {
-      icon.textContent = '';
+      icon.textContent = ' ↕';
+      icon.classList.add('ver-sort-default');
       th.classList.remove('ver-th-active');
     }
   });
@@ -116,21 +128,19 @@ function renderTable() {
   if (!tbody) return;
 
   updateSortHeaders();
+  updateHint();
 
   if (versionList.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="ver-empty">버전이 없습니다.</td></tr>';
     return;
   }
 
-  // 표시는 sortState 기준, 수동 순서 버튼은 versionList(sort_order) 기준
-  const displayList = getSortedDisplay();
-  tbody.innerHTML = displayList.map(v => buildRow(v)).join('');
+  // 표시 순서는 sortState 기준, 드래그 가능 여부는 정렬 상태에 따라 결정
+  const displayList  = getSortedDisplay();
+  const isSorted     = sortState.col !== null;
+  tbody.innerHTML    = displayList.map(v => buildRow(v, isSorted)).join('');
 
   // 이벤트 연결
-  tbody.querySelectorAll('.btn-ver-up').forEach(btn =>
-    btn.addEventListener('click', () => handleMoveOrder(btn.dataset.id, -1)));
-  tbody.querySelectorAll('.btn-ver-down').forEach(btn =>
-    btn.addEventListener('click', () => handleMoveOrder(btn.dataset.id, +1)));
   tbody.querySelectorAll('.btn-ver-edit').forEach(btn =>
     btn.addEventListener('click', () => handleEditStart(btn.dataset.id)));
   tbody.querySelectorAll('.btn-ver-save').forEach(btn =>
@@ -139,33 +149,177 @@ function renderTable() {
     btn.addEventListener('click', () => renderTable()));
   tbody.querySelectorAll('.btn-ver-delete').forEach(btn =>
     btn.addEventListener('click', () => handleDelete(btn.dataset.id)));
+
+  // 정렬 상태가 아닐 때만 드래그 앤 드롭 활성화
+  if (!isSorted) setupDragDrop(tbody);
 }
 
-function buildRow(v) {
+function buildRow(v, isSorted) {
   const count   = ticketCounts[v.version_id] || 0;
   const dateStr = v.created_at ? v.created_at.substring(0, 10) : '—';
 
-  // isFirst/isLast는 sort_order 기준 위치로 판단 (정렬 표시와 무관하게 수동 순서 이동을 위해)
-  const sortOrderIdx = versionList.indexOf(v);
-  const isFirst = sortOrderIdx === 0;
-  const isLast  = sortOrderIdx === versionList.length - 1;
-
   return `
-    <tr data-id="${escHtml(v.version_id)}">
+    <tr data-id="${escHtml(v.version_id)}" ${isSorted ? '' : 'draggable="true"'}>
       <td class="ver-name-cell">
         <span class="ver-name-text">${escHtml(v.version_name)}</span>
       </td>
-      <td class="ver-count-cell">${count}</td>
-      <td class="ver-date-cell">${dateStr}</td>
-      <td class="ver-action-cell">
+      <td class="ver-count-cell ver-col-center">${count}</td>
+      <td class="ver-date-cell ver-col-center">${dateStr}</td>
+      <td class="ver-action-cell ver-col-center">
         <button class="btn btn-secondary btn-sm btn-ver-edit" data-id="${escHtml(v.version_id)}">수정</button>
         <button class="btn btn-danger btn-sm btn-ver-delete" data-id="${escHtml(v.version_id)}">삭제</button>
       </td>
-      <td class="ver-order-cell">
-        <button class="btn-ver-order btn-ver-up" data-id="${escHtml(v.version_id)}" ${isFirst ? 'disabled' : ''}>▲</button>
-        <button class="btn-ver-order btn-ver-down" data-id="${escHtml(v.version_id)}" ${isLast ? 'disabled' : ''}>▼</button>
+      <td class="ver-handle-cell">
+        <span class="ver-drag-handle ${isSorted ? 'ver-drag-disabled' : ''}">⠿</span>
       </td>
     </tr>`;
+}
+
+// 하단 안내 문구 갱신 (정렬 중일 때 경고 문구로 교체)
+function updateHint() {
+  const hint = document.getElementById('ver-hint');
+  if (!hint) return;
+  if (sortState.col) {
+    hint.textContent = '⚠ 정렬 상태에서는 드래그 비활성 — 컬럼 헤더를 다시 클릭해 정렬 해제 후 드래그 가능';
+    hint.classList.add('ver-hint-warn');
+  } else {
+    hint.textContent = '⠿ 핸들을 드래그해서 순서 변경 · 헤더 클릭으로 임시 정렬 (정렬 중 드래그 비활성)';
+    hint.classList.remove('ver-hint-warn');
+  }
+}
+
+// ─── 드래그 앤 드롭 ───────────────────────────────────────────────────────────
+
+function setupDragDrop(tbody) {
+  tbody.querySelectorAll('tr[draggable]').forEach(row => {
+    row.addEventListener('dragstart', onDragStart);
+    row.addEventListener('dragend',   onDragEnd);
+  });
+  tbody.addEventListener('dragover',  onDragOver);
+  tbody.addEventListener('dragleave', onDragLeave);
+  tbody.addEventListener('drop',      onDrop);
+}
+
+function onDragStart(e) {
+  dragSrcRow = e.currentTarget;
+  dragSrcRow.classList.add('ver-row-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragSrcRow.dataset.id);
+}
+
+function onDragEnd() {
+  if (dragSrcRow) dragSrcRow.classList.remove('ver-row-dragging');
+  clearDropIndicator();
+  dragSrcRow = null;
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const targetRow = e.target.closest('tr[draggable]');
+  if (!targetRow || targetRow === dragSrcRow) return;
+
+  clearDropIndicator();
+  const rect     = targetRow.getBoundingClientRect();
+  const isBefore = e.clientY < rect.top + rect.height / 2;
+  targetRow.classList.add(isBefore ? 'ver-drop-above' : 'ver-drop-below');
+}
+
+function onDragLeave(e) {
+  const tbody = document.getElementById('ver-tbody');
+  // tbody 밖으로 나갈 때만 인디케이터 제거
+  if (!tbody.contains(e.relatedTarget)) clearDropIndicator();
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  const targetRow = e.target.closest('tr[draggable]');
+  if (!targetRow || !dragSrcRow || targetRow === dragSrcRow) {
+    clearDropIndicator();
+    return;
+  }
+
+  const tbody    = document.getElementById('ver-tbody');
+  const rect     = targetRow.getBoundingClientRect();
+  const isBefore = e.clientY < rect.top + rect.height / 2;
+
+  clearDropIndicator();
+
+  // DOM 행 이동
+  if (isBefore) {
+    tbody.insertBefore(dragSrcRow, targetRow);
+  } else {
+    tbody.insertBefore(dragSrcRow, targetRow.nextSibling);
+  }
+
+  // 이동된 행 초록 하이라이트 후 제거
+  const movedRow = dragSrcRow;
+  movedRow.classList.add('ver-row-moved');
+  setTimeout(() => movedRow.classList.remove('ver-row-moved'), 1500);
+
+  setOrderDirty(true);
+}
+
+function clearDropIndicator() {
+  document.querySelectorAll('.ver-drop-above, .ver-drop-below').forEach(el => {
+    el.classList.remove('ver-drop-above', 'ver-drop-below');
+  });
+}
+
+// ─── 순서 변경 상태 관리 ──────────────────────────────────────────────────────
+
+function setOrderDirty(dirty) {
+  isDirtyOrder = dirty;
+  const badge    = document.getElementById('ver-changed-badge');
+  const btnReset = document.getElementById('btn-reset-order');
+  const btnSave  = document.getElementById('btn-save-order');
+  if (badge)    badge.style.display = dirty ? '' : 'none';
+  if (btnReset) btnReset.disabled   = !dirty;
+  if (btnSave)  btnSave.disabled    = !dirty;
+  if (btnSave)  btnSave.classList.toggle('ver-btn-save-active', dirty);
+}
+
+// ↺ 원래대로: originalOrder 기준으로 행 재배치
+function handleResetOrder() {
+  const tbody = document.getElementById('ver-tbody');
+  originalOrder.forEach(versionId => {
+    const row = tbody.querySelector(`tr[data-id="${CSS.escape(versionId)}"]`);
+    if (row) tbody.appendChild(row);
+  });
+  setOrderDirty(false);
+}
+
+// 💾 순서 저장: 현재 DOM 행 순서 → sort_order 재계산 → DB 저장
+async function handleSaveOrder() {
+  const tbody    = document.getElementById('ver-tbody');
+  const rows     = Array.from(tbody.querySelectorAll('tr[data-id]'));
+  const newOrder = rows.map((row, idx) => ({
+    version_id: row.dataset.id,
+    sort_order: idx + 1
+  }));
+
+  showLoading(true);
+  try {
+    // 각 버전의 sort_order를 병렬로 저장
+    await Promise.all(newOrder.map(({ version_id, sort_order }) =>
+      updateVersion({ version_id, sort_order: String(sort_order) })
+    ));
+
+    // 로컬 versionList sort_order 갱신 후 재정렬
+    newOrder.forEach(({ version_id, sort_order }) => {
+      const v = versionList.find(x => x.version_id === version_id);
+      if (v) v.sort_order = sort_order;
+    });
+    versionList.sort((a, b) => a.sort_order - b.sort_order);
+
+    // originalOrder를 현재 저장된 순서로 갱신
+    originalOrder = versionList.map(v => v.version_id);
+    setOrderDirty(false);
+  } catch (err) {
+    alert('순서 저장 실패: ' + err.message);
+  } finally {
+    showLoading(false);
+  }
 }
 
 // ─── 인라인 편집 ──────────────────────────────────────────────────────────────
@@ -198,10 +352,10 @@ function handleEditStart(versionId) {
 }
 
 async function handleEditSave(versionId) {
-  const row = document.querySelector(`tr[data-id="${CSS.escape(versionId)}"]`);
+  const row   = document.querySelector(`tr[data-id="${CSS.escape(versionId)}"]`);
   if (!row) return;
 
-  const input = row.querySelector('.ver-edit-input');
+  const input   = row.querySelector('.ver-edit-input');
   const newName = input ? input.value.trim() : '';
   if (!newName) { input && input.focus(); return; }
 
@@ -218,37 +372,6 @@ async function handleEditSave(versionId) {
   }
 }
 
-// ─── 순서 이동 ────────────────────────────────────────────────────────────────
-
-async function handleMoveOrder(versionId, direction) {
-  const idx = versionList.findIndex(v => v.version_id === versionId);
-  if (idx < 0) return;
-
-  const swapIdx = idx + direction;
-  if (swapIdx < 0 || swapIdx >= versionList.length) return;
-
-  const a = versionList[idx];
-  const b = versionList[swapIdx];
-  const tmpOrder = a.sort_order;
-
-  showLoading(true);
-  try {
-    await Promise.all([
-      updateVersion({ version_id: a.version_id, sort_order: String(b.sort_order) }),
-      updateVersion({ version_id: b.version_id, sort_order: String(tmpOrder) })
-    ]);
-    // 로컬 상태 반영 후 sort_order 기준 재정렬
-    a.sort_order = b.sort_order;
-    b.sort_order = tmpOrder;
-    versionList.sort((x, y) => x.sort_order - y.sort_order);
-    renderTable();
-  } catch (err) {
-    alert('순서 변경 실패: ' + err.message);
-  } finally {
-    showLoading(false);
-  }
-}
-
 // ─── 삭제 ─────────────────────────────────────────────────────────────────────
 
 async function handleDelete(versionId) {
@@ -256,7 +379,7 @@ async function handleDelete(versionId) {
   if (!v) return;
 
   const count = ticketCounts[versionId] || 0;
-  const msg = count > 0
+  const msg   = count > 0
     ? `[${v.version_name}]을(를) 삭제하시겠습니까?\n소속 티켓 ${count}개의 버전 정보가 초기화됩니다. 티켓 자체는 유지됩니다.`
     : `[${v.version_name}]을(를) 삭제하시겠습니까?`;
 
@@ -265,9 +388,9 @@ async function handleDelete(versionId) {
   showLoading(true);
   try {
     await deleteVersion(versionId);
-    versionList = versionList.filter(x => x.version_id !== versionId);
+    versionList   = versionList.filter(x => x.version_id !== versionId);
+    originalOrder = originalOrder.filter(id => id !== versionId);
     delete ticketCounts[versionId];
-    // localStorage에 저장된 선택 버전이 삭제된 경우 초기화
     if (localStorage.getItem('dqa_current_version') === versionId) {
       localStorage.removeItem('dqa_current_version');
     }
@@ -290,7 +413,7 @@ async function handleAdd() {
   try {
     await addVersion(name);
     input.value = '';
-    await loadData(); // 목록 전체 재로드
+    await loadData();
   } catch (err) {
     alert('버전 추가 실패: ' + err.message);
   } finally {

@@ -24,7 +24,7 @@
   </div>
 </header>
 
-<!-- ─── 로딩 오버레이 (전체 화면, 스피너 + 텍스트) ──────────────────────── -->
+<!-- ─── 로딩 오버레이 (전체 화면 덮기) ──────────────────────────────────── -->
 <div id="loading" class="detail-loading-overlay" style="display:none">
   <div class="spinner"></div>
   <span class="detail-loading-text">불러오는 중...</span>
@@ -35,21 +35,29 @@
 
   <!-- 버전 목록 테이블 -->
   <section class="ver-section">
-    <div class="ver-section-header">버전 목록</div>
+    <div class="ver-section-header">
+      <span>버전 목록</span>
+      <span id="ver-changed-badge" class="ver-changed-badge" style="display:none">순서 변경됨</span>
+      <div class="ver-header-actions">
+        <button id="btn-reset-order" class="btn btn-secondary btn-sm" disabled>↺ 원래대로</button>
+        <button id="btn-save-order" class="btn btn-sm ver-btn-save-order" disabled>💾 순서 저장</button>
+      </div>
+    </div>
     <div class="table-scroll">
       <table class="ver-table" id="ver-table">
         <thead>
           <tr>
             <th class="ver-th-sortable" data-col="name">버전명<span class="ver-sort-icon"></span></th>
-            <th class="ver-th-sortable" data-col="count" style="width:80px">티켓 수<span class="ver-sort-icon"></span></th>
-            <th class="ver-th-sortable" data-col="date" style="width:110px">생성일<span class="ver-sort-icon"></span></th>
-            <th style="width:160px">작업</th>
-            <th style="width:80px">순서</th>
+            <th class="ver-th-sortable ver-col-center" data-col="count" style="width:80px">티켓 수<span class="ver-sort-icon"></span></th>
+            <th class="ver-th-sortable ver-col-center" data-col="date" style="width:110px">생성일<span class="ver-sort-icon"></span></th>
+            <th class="ver-col-center" style="width:160px">작업</th>
+            <th style="width:44px"></th>
           </tr>
         </thead>
         <tbody id="ver-tbody"></tbody>
       </table>
     </div>
+    <p class="ver-hint" id="ver-hint">⠿ 핸들을 드래그해서 순서 변경 · 헤더 클릭으로 임시 정렬 (정렬 중 드래그 비활성)</p>
   </section>
 
   <!-- 새 버전 추가 폼 -->
