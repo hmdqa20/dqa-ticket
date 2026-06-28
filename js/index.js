@@ -102,7 +102,7 @@ function buildHeaderHtml(sectionType = 'active') {
     <th>${wrap('assignee', t('col_assignee'), f.assignee, `<option value=""></option>`)}</th>
     <th>${wrap('status', t('col_status'), f.status, `<option value=""></option>${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
     <th>${wrap('verdict', t('col_verdict'), f.verdict, `<option value=""></option><option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
-    <th>${wrap('wjira', 'W.결과기재', f.wjira, `<option value=""></option><option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`)}</th>
+    <th>${wrap('wjira', 'WJIRA 결과기재', f.wjira, `<option value=""></option><option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`)}</th>
   `;
 }
 
