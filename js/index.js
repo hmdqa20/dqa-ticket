@@ -1,3 +1,4 @@
+// 수정: 2026-06-28 17:30 — 드래그 핸들 맨 오른쪽 전용 컬럼으로 이동, 핸들에서만 드래그 시작
 // 수정: 2026-06-28 16:00 — DnD 실시순서 변경, 목록 헤더 스타일 개선
 // 수정: 2026-06-28 14:00 — 실시순서 Rule4: 같은 그룹+버전 필터, 연속된 번호만 cascade (빈칸에서 중지)
 // 수정: 2026-06-28 10:00 — loadVersions 제거, loadTickets에서 versions 포함 처리
@@ -61,9 +62,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ─── 헤더 생성 ───────────────────────────────────────────────────────────────
 
-// 컬럼 너비: 클립 | 티켓번호 | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA
-// 이슈명은 테이블 min-width(950px)에서 고정 컬럼 합(684px)을 뺀 나머지를 자동 배분 (≥266px 보장)
-const COL_WIDTHS = ['24px', '110px', '', '110px', '80px', '90px', '100px', '70px', '100px'];
+// 컬럼 너비: 클립 | 티켓번호 | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA | 핸들
+const COL_WIDTHS = ['24px', '110px', '', '110px', '80px', '90px', '100px', '70px', '100px', '40px'];
 
 function buildAllHeaders() {
   [['ww', 'active'], ['mvn', 'active'], ['done', 'done'], ['hold', 'hold']].forEach(([id, type]) => {
@@ -106,6 +106,7 @@ function buildHeaderHtml(sectionType = 'active') {
     <th>${wrap('status', t('col_status'), f.status, `<option value=""></option>${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
     <th>${wrap('verdict', t('col_verdict'), f.verdict, `<option value=""></option><option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
     <th>${wrap('wjira', 'W.결과기재', f.wjira, `<option value=""></option><option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`)}</th>
+    <th></th>
   `;
 }
 
@@ -269,7 +270,7 @@ function renderSection(group, tickets, dimmed) {
   if (!tbody) return;
 
   if (tickets.length === 0) {
-    tbody.innerHTML = `<tr class="no-data"><td colspan="9">${t('no_tickets')}</td></tr>`;
+    tbody.innerHTML = `<tr class="no-data"><td colspan="10">${t('no_tickets')}</td></tr>`;
     return;
   }
 
@@ -296,9 +297,9 @@ function buildRow(ticket, dimmed, group) {
   const hasFiles = ticket.file_urls && ticket.file_urls.trim();
   const isActive = ['진행중', '진행전', '재테스트'].includes(ticket.status);
 
-  // 활성 행: 드래그 핸들 + 순서 번호, 완료/보류: — 표시
+  // 활성 행: 순서 번호 (핸들은 별도 마지막 컬럼), 완료/보류: — 표시
   const orderCell = isActive
-    ? `<span class="drag-handle" title="드래그하여 순서 변경">⠿</span><span class="priority-num ${orderClass}">${pri}</span>`
+    ? `<span class="priority-num ${orderClass}">${pri}</span>`
     : `<span class="order-dash">—</span>`;
 
   const rowClass = [isActive ? 'draggable-row' : '', dimmed ? 'dimmed' : ''].filter(Boolean).join(' ');
@@ -328,6 +329,7 @@ function buildRow(ticket, dimmed, group) {
       <td><select class="inline-select status-select ${statusClass}" data-field="status" data-row-id="${escHtml(ticket.row_id)}">${statusOptions}</select></td>
       <td><select class="inline-select verdict-select ${verdictClass}" data-field="verdict" data-row-id="${escHtml(ticket.row_id)}">${verdictOptions}</select></td>
       <td class="wjira-cell"><input type="checkbox" class="wjira-checkbox" data-field="wjira_updated" data-row-id="${escHtml(ticket.row_id)}"${wjiraChecked}></td>
+      <td class="drag-handle-cell">${isActive ? `<span class="drag-handle" title="드래그하여 순서 변경">⠿</span>` : ''}</td>
     </tr>`;
 }
 
@@ -508,6 +510,8 @@ function setupDragDrop(tbody, group) {
   let dragRow = null;
 
   tbody.addEventListener('dragstart', e => {
+    // 핸들 셀에서 시작한 드래그만 허용
+    if (!e.target.closest('.drag-handle')) { e.preventDefault(); return; }
     const row = e.target.closest('tr.draggable-row');
     if (!row) { e.preventDefault(); return; }
     dragRow = row;
