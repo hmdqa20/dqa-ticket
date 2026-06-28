@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <!--
-  수정: 2026-06-28 10:00 — 로딩 오버레이 즉시 표시, API 호출 1회로 최적화
+  수정: 2026-06-28 10:30 — 로딩 오버레이 스타일 통일 (스피너 + 텍스트)
 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,9 +45,10 @@
   </div>
 </div>
 
-<!-- ─── 로딩 스피너 ────────────────────────────────────────────────────── -->
-<div id="loading" class="loading-overlay" style="display:flex">
+<!-- ─── 로딩 오버레이 ───────────────────────────────────────────────────── -->
+<div id="loading" class="detail-loading-overlay" style="display:flex">
   <div class="spinner"></div>
+  <span class="detail-loading-text" data-i18n="loading">로딩 중...</span>
 </div>
 
 <!-- ─── 에러 메시지 ────────────────────────────────────────────────────── -->
