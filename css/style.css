@@ -1,4 +1,4 @@
-/* 수정: 2026-06-28 11:30 — 메인 콘텐츠 max-width/margin 제거, padding 축소, 테이블 min-width 750px */
+/* 수정: 2026-06-28 12:00 — th overflow:hidden 추가, min-width 800px */
 /* ─── CSS 변수 ───────────────────────────────────────────────────────────── */
 :root {
   --ww:          #2563eb;
@@ -500,7 +500,7 @@ body {
 /* ─── 테이블 ──────────────────────────────────────────────────────────────── */
 .ticket-table {
   width: 100%;
-  min-width: 750px;
+  min-width: 800px;
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
@@ -516,6 +516,7 @@ body {
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
   vertical-align: middle;
+  overflow: hidden; /* th-filter-wrap inline-flex 오버플로우가 테이블 밖으로 나가 스크롤 유발하는 것 방지 */
 }
 
 .ticket-table td {

@@ -1,4 +1,4 @@
-// 수정: 2026-06-28 11:00 — COL_WIDTHS 각 컬럼 최소 너비 조정
+// 수정: 2026-06-28 12:00 — WJIRA 헤더 레이블 단축, 항상 가로 스크롤 버그 수정
 // 수정: 2026-06-28 10:00 — loadVersions 제거, loadTickets에서 versions 포함 처리
 // 티켓 데이터 캐시
 let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
@@ -102,7 +102,7 @@ function buildHeaderHtml(sectionType = 'active') {
     <th>${wrap('assignee', t('col_assignee'), f.assignee, `<option value=""></option>`)}</th>
     <th>${wrap('status', t('col_status'), f.status, `<option value=""></option>${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
     <th>${wrap('verdict', t('col_verdict'), f.verdict, `<option value=""></option><option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
-    <th>${wrap('wjira', 'WJIRA 결과기재', f.wjira, `<option value=""></option><option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`)}</th>
+    <th>${wrap('wjira', 'W.결과기재', f.wjira, `<option value=""></option><option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`)}</th>
   `;
 }
 
