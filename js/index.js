@@ -1,3 +1,4 @@
+// 수정: 2026-06-28 11:00 — COL_WIDTHS 각 컬럼 최소 너비 조정
 // 수정: 2026-06-28 10:00 — loadVersions 제거, loadTickets에서 versions 포함 처리
 // 티켓 데이터 캐시
 let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
@@ -58,7 +59,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─── 헤더 생성 ───────────────────────────────────────────────────────────────
 
 // 컬럼 너비: 클립 | 티켓번호 | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA
-const COL_WIDTHS = ['24px', '100px', '', '110px', '80px', '110px', '105px', '80px', '130px'];
+// 이슈명은 테이블 min-width(950px)에서 고정 컬럼 합(684px)을 뺀 나머지를 자동 배분 (≥266px 보장)
+const COL_WIDTHS = ['24px', '110px', '', '110px', '80px', '90px', '100px', '70px', '100px'];
 
 function buildAllHeaders() {
   [['ww', 'active'], ['mvn', 'active'], ['done', 'done'], ['hold', 'hold']].forEach(([id, type]) => {
