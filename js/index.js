@@ -377,7 +377,7 @@ function buildRow(ticket, dimmed, group) {
       <td class="navigate-cell version-cell">${versionHtml}</td>
       <td>${orderCell}</td>
       <td class="assignee-cell">${buildAssigneeSelectHtml(ticket.assignee || '', ticket.row_id)}</td>
-      <td><select class="inline-select status-select ${statusClass}" data-field="status" data-row-id="${escHtml(ticket.row_id)}">${statusOptions}</select></td>
+      <td class="status-cell"><select class="inline-select status-select ${statusClass}" data-field="status" data-row-id="${escHtml(ticket.row_id)}">${statusOptions}</select></td>
       <td><select class="inline-select verdict-select ${verdictClass}" data-field="verdict" data-row-id="${escHtml(ticket.row_id)}">${verdictOptions}</select></td>
       <td class="wjira-cell"><input type="checkbox" class="wjira-checkbox" data-field="wjira_updated" data-row-id="${escHtml(ticket.row_id)}"${wjiraChecked}></td>
       <td class="drag-handle-cell">${isActive ? `<span class="drag-handle" title="드래그하여 순서 변경">⠿</span>` : ''}</td>
