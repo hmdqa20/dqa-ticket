@@ -755,12 +755,12 @@ body {
 .clip-cell { text-align: center; padding: 0 2px; line-height: 0; }
 
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
-.assignee-cell { white-space: nowrap; padding-left: 4px; padding-right: 4px; }
-.assignee-select { min-width: 70px; }
+.assignee-cell { white-space: nowrap; padding-left: 8px; padding-right: 8px; }
+.assignee-select { min-width: 60px; }
 
 /* 진행상태 셀: 좁은 컬럼에서 셀렉트 여백 확보 */
-.ticket-table td:has(.status-select) { padding-left: 4px; padding-right: 4px; }
-.status-select { min-width: 80px; }
+.ticket-table td:has(.status-select) { padding-left: 8px; padding-right: 8px; }
+.status-select { min-width: 70px; }
 
 /* ─── WJIRA 체크박스 셀 ────────────────────────────────────────────────────── */
 .wjira-cell { text-align: center; }
