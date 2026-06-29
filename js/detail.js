@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 티켓 편집 잠금 기능 추가 (lockTicket/unlockTicket, 읽기전용 모드, beforeunload 해제)
 // 수정: 2026-06-28 17:00 — btn-wjira-link 완전 제거 (HTML/JS), ticket-id-wrap flex:1
 // 수정: 2026-06-28 16:00 — 실시순서 readonly input으로 변경 (목록 DnD 전용)
 // 수정: 2026-06-28 15:20 — 수정 모드에서 WJIRA 바로가기 버튼 숨기기
@@ -16,6 +17,8 @@ let cachedAllTickets = null;
 let isDirty = false;
 let currentVersionId = '';  // 신규 등록 시 소속 버전 (URL 파라미터)
 let allVersions = [];       // 전체 버전 목록 (드롭다운용)
+let currentRowId = '';      // 편집 중인 티켓 row_id (잠금 관리용)
+let isReadOnly = false;     // 읽기전용 모드 (다른 사용자가 편집 중)
 
 function markDirty() { isDirty = true; }
 function resetDirty() { isDirty = false; }
@@ -23,6 +26,29 @@ function resetDirty() { isDirty = false; }
 function confirmLeave() {
   if (!isDirty && pendingFiles.length === 0) return true;
   return confirm('저장하지 않은 변경 사항이 있습니다. 페이지를 떠나시겠습니까?');
+}
+
+// beforeunload 시 잠금 해제 (sendBeacon = 페이지 언로드 중에도 전송 보장)
+function handleLockBeforeUnload() {
+  if (currentRowId && !isReadOnly) {
+    navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
+  }
+}
+
+// 읽기전용 모드 진입: 배너 표시 + 폼 비활성화 + 저장/삭제 버튼 숨김
+function enterReadOnlyMode() {
+  isReadOnly = true;
+  const banner = document.getElementById('lock-banner');
+  if (banner) banner.style.display = '';
+  document.querySelectorAll('#ticket-form input, #ticket-form select, #ticket-form textarea').forEach(el => {
+    el.disabled = true;
+  });
+  const saveTop  = document.getElementById('btn-save-top');
+  const saveCont = document.getElementById('btn-save-continue');
+  const delBtn   = document.getElementById('btn-delete');
+  if (saveTop)  saveTop.style.display  = 'none';
+  if (saveCont) saveCont.style.display = 'none';
+  if (delBtn)   delBtn.style.display   = 'none';
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -65,9 +91,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 저장 후 목록으로 / 저장 후 계속 등록
   document.getElementById('btn-save-top').addEventListener('click',      () => handleSave(false));
   document.getElementById('btn-save-continue').addEventListener('click', () => handleSave(true));
-  const navigateToList = () => { resetDirty(); pendingFiles = []; location.href = 'index.html'; };
-  document.getElementById('btn-cancel-top').addEventListener('click', () => { if (confirmLeave()) navigateToList(); });
-  document.getElementById('btn-back').addEventListener('click',       () => { if (confirmLeave()) navigateToList(); });
+  const navigateToList = async () => {
+    resetDirty();
+    pendingFiles = [];
+    if (currentRowId && !isReadOnly) {
+      window.removeEventListener('beforeunload', handleLockBeforeUnload);
+      try { await unlockTicket(currentRowId); } catch (_) {}
+    }
+    location.href = 'index.html';
+  };
+  document.getElementById('btn-cancel-top').addEventListener('click', async () => { if (confirmLeave()) await navigateToList(); });
+  document.getElementById('btn-back').addEventListener('click',       async () => { if (confirmLeave()) await navigateToList(); });
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
 
   // 폼 변경 감지
@@ -148,6 +182,18 @@ async function loadTicket(rowId) {
     fillForm(currentTicket);
     renderVersionSelect(currentTicket.version_id || '');
     document.getElementById('btn-delete').style.display = '';
+    // 편집 잠금 시도
+    currentRowId = rowId;
+    try {
+      const lockResult = await lockTicket(rowId);
+      if (lockResult.locked) {
+        enterReadOnlyMode();
+      } else {
+        window.addEventListener('beforeunload', handleLockBeforeUnload);
+      }
+    } catch (_) {
+      // 잠금 API 오류 시 무시 (편집 계속 허용)
+    }
   } catch (err) {
     alert(err.message);
     location.href = 'index.html';
@@ -426,6 +472,10 @@ async function handleDelete() {
   setDeletingState(true);
   try {
     await deleteTicket(currentTicket.row_id);
+    if (currentRowId && !isReadOnly) {
+      window.removeEventListener('beforeunload', handleLockBeforeUnload);
+      try { await unlockTicket(currentRowId); } catch (_) {}
+    }
     resetDirty();
     location.href = 'index.html';
   } catch (err) {
@@ -498,7 +548,11 @@ async function handleSave(continueAfterSave = false) {
       // 저장 후 계속 등록: 폼 초기화 + 실시순서 +1
       resetFormForContinue(savedFormData);
     } else {
-      // 저장 후 목록으로
+      // 저장 후 목록으로 (잠금 해제 후 이동)
+      if (currentRowId && !isReadOnly) {
+        window.removeEventListener('beforeunload', handleLockBeforeUnload);
+        try { await unlockTicket(currentRowId); } catch (_) {}
+      }
       location.href = 'index.html';
     }
   } catch (err) {

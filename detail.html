@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <!--
-  수정: 2026-06-28 17:00 — 티켓번호 칸 flex:1 적용, btn-wjira-link 제거, vi 확인결과 fix
+  수정: 2026-06-29 — 편집 잠금 배너(lock-banner) 추가
 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -51,6 +51,11 @@
 <div id="detail-loading" class="detail-loading-overlay" style="display:flex">
   <div class="spinner"></div>
   <span class="detail-loading-text" data-i18n="loading">로딩 중...</span>
+</div>
+
+<!-- ─── 편집 잠금 배너 (다른 사용자가 편집 중일 때 표시) ──────────────── -->
+<div id="lock-banner" class="lock-banner" style="display:none">
+  🔒 현재 다른 사람이 편집 중입니다. 읽기전용으로 열려 있습니다.
 </div>
 
 <!-- ─── 폼 ──────────────────────────────────────────────────────────────── -->

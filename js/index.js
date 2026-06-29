@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 편집 잠금 중인 티켓에 🔒 아이콘 표시 (buildRow)
 // 수정: 2026-06-29 — 진행중 상태 변경 시 row-active 클래스 동적 반영
 // 수정: 2026-06-29 — 진행중 행 강조 스타일 추가 (연노랑 배경 + 앰버 왼쪽 보더)
 // 수정: 2026-06-28 20:00 — WJIRA 헤더 레이블 → 'WJIRA' + 빨간 물음표 아이콘(툴팁)
@@ -349,7 +350,7 @@ function buildRow(ticket, dimmed) {
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" class="${dimmed ? 'dimmed' : ticket.status === '진행중' ? 'row-active' : ''}">
       <td class="clip-cell">${hasFiles ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
-      <td class="ticket-id-cell"><a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
+      <td class="ticket-id-cell">${!!ticket.locked_at && (Date.now() - new Date(ticket.locked_at).getTime()) < 30 * 60 * 1000 ? '<span class="lock-icon" title="편집 중">🔒</span>' : ''}<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
       <td class="title-cell navigate-cell" title="${escHtml(ticket.title)}">${escHtml(ticket.title)}</td>
       <td class="navigate-cell version-cell">${versionHtml}</td>
       <td>${orderCell}</td>

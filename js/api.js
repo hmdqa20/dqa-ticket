@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — lockTicket / unlockTicket / checkLock 추가
 // 수정: 2026-06-28 10:00 — getTickets() versions 포함 반환, getVersions() 별도 호출 불필요
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzzUsXwJ4oOrX63HmSyScYRtzCnpUD5shGTRwwxfwg1KX_UfVdpoflcex6vvdvnlrZc0A/exec';
 
@@ -77,6 +78,21 @@ async function trashDriveFiles(urls) {
 // JIRA 이슈 조회
 async function fetchJira(ticketId) {
   return callGAS('fetchJira', { ticketId });
+}
+
+// 티켓 편집 잠금 (locked: true = 이미 잠김, false = 잠금 성공)
+async function lockTicket(rowId) {
+  return callGAS('lockTicket', { row_id: rowId });
+}
+
+// 티켓 편집 잠금 해제
+async function unlockTicket(rowId) {
+  return callGAS('unlockTicket', { row_id: rowId });
+}
+
+// 티켓 잠금 상태 확인
+async function checkLock(rowId) {
+  return callGAS('checkLock', { row_id: rowId });
 }
 
 // 파일 업로드 — File 객체를 받아 base64로 변환 후 전송

@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 티켓 편집 잠금 기능 추가 (LOCKED_AT, lockTicket/unlockTicket/checkLock)
 // 수정: 2026-06-28 14:00 — 실시순서 로직 전면 재작성: renumberActiveGroup 제거, cascade 프론트엔드 위임
 // 수정: 2026-06-28 10:00 — doGet에 versions 포함, API 호출 2회→1회 감소
 // ─── Column indices (0-based for array access) ───────────────────────────────
@@ -17,7 +18,8 @@ const COL = {
   FILE_URLS:        12,  // M
   ROW_ID:           13,  // N
   RETEST_REF:       14,  // O — 복제 원본 ticket_id
-  VERSION_ID:       15   // P — 소속 버전 탭 ID
+  VERSION_ID:       15,  // P — 소속 버전 탭 ID
+  LOCKED_AT:        16   // Q — 편집 잠금 시각 (JST ISO)
 };
 
 // ─── versions 시트 컬럼 인덱스 (0-based) ─────────────────────────────────────
@@ -91,7 +93,8 @@ function rowToObj(row) {
     file_urls:         String(row[COL.FILE_URLS]         || ''),
     row_id:            String(row[COL.ROW_ID]            || ''),
     retest_ref:        String(row[COL.RETEST_REF]        || ''),
-    version_id:        String(row[COL.VERSION_ID]        || '')
+    version_id:        String(row[COL.VERSION_ID]        || ''),
+    locked_at:         String(row[COL.LOCKED_AT]         || '')
   };
 }
 
@@ -184,6 +187,9 @@ function doPost(e) {
       case 'moveTicket':   return moveTicket(e);
       case 'fetchJira':    return fetchJira(e);
       case 'uploadFile':   return uploadFile(e);
+      case 'lockTicket':   return lockTicket(e);
+      case 'unlockTicket': return unlockTicket(e);
+      case 'checkLock':    return checkLock(e);
       default: return jsonResponse({ success: false, error: 'Unknown type: ' + type });
     }
   } catch (err) {
@@ -581,6 +587,89 @@ function uploadFile(e) {
 
   } finally {
     lock.releaseLock();
+  }
+}
+
+// ─── lockTicket ───────────────────────────────────────────────────────────────
+// 이미 30분 이내 잠긴 경우 { success: true, locked: true }
+// 잠금 성공 시            { success: true, locked: false }
+
+function lockTicket(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getSheet();
+    const data  = sheet.getDataRange().getValues();
+    const rowId = e.parameter.row_id;
+    if (!rowId) return jsonResponse({ success: false, error: 'row_id is required' });
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][COL.ROW_ID]) === rowId) {
+        const sheetRow = i + 1;
+        const lockedAt = String(data[i][COL.LOCKED_AT] || '');
+
+        if (lockedAt) {
+          const elapsed = new Date() - new Date(lockedAt);
+          if (elapsed < 30 * 60 * 1000) {
+            return jsonResponse({ success: true, locked: true });
+          }
+        }
+
+        sheet.getRange(sheetRow, COL.LOCKED_AT + 1).setValue(getJSTISOString());
+        SpreadsheetApp.flush();
+        return jsonResponse({ success: true, locked: false });
+      }
+    }
+    return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── unlockTicket ─────────────────────────────────────────────────────────────
+
+function unlockTicket(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getSheet();
+    const data  = sheet.getDataRange().getValues();
+    const rowId = e.parameter.row_id;
+    if (!rowId) return jsonResponse({ success: false, error: 'row_id is required' });
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][COL.ROW_ID]) === rowId) {
+        sheet.getRange(i + 1, COL.LOCKED_AT + 1).setValue('');
+        SpreadsheetApp.flush();
+        return jsonResponse({ success: true });
+      }
+    }
+    return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── checkLock ────────────────────────────────────────────────────────────────
+
+function checkLock(e) {
+  try {
+    const sheet = getSheet();
+    const data  = sheet.getDataRange().getValues();
+    const rowId = e.parameter.row_id;
+    if (!rowId) return jsonResponse({ success: false, error: 'row_id is required' });
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][COL.ROW_ID]) === rowId) {
+        const lockedAt = String(data[i][COL.LOCKED_AT] || '');
+        if (!lockedAt) return jsonResponse({ success: true, locked: false });
+        const elapsed = new Date() - new Date(lockedAt);
+        return jsonResponse({ success: true, locked: elapsed < 30 * 60 * 1000 });
+      }
+    }
+    return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
+  } catch (err) {
+    return jsonResponse({ success: false, error: err.message });
   }
 }
 
