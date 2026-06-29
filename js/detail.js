@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 바로가기 버튼 항상 표시 (번호 입력 전에도), href만 input 따라 업데이트
 // 수정: 2026-06-29 — btn-wjira-link 복원: 신규 모드에서 번호 입력 시 바로가기 버튼 표시
 // 수정: 2026-06-28 17:00 — btn-wjira-link 완전 제거 (HTML/JS), ticket-id-wrap flex:1
 // 수정: 2026-06-28 16:00 — 실시순서 readonly input으로 변경 (목록 DnD 전용)
@@ -115,18 +116,15 @@ async function initNewMode() {
   // 데이터 로드 완료 후 로딩 오버레이 제거
   document.getElementById('detail-loading').style.display = 'none';
 
-  // 바로가기 버튼: 신규 모드에서 번호 입력 시 href 업데이트
+  // 바로가기 버튼: 신규 모드에서 항상 표시, 번호 입력에 따라 href만 업데이트
   const linkBtn = document.getElementById('btn-wjira-link');
   const numInput = document.getElementById('ticket-id-num');
+  linkBtn.style.display = '';
   const updateLinkBtn = () => {
     const num = numInput.value.trim();
-    if (num) {
-      linkBtn.href = 'https://wjira.humaxdigital.com/browse/XAX2-' + num;
-      linkBtn.style.display = '';
-    } else {
-      linkBtn.href = '#';
-      linkBtn.style.display = 'none';
-    }
+    linkBtn.href = num
+      ? 'https://wjira.humaxdigital.com/browse/XAX2-' + num
+      : '#';
   };
   numInput.addEventListener('input', updateLinkBtn);
   updateLinkBtn();

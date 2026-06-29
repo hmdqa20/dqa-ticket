@@ -908,12 +908,13 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 /* 티켓번호 행 */
 .ticket-id-row {
   display: flex;
+  flex-wrap: wrap;        /* 컬럼 폭 초과 시 버튼이 아래로 줄바꿈 */
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
 }
-/* 신규/수정 모드 모두 입력란이 1fr 칸 전체를 채우도록 */
-.ticket-id-row .static-value { flex: 1; }
-.ticket-id-wrap { flex: 1; }
+/* 신규/수정 모드 모두 입력란이 가용 공간을 채우되 컬럼 밖으로 나가지 않도록 */
+.ticket-id-row .static-value { flex: 1; min-width: 0; }
+.ticket-id-wrap { flex: 1; min-width: 120px; }
 
 /* 티켓번호 접두사 + 숫자 입력 */
 .ticket-id-wrap {
