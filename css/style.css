@@ -915,13 +915,11 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 .ticket-id-row .static-value { flex: 1; min-width: 0; }
 .ticket-id-wrap { flex: 1; min-width: 0; } /* 입력란이 남은 공간 채움, 버튼에 밀려 줄어들 수 있음 */
 
-/* 바로가기 버튼: 입력란 오른쪽에 딱 붙어 표시 */
+/* 바로가기 버튼: 입력란 오른쪽에 딱 붙어 표시, 글씨 크기 기본, 패딩은 텍스트 폭에 맞게 최소화 */
 .btn-link-compact {
   flex-shrink: 0;
   white-space: nowrap;
-  font-size: 11px;
-  padding: 3px 8px;
-  line-height: 1.5;
+  padding: 5px 10px;
 }
 
 /* 티켓번호 접두사 + 숫자 입력 */
