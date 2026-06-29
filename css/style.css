@@ -1,3 +1,4 @@
+/* 수정: 2026-06-29 — 진행중 셀렉트 보색 강조 스타일 적용 */
 /* 수정: 2026-06-29 — 진행중 행 강조 스타일 추가 (연노랑 배경 + 앰버 왼쪽 보더) */
 /* 수정: 2026-06-28 20:00 — WJIRA 헤더 물음표 아이콘(.th-help-icon, .th-row) 추가 */
 /* 수정: 2026-06-28 19:30 — 헤더 필터 뱃지 UI (.th-content/.th-filter-badge/.th-filter-clear) */
@@ -757,7 +758,7 @@ body {
 .inline-select:focus { outline: none; border-color: var(--ww); box-shadow: 0 0 0 2px #dbeafe; }
 
 /* 진행상태 색상 */
-.status-select.status-active  { background-color: #dbeafe; color: #1d4ed8; }
+.status-select.status-active  { background-color: #1d4ed8; color: #fff; }
 .status-select.status-pending { background-color: #ede9fe; color: #6d28d9; }
 .status-select.status-retest  { background-color: #fed7aa; color: #9a3412; }
 .status-select.status-done    { background-color: #f3f4f6; color: #6b7280; }
