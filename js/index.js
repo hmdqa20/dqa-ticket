@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — cascadeShift 함수 누락 버그 수정 (빈칸은 밀지 않음)
 // 수정: 2026-06-29 — 맨 오른쪽 드래그 핸들 컬럼 추가, DnD 실시순서 변경 + GAS 저장
 // 수정: 2026-06-28 20:00 — WJIRA 헤더 레이블 → 'WJIRA' + 빨간 물음표 아이콘(툴팁)
 // 수정: 2026-06-28 19:30 — 헤더 필터 뱃지 버그 수정: 컬럼명 항상 유지, 활성 필터는 × 뱃지 표시
@@ -444,6 +445,29 @@ function getTicketGroup(ticket) {
 }
 
 // ─── 인라인 필드 즉시 수정 ────────────────────────────────────────────────────
+
+// cascadeShift: fromNum 번호부터 연속된 숫자만 뒤로 한 칸씩 밀기
+// - 빈칸(-) 만나면 중지 (빈칸은 버퍼, 밀지 않음)
+// - targetRowId (현재 변경 중인 티켓)는 제외
+function cascadeShift(tickets, fromNum, targetRowId) {
+  const changed = [];
+  let next = fromNum;
+  const sorted = tickets
+    .filter(tk => tk.row_id !== targetRowId && String(tk.priority) !== '')
+    .sort((a, b) => Number(a.priority) - Number(b.priority));
+
+  for (const tk of sorted) {
+    const p = Number(tk.priority);
+    if (p === next) {
+      tk.priority = String(p + 1);
+      changed.push(tk);
+      next++;
+    } else if (p > next) {
+      break; // 연속 끊김 → 중지
+    }
+  }
+  return changed;
+}
 
 async function handleInlineChange(e) {
   const el = e.target;
