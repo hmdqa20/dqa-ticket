@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 로딩 속도 개선: lockTicket+getTickets 병렬, 이탈 시 unlock을 sendBeacon(비차단)으로
 // 수정: 2026-06-29 — 편집 잠금: 읽기전용 모드 → 팝업(확인) 후 목록 이동 방식으로 변경
 // 수정: 2026-06-29 — 티켓 편집 잠금 기능 추가 (lockTicket/unlockTicket, beforeunload 해제)
 // 수정: 2026-06-28 17:00 — btn-wjira-link 완전 제거 (HTML/JS), ticket-id-wrap flex:1
@@ -33,6 +34,14 @@ function handleLockBeforeUnload() {
   if (currentRowId) {
     navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
   }
+}
+
+// 잠금 해제를 fire-and-forget(sendBeacon)로 처리 — 응답을 기다리지 않아 이동이 즉시 일어남
+function releaseLockNow() {
+  if (!currentRowId) return;
+  window.removeEventListener('beforeunload', handleLockBeforeUnload);
+  navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
+  currentRowId = '';
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -75,17 +84,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 저장 후 목록으로 / 저장 후 계속 등록
   document.getElementById('btn-save-top').addEventListener('click',      () => handleSave(false));
   document.getElementById('btn-save-continue').addEventListener('click', () => handleSave(true));
-  const navigateToList = async () => {
+  const navigateToList = () => {
     resetDirty();
     pendingFiles = [];
-    if (currentRowId) {
-      window.removeEventListener('beforeunload', handleLockBeforeUnload);
-      try { await unlockTicket(currentRowId); } catch (_) {}
-    }
+    releaseLockNow();           // 잠금 해제를 기다리지 않고 즉시 이동
     location.href = 'index.html';
   };
-  document.getElementById('btn-cancel-top').addEventListener('click', async () => { if (confirmLeave()) await navigateToList(); });
-  document.getElementById('btn-back').addEventListener('click',       async () => { if (confirmLeave()) await navigateToList(); });
+  document.getElementById('btn-cancel-top').addEventListener('click', () => { if (confirmLeave()) navigateToList(); });
+  document.getElementById('btn-back').addEventListener('click',       () => { if (confirmLeave()) navigateToList(); });
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
 
   // 폼 변경 감지
@@ -158,23 +164,25 @@ async function loadTicket(rowId) {
   document.getElementById('page-title').textContent = t('page_title_edit');
   document.getElementById('detail-loading').style.display = 'flex';
 
-  // 편집 잠금 먼저 시도 — 다른 세션이 편집 중이면 팝업 후 목록으로 (폼을 채우지 않음)
-  try {
-    const lockResult = await lockTicket(rowId);
-    if (lockResult.locked) {
-      alert('다른 사용자가 편집 중인 항목입니다.\n편집이 완료된 후 다시 시도해 주세요.');
-      location.href = 'index.html';
-      return;
-    }
+  // 잠금 시도와 티켓 조회를 동시에 시작 (왕복 1회 시간 절약)
+  const lockPromise = lockTicket(rowId).catch(() => null); // 잠금 API 오류 시 null
+  const dataPromise = getTickets();
+
+  // 잠금 결과 먼저 확인 — 다른 세션이 편집 중이면 팝업 후 목록으로 (데이터는 버림)
+  const lockResult = await lockPromise;
+  if (lockResult && lockResult.locked) {
+    alert('다른 사용자가 편집 중인 항목입니다.\n편집이 완료된 후 다시 시도해 주세요.');
+    location.href = 'index.html';
+    return;
+  }
+  if (lockResult) {
     // 잠금 획득 성공 — 이탈 시 해제하도록 등록
     currentRowId = rowId;
     window.addEventListener('beforeunload', handleLockBeforeUnload);
-  } catch (_) {
-    // 잠금 API 오류 시 무시 (편집 계속 허용)
   }
 
   try {
-    cachedAllTickets = await getTickets();
+    cachedAllTickets = await dataPromise;
     allVersions = cachedAllTickets.versions || [];
     const all = [...cachedAllTickets.activeWW, ...cachedAllTickets.activeMVN, ...cachedAllTickets.done, ...cachedAllTickets.hold];
     currentTicket = all.find(tk => tk.row_id === rowId);
@@ -460,10 +468,9 @@ async function handleDelete() {
   setDeletingState(true);
   try {
     await deleteTicket(currentTicket.row_id);
-    if (currentRowId) {
-      window.removeEventListener('beforeunload', handleLockBeforeUnload);
-      try { await unlockTicket(currentRowId); } catch (_) {}
-    }
+    // 삭제된 행이라 잠금도 사라짐 — 리스너만 정리하고 즉시 이동
+    window.removeEventListener('beforeunload', handleLockBeforeUnload);
+    currentRowId = '';
     resetDirty();
     location.href = 'index.html';
   } catch (err) {
@@ -536,11 +543,8 @@ async function handleSave(continueAfterSave = false) {
       // 저장 후 계속 등록: 폼 초기화 + 실시순서 +1
       resetFormForContinue(savedFormData);
     } else {
-      // 저장 후 목록으로 (잠금 해제 후 이동)
-      if (currentRowId) {
-        window.removeEventListener('beforeunload', handleLockBeforeUnload);
-        try { await unlockTicket(currentRowId); } catch (_) {}
-      }
+      // 저장 후 목록으로 (잠금 해제를 기다리지 않고 즉시 이동)
+      releaseLockNow();
       location.href = 'index.html';
     }
   } catch (err) {
