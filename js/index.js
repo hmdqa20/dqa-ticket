@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 실시순서 드롭다운 복구(드래그 핸들 병행), 그룹 이동 시 priority 초기화로 중복 방지
 // 수정: 2026-06-29 — 담당자/진행상태 컬럼 폭 확대(110/120px)로 셀렉트 간 간격 확보
 // 수정: 2026-06-29 — 기본 탭 최신 버전으로 변경, 컬럼 폭 조정 및 가로 스크롤 제거
 // 수정: 2026-06-29 — COL_WIDTHS 컬럼 폭 조정 (핸들 추가 후 레이아웃 균형)
@@ -345,9 +346,16 @@ function buildRow(ticket, dimmed, group) {
   const hasFiles = ticket.file_urls && ticket.file_urls.trim();
   const isActive = ['진행중', '진행전', '재테스트'].includes(ticket.status);
 
-  // 활성 행: 순서 번호 칩 (DnD로 변경), 완료/보류: — 표시
+  // 활성 행: 실시순서 드롭다운(+ 핸들 드래그로도 변경 가능), 완료/보류: — 표시
+  const activeCount = allTickets.activeWW.length + allTickets.activeMVN.length;
+  const maxOrder = Math.max(5, activeCount);
   const orderCell = isActive
-    ? `<span class="priority-num ${orderClass}">${pri}</span>`
+    ? (() => {
+        const opts = ['', ...Array.from({length: maxOrder}, (_, i) => String(i + 1))].map(v =>
+          `<option value="${v}"${pri === v ? ' selected' : ''}>${v || '—'}</option>`
+        ).join('');
+        return `<select class="inline-select order-select ${orderClass}" data-field="priority" data-row-id="${escHtml(ticket.row_id)}">${opts}</select>`;
+      })()
     : `<span class="order-dash">—</span>`;
 
   // row-active(진행중 강조) + draggable-row(DnD 대상) + dimmed 조합
@@ -551,10 +559,10 @@ async function handleInlineChange(e) {
   if (field === 'status' || field === 'assignee') {
     const newGroup = getTicketGroup(ticket);
     if (newGroup !== currentGroup) {
-      // 비활성 그룹(완료/보류)으로 이동 시 실시순서 초기화
-      const toInactive = newGroup === 'done' || newGroup === 'hold';
-      if (toInactive) ticket.priority = '';
+      // 그룹 이동 시 실시순서 초기화 (그룹별 독립 관리: WW↔MVN 이동 시 중복 방지)
+      ticket.priority = '';
 
+      const toInactive = newGroup === 'done' || newGroup === 'hold';
       allTickets[currentGroup] = allTickets[currentGroup].filter(tk => tk.row_id !== rowId);
       allTickets[newGroup].push(ticket);
       renderAll();
@@ -562,9 +570,7 @@ async function handleInlineChange(e) {
         userCollapsed.delete(newGroup);
       }
       try {
-        const payload = { row_id: rowId, [field]: value };
-        if (toInactive) payload.priority = '';
-        await updateTicket(payload);
+        await updateTicket({ row_id: rowId, [field]: value, priority: '' });
       } catch (err) {
         console.error('업데이트 실패:', err);
         alert('저장에 실패했습니다: ' + err.message);
