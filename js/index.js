@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 드래그 핸들 실제 동작 수정 (mousedown 시 draggable 토글, tr 고정 draggable 제거)
 // 수정: 2026-06-29 — 실시순서 드롭다운 복구(드래그 핸들 병행), 그룹 이동 시 priority 초기화로 중복 방지
 // 수정: 2026-06-29 — 담당자/진행상태 컬럼 폭 확대(110/120px)로 셀렉트 간 간격 확보
 // 수정: 2026-06-29 — 기본 탭 최신 버전으로 변경, 컬럼 폭 조정 및 가로 스크롤 제거
@@ -379,7 +380,7 @@ function buildRow(ticket, dimmed, group) {
     .map(v => `<div class="version-line">${escHtml(v)}</div>`).join('');
 
   return `
-    <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}"${isActive ? ' draggable="true"' : ''}>
+    <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
       <td class="clip-cell">${hasFiles ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
       <td class="ticket-id-cell">${!!ticket.locked_at && (Date.now() - new Date(ticket.locked_at).getTime()) < 30 * 60 * 1000 ? '<span class="lock-icon" title="편집 중">🔒</span>' : ''}<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
       <td class="title-cell navigate-cell" title="${escHtml(ticket.title)}">${escHtml(ticket.title)}</td>
@@ -606,11 +607,17 @@ async function handleInlineChange(e) {
 function setupDragDrop(tbody, group) {
   let dragRow = null;
 
-  tbody.addEventListener('dragstart', e => {
-    // 핸들 셀에서 시작한 드래그만 허용
-    if (!e.target.closest('.drag-handle')) { e.preventDefault(); return; }
+  // 핸들에 mousedown 했을 때만 해당 행을 draggable로 설정
+  // (dragstart의 e.target은 draggable 요소인 tr 자체라 핸들 판별이 불가능하므로 여기서 결정)
+  tbody.addEventListener('mousedown', e => {
     const row = e.target.closest('tr.draggable-row');
-    if (!row) { e.preventDefault(); return; }
+    if (!row) return;
+    row.draggable = !!e.target.closest('.drag-handle');
+  });
+
+  tbody.addEventListener('dragstart', e => {
+    const row = e.target.closest('tr.draggable-row');
+    if (!row || !row.draggable) { e.preventDefault(); return; }
     dragRow = row;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', row.dataset.rowId);
@@ -632,6 +639,7 @@ function setupDragDrop(tbody, group) {
   tbody.addEventListener('dragend', async () => {
     if (!dragRow) return;
     dragRow.classList.remove('dragging');
+    dragRow.draggable = false; // 드래그 종료 후 draggable 해제
 
     // DOM 순서에서 새 priority 결정 (1부터 순번 부여)
     const rows = [...tbody.querySelectorAll('tr.draggable-row[data-row-id]')];
