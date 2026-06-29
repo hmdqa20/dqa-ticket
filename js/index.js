@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 잠긴 항목 클릭 시 즉시 팝업(캐시 판단, 상세 진입 생략), 내가 푼 항목 자물쇠 억제
 // 수정: 2026-06-29 — 편집 잠금 폴링 추가 (20초 주기, 아이콘만 갱신, 비활성 탭 스킵)
 // 수정: 2026-06-29 — 드래그 드롭 위치 녹색 인디케이터 줄 추가 (drop-above/drop-below)
 // 수정: 2026-06-29 — 드래그 핸들 실제 동작 수정 (mousedown 시 draggable 토글, tr 고정 draggable 제거)
@@ -25,6 +26,22 @@ const ALL_VERSION = '__ALL__';
 // 버전 탭 상태
 let versions = [];                  // [{version_id, version_name, status, ...}]
 let currentVersionId = ALL_VERSION; // 현재 선택된 버전 (ALL_VERSION=전체)
+
+const LOCK_EXPIRE_MS = 30 * 60 * 1000;
+// 내가 방금 편집을 끝내고 돌아온 항목 — 서버가 unlock을 반영할 때까지 자물쇠 억제
+let suppressLockRowId = sessionStorage.getItem('dqa_released_row') || null;
+sessionStorage.removeItem('dqa_released_row');
+
+// 표시용 잠금 판정: 30분 이내 잠금. 단, 내가 방금 푼 항목은 서버가 풀릴 때까지 억제.
+function isLockedForDisplay(ticket) {
+  const locked = !!ticket.locked_at &&
+    (Date.now() - new Date(ticket.locked_at).getTime()) < LOCK_EXPIRE_MS;
+  if (ticket.row_id === suppressLockRowId) {
+    if (!locked) suppressLockRowId = null; // 서버가 해제 반영 → 억제 종료
+    return false;
+  }
+  return locked;
+}
 
 const PRESET_ASSIGNEES = ['정기석', '박수완', '한국', 'MVN'];
 const LEGACY_ASSIGNEES = ['박수원', '홍경두'];
@@ -333,7 +350,14 @@ function renderSection(group, tickets, dimmed) {
   tbody.querySelectorAll('.navigate-cell').forEach(td => {
     td.addEventListener('click', () => {
       const rowId = td.closest('tr').dataset.rowId;
-      if (rowId) location.href = 'detail.html?id=' + rowId;
+      if (!rowId) return;
+      // 잠긴 항목은 상세로 가지 않고 즉시 팝업 (GAS 재조회 없이 캐시로 판단)
+      const ticket = allTicketsFlat().find(tk => tk.row_id === rowId);
+      if (ticket && isLockedForDisplay(ticket)) {
+        alert('다른 사용자가 편집 중인 항목입니다.\n편집이 완료된 후 다시 시도해 주세요.');
+        return;
+      }
+      location.href = 'detail.html?id=' + rowId;
     });
   });
 
@@ -386,7 +410,7 @@ function buildRow(ticket, dimmed, group) {
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
       <td class="clip-cell">${hasFiles ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
-      <td class="ticket-id-cell">${!!ticket.locked_at && (Date.now() - new Date(ticket.locked_at).getTime()) < 30 * 60 * 1000 ? '<span class="lock-icon" title="편집 중">🔒</span>' : ''}<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
+      <td class="ticket-id-cell">${isLockedForDisplay(ticket) ? '<span class="lock-icon" title="편집 중">🔒</span>' : ''}<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
       <td class="title-cell navigate-cell" title="${escHtml(ticket.title)}">${escHtml(ticket.title)}</td>
       <td class="navigate-cell version-cell">${versionHtml}</td>
       <td>${orderCell}</td>
@@ -698,8 +722,7 @@ function setupDragDrop(tbody, group) {
 // ─── 편집 잠금 폴링 (다른 사용자의 잠금을 아이콘만 갱신) ─────────────────────────
 // 전체 재렌더 없이 .lock-icon만 추가/제거하므로 열린 드롭다운·선택·드래그를 방해하지 않음.
 
-const LOCK_POLL_MS = 20000;        // 20초 주기
-const LOCK_EXPIRE_MS = 30 * 60 * 1000;
+const LOCK_POLL_MS = 20000;        // 20초 주기 (LOCK_EXPIRE_MS는 상단에 정의됨)
 let lockPollTimer = null;
 
 function startLockPolling() {
@@ -722,17 +745,18 @@ async function refreshLockIcons() {
 
   const all = [...data.activeWW, ...data.activeMVN, ...data.done, ...data.hold];
   const lockedMap = new Map(all.map(tk => [tk.row_id, tk.locked_at]));
-  const now = Date.now();
 
   document.querySelectorAll('tr[data-row-id]').forEach(tr => {
     const rowId = tr.dataset.rowId;
     if (!lockedMap.has(rowId)) return;
     const lockedAt = lockedMap.get(rowId);
-    const isLocked = !!lockedAt && (now - new Date(lockedAt).getTime()) < LOCK_EXPIRE_MS;
 
-    // 캐시에도 반영해 두어 이후 renderAll() 시 아이콘이 되돌아가지 않게 함
+    // 캐시에 최신 locked_at 반영 (이후 renderAll/억제판정이 일관되도록)
     const cached = allTicketsFlat().find(tk => tk.row_id === rowId);
     if (cached) cached.locked_at = lockedAt || '';
+
+    // 억제 로직 포함된 표시용 판정 사용
+    const isLocked = isLockedForDisplay(cached || { row_id: rowId, locked_at: lockedAt });
 
     const cell = tr.querySelector('.ticket-id-cell');
     if (!cell) return;

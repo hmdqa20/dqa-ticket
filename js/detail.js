@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 이탈 시 '방금 해제한 항목' 힌트(sessionStorage) 전달로 목록에서 자기 자물쇠 억제
 // 수정: 2026-06-29 — 로딩 속도 개선: lockTicket+getTickets 병렬, 이탈 시 unlock을 sendBeacon(비차단)으로
 // 수정: 2026-06-29 — 편집 잠금: 읽기전용 모드 → 팝업(확인) 후 목록 이동 방식으로 변경
 // 수정: 2026-06-29 — 티켓 편집 잠금 기능 추가 (lockTicket/unlockTicket, beforeunload 해제)
@@ -41,6 +42,8 @@ function releaseLockNow() {
   if (!currentRowId) return;
   window.removeEventListener('beforeunload', handleLockBeforeUnload);
   navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
+  // 목록에 "방금 내가 해제한 항목" 힌트 전달 → 서버 반영 전까지 자기 자물쇠 억제
+  sessionStorage.setItem('dqa_released_row', currentRowId);
   currentRowId = '';
 }
 
