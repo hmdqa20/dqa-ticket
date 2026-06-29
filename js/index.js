@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 맨 오른쪽 드래그 핸들 컬럼 추가, DnD 실시순서 변경 + GAS 저장
 // 수정: 2026-06-28 20:00 — WJIRA 헤더 레이블 → 'WJIRA' + 빨간 물음표 아이콘(툴팁)
 // 수정: 2026-06-28 19:30 — 헤더 필터 뱃지 버그 수정: 컬럼명 항상 유지, 활성 필터는 × 뱃지 표시
 // 수정: 2026-06-28 14:00 — 실시순서 Rule4: 같은 그룹+버전 필터, 연속된 번호만 cascade (빈칸에서 중지)
@@ -73,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // 컬럼 너비: 클립 | 티켓번호 | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA
 // 이슈명은 테이블 min-width(950px)에서 고정 컬럼 합(684px)을 뺀 나머지를 자동 배분 (≥266px 보장)
-const COL_WIDTHS = ['24px', '110px', '', '110px', '80px', '90px', '100px', '70px', '100px'];
+const COL_WIDTHS = ['24px', '110px', '', '110px', '80px', '90px', '100px', '70px', '100px', '36px'];
 
 function buildAllHeaders() {
   [['ww', 'active'], ['mvn', 'active'], ['done', 'done'], ['hold', 'hold']].forEach(([id, type]) => {
@@ -128,6 +129,7 @@ function buildHeaderHtml(sectionType = 'active') {
     <th>${wrap('status', t('col_status'), `<option value=""></option>${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
     <th>${wrap('verdict', t('col_verdict'), `<option value=""></option><option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
     <th>${wrap('wjira', 'WJIRA', `<option value=""></option><option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`, f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : '', '<span class="th-help-icon" title="WJIRA 결과 기재">?</span>')}</th>
+    <th></th>
   `;
 }
 
@@ -291,7 +293,7 @@ function renderSection(group, tickets, dimmed) {
   if (!tbody) return;
 
   if (tickets.length === 0) {
-    tbody.innerHTML = `<tr class="no-data"><td colspan="9">${t('no_tickets')}</td></tr>`;
+    tbody.innerHTML = `<tr class="no-data"><td colspan="10">${t('no_tickets')}</td></tr>`;
     return;
   }
 
@@ -308,6 +310,10 @@ function renderSection(group, tickets, dimmed) {
     el.addEventListener('change', handleInlineChange);
   });
 
+  // 활성 그룹만 드래그 핸들 활성화
+  if (group === 'activeWW' || group === 'activeMVN') {
+    setupDragAndDrop(group);
+  }
 }
 
 function buildRow(ticket, dimmed) {
@@ -355,6 +361,7 @@ function buildRow(ticket, dimmed) {
       <td><select class="inline-select status-select ${statusClass}" data-field="status" data-row-id="${escHtml(ticket.row_id)}">${statusOptions}</select></td>
       <td><select class="inline-select verdict-select ${verdictClass}" data-field="verdict" data-row-id="${escHtml(ticket.row_id)}">${verdictOptions}</select></td>
       <td class="wjira-cell"><input type="checkbox" class="wjira-checkbox" data-field="wjira_updated" data-row-id="${escHtml(ticket.row_id)}"${wjiraChecked}></td>
+      <td class="drag-handle-cell">${isActive ? '<span class="drag-handle" title="드래그하여 순서 변경">⠿</span>' : ''}</td>
     </tr>`;
 }
 
@@ -560,6 +567,108 @@ async function handleInlineChange(e) {
   } catch (err) {
     console.error('업데이트 실패:', err);
     alert('저장에 실패했습니다: ' + err.message);
+  }
+}
+
+// ─── 드래그 앤 드롭 실시순서 변경 ────────────────────────────────────────────
+
+function setupDragAndDrop(group) {
+  const tbody = document.getElementById('tbody-' + group);
+  if (!tbody) return;
+
+  let pendingDrag = false; // mousedown이 핸들에서 시작됐는지 추적
+  let dragSrc = null;
+
+  tbody.querySelectorAll('tr[data-row-id]').forEach(tr => {
+    const handle = tr.querySelector('.drag-handle');
+    if (!handle) return;
+
+    // 핸들에서 mousedown 시에만 draggable 허용
+    handle.addEventListener('mousedown', () => {
+      pendingDrag = true;
+      document.addEventListener('mouseup', () => { pendingDrag = false; }, { once: true });
+    });
+
+    tr.setAttribute('draggable', 'true');
+
+    tr.addEventListener('dragstart', (e) => {
+      if (!pendingDrag) { e.preventDefault(); return; }
+      pendingDrag = false;
+      dragSrc = tr;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', tr.dataset.rowId);
+      requestAnimationFrame(() => tr.classList.add('dragging'));
+    });
+
+    tr.addEventListener('dragend', () => {
+      tr.classList.remove('dragging');
+      tbody.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
+        el.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+      dragSrc = null;
+    });
+
+    tr.addEventListener('dragover', (e) => {
+      if (!dragSrc || tr === dragSrc) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tbody.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
+        if (el !== tr) el.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+      const mid = tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
+      tr.classList.toggle('drag-over-top',    e.clientY < mid);
+      tr.classList.toggle('drag-over-bottom', e.clientY >= mid);
+    });
+
+    tr.addEventListener('dragleave', (e) => {
+      if (tr.contains(e.relatedTarget)) return;
+      tr.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+
+    tr.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      tr.classList.remove('drag-over-top', 'drag-over-bottom');
+      if (!dragSrc || dragSrc === tr) return;
+      const after = e.clientY >= tr.getBoundingClientRect().top + tr.getBoundingClientRect().height / 2;
+      if (after) tr.after(dragSrc); else tr.before(dragSrc);
+      await savePriorityOrder(group);
+    });
+  });
+}
+
+// DOM 순서 기준으로 실시순서 1,2,3... 재계산 후 GAS 저장
+async function savePriorityOrder(group) {
+  const tbody = document.getElementById('tbody-' + group);
+  if (!tbody) return;
+
+  const rows = [...tbody.querySelectorAll('tr[data-row-id]')];
+  const updates = [];
+
+  rows.forEach((tr, idx) => {
+    const rowId = tr.dataset.rowId;
+    const newPriority = String(idx + 1);
+
+    // 메모리 캐시 반영
+    for (const g of ['activeWW', 'activeMVN']) {
+      const tk = allTickets[g].find(t => t.row_id === rowId);
+      if (tk) { tk.priority = newPriority; break; }
+    }
+
+    // 실시순서 select 값만 갱신 (전체 리렌더 없음)
+    const sel = tr.querySelector('.order-select');
+    if (sel) {
+      sel.value = newPriority;
+      const cls = newPriority === '1' ? 'order-1' : newPriority === '2' ? 'order-2' : newPriority === '3' ? 'order-3' : '';
+      sel.className = `inline-select order-select${cls ? ' ' + cls : ''}`;
+    }
+
+    updates.push({ row_id: rowId, priority: newPriority });
+  });
+
+  // GAS 저장 (순차)
+  for (const upd of updates) {
+    try { await updateTicket(upd); }
+    catch (err) { console.error('실시순서 저장 실패:', err.message); }
   }
 }
 

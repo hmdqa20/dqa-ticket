@@ -23,7 +23,7 @@
 ## 프로젝트 정보
 
 - **GAS URL**: https://script.google.com/macros/s/AKfycbzzUsXwJ4oOrX63HmSyScYRtzCnpUD5shGTRwwxfwg1KX_UfVdpoflcex6vvdvnlrZc0A/exec
-- **GitHub Pages URL**: https://wwpay.github.io/dqa-ticket
+- **GitHub Pages URL**: https://hmdqa20.github.io/dqa-ticket
 - **Google Sheets**: tickets 시트 + versions 시트
 - **GAS 수정 시**: Code.gs 복붙 → 저장 → 배포 관리 → 새 버전으로 재배포 (액세스: 모든 사용자)
 
