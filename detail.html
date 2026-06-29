@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <!--
-  수정: 2026-06-29 — 바로가기 버튼 항상 표시, ticket-id-row flex-wrap으로 컬럼 이탈 방지
+  수정: 2026-06-29 — 바로가기 버튼 소형(btn-link-compact), 입력란 오른쪽 단일 행
 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -68,7 +68,7 @@
               <input type="text" id="ticket-id-num" inputmode="numeric" pattern="[0-9]+" placeholder="1234">
             </div>
             <span id="ticket-id-static" class="static-value" style="display:none"></span>
-            <a id="btn-wjira-link" href="#" target="_blank" class="btn btn-secondary" data-i18n="btn_wjira_link" style="display:none">티켓 바로 가기</a>
+            <a id="btn-wjira-link" href="#" target="_blank" class="btn btn-secondary btn-xs btn-link-compact" data-i18n="btn_wjira_link" style="display:none">티켓 바로 가기</a>
             <button type="button" id="btn-fetch" class="btn btn-secondary" data-i18n="btn_fetch" style="display:none">가져오기</button>
           </div>
         </div>
