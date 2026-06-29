@@ -1,3 +1,4 @@
+/* 수정: 2026-06-29 — 진행중 행 강조 스타일 추가 (row-active 클래스) */
 /* 수정: 2026-06-28 20:00 — WJIRA 헤더 물음표 아이콘(.th-help-icon, .th-row) 추가 */
 /* 수정: 2026-06-28 19:30 — 헤더 필터 뱃지 UI (.th-content/.th-filter-badge/.th-filter-clear) */
 /* 수정: 2026-06-28 19:00 — 그룹헤더 mid 배경, 섹션별 th 색상 계열 연동, 보류&N/A */
@@ -629,6 +630,10 @@ body {
   transition: background 0.1s;
 }
 .ticket-table tr[data-row-id]:hover { background: #f8fafc; }
+
+/* 진행중 행 강조 */
+.ticket-table tr.row-active { background: #eff6ff; border-left: 3px solid #2563eb; }
+.ticket-table tr.row-active:hover { background: #dbeafe; }
 
 /* 이슈명·확인버전 셀만 클릭 커서 + hover 강조 */
 .navigate-cell {
