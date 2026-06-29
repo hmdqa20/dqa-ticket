@@ -22,10 +22,10 @@
 
 ## 프로젝트 정보
 
-- **GAS URL**: https://script.google.com/macros/s/AKfycbzzUsXwJ4oOrX63HmSyScYRtzCnpUD5shGTRwwxfwg1KX_UfVdpoflcex6vvdvnlrZc0A/exec
+- **GAS URL** (회사 계정 배포): https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec
 - **GitHub Pages URL**: https://wwpay.github.io/dqa-ticket
 - **Google Sheets**: tickets 시트 + versions 시트
-- **GAS 수정 시**: Code.gs 복붙 → 저장 → 배포 관리 → 새 버전으로 재배포 (액세스: 모든 사용자)
+- **GAS 수정 시**: Code.gs 복붙 → 저장 → 배포 관리 → **기존 배포 편집 → 새 버전**으로 재배포 (액세스: 모든 사용자). ⚠️ "새 배포"를 누르면 URL이 새로 생기므로 반드시 **기존 배포를 편집**할 것
 
 ---
 
