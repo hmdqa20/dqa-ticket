@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 진행중 상태 변경 시 row-active 클래스 동적 반영
 // 수정: 2026-06-29 — 진행중 행 강조 스타일 추가 (연노랑 배경 + 앰버 왼쪽 보더)
 // 수정: 2026-06-28 20:00 — WJIRA 헤더 레이블 → 'WJIRA' + 빨간 물음표 아이콘(툴팁)
 // 수정: 2026-06-28 19:30 — 헤더 필터 뱃지 버그 수정: 컬럼명 항상 유지, 활성 필터는 × 뱃지 표시
@@ -550,6 +551,11 @@ async function handleInlineChange(e) {
   if (field === 'status') {
     const cls = { '진행중': 'status-active', '진행전': 'status-pending', '재테스트': 'status-retest', '완료': 'status-done', '보류': 'status-hold', 'N/A': 'status-na' }[value] || '';
     el.className = `inline-select status-select ${cls}`.trimEnd();
+    const tr = el.closest('tr');
+    if (tr) {
+      if (value === '진행중') tr.classList.add('row-active');
+      else tr.classList.remove('row-active');
+    }
   }
   if (field === 'verdict') {
     const cls = value === 'OK' ? 'verdict-ok' : value === 'NG' ? 'verdict-ng' : '';
