@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 드래그 핸들 기능 복구 (setupDragDrop, drag-handle-cell, priority-num span)
 // 수정: 2026-06-29 — 편집 잠금 중인 티켓에 🔒 아이콘 표시 (buildRow)
 // 수정: 2026-06-29 — 진행중 상태 변경 시 row-active 클래스 동적 반영
 // 수정: 2026-06-29 — 진행중 행 강조 스타일 추가 (연노랑 배경 + 앰버 왼쪽 보더)
@@ -29,6 +30,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   currentVersionId = localStorage.getItem('dqa_current_version') || ALL_VERSION;
 
   await loadTickets();
+
+  setupDragDrop(document.getElementById('tbody-activeWW'),  'activeWW');
+  setupDragDrop(document.getElementById('tbody-activeMVN'), 'activeMVN');
 
   document.getElementById('btn-new').addEventListener('click', () => {
     const vid = currentVersionId && currentVersionId !== ALL_VERSION ? '?version_id=' + encodeURIComponent(currentVersionId) : '';
@@ -294,11 +298,11 @@ function renderSection(group, tickets, dimmed) {
   if (!tbody) return;
 
   if (tickets.length === 0) {
-    tbody.innerHTML = `<tr class="no-data"><td colspan="9">${t('no_tickets')}</td></tr>`;
+    tbody.innerHTML = `<tr class="no-data"><td colspan="10">${t('no_tickets')}</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = tickets.map(ticket => buildRow(ticket, dimmed)).join('');
+  tbody.innerHTML = tickets.map(ticket => buildRow(ticket, dimmed, group)).join('');
 
   tbody.querySelectorAll('.navigate-cell').forEach(td => {
     td.addEventListener('click', () => {
@@ -313,7 +317,7 @@ function renderSection(group, tickets, dimmed) {
 
 }
 
-function buildRow(ticket, dimmed) {
+function buildRow(ticket, dimmed, group) {
   const pri = String(ticket.priority ?? '');
   const orderClass = pri === '1' ? 'order-1' : pri === '2' ? 'order-2' : pri === '3' ? 'order-3' : '';
   const statusClass = { '진행중': 'status-active', '진행전': 'status-pending', '재테스트': 'status-retest', '완료': 'status-done', '보류': 'status-hold', 'N/A': 'status-na' }[ticket.status] || '';
@@ -321,17 +325,16 @@ function buildRow(ticket, dimmed) {
   const hasFiles = ticket.file_urls && ticket.file_urls.trim();
   const isActive = ['진행중', '진행전', '재테스트'].includes(ticket.status);
 
-  // 활성 티켓만 실시순서 드롭다운, 완료/보류는 — 표시
-  const activeCount = allTickets.activeWW.length + allTickets.activeMVN.length;
-  const maxOrder = Math.max(5, activeCount);
+  // 활성 행: 순서 번호 칩 (DnD로 변경), 완료/보류: — 표시
   const orderCell = isActive
-    ? (() => {
-        const opts = ['', ...Array.from({length: maxOrder}, (_, i) => String(i + 1))].map(v =>
-          `<option value="${v}"${pri === v ? ' selected' : ''}>${v || '—'}</option>`
-        ).join('');
-        return `<select class="inline-select order-select ${orderClass}" data-field="priority" data-row-id="${escHtml(ticket.row_id)}">${opts}</select>`;
-      })()
+    ? `<span class="priority-num ${orderClass}">${pri}</span>`
     : `<span class="order-dash">—</span>`;
+
+  // row-active(진행중 강조) + draggable-row(DnD 대상) + dimmed 조합
+  const rowClass = [
+    isActive ? 'draggable-row' : '',
+    dimmed ? 'dimmed' : (ticket.status === '진행중' ? 'row-active' : '')
+  ].filter(Boolean).join(' ');
 
   const statusOptions = ['진행중', '진행전', '재테스트', '완료', '보류', 'N/A'].map(v =>
     `<option value="${v}"${ticket.status === v ? ' selected' : ''}>${statusLabel(v)}</option>`
@@ -348,7 +351,7 @@ function buildRow(ticket, dimmed) {
     .map(v => `<div class="version-line">${escHtml(v)}</div>`).join('');
 
   return `
-    <tr data-row-id="${escHtml(ticket.row_id)}" class="${dimmed ? 'dimmed' : ticket.status === '진행중' ? 'row-active' : ''}">
+    <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}"${isActive ? ' draggable="true"' : ''}>
       <td class="clip-cell">${hasFiles ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
       <td class="ticket-id-cell">${!!ticket.locked_at && (Date.now() - new Date(ticket.locked_at).getTime()) < 30 * 60 * 1000 ? '<span class="lock-icon" title="편집 중">🔒</span>' : ''}<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
       <td class="title-cell navigate-cell" title="${escHtml(ticket.title)}">${escHtml(ticket.title)}</td>
@@ -358,6 +361,7 @@ function buildRow(ticket, dimmed) {
       <td><select class="inline-select status-select ${statusClass}" data-field="status" data-row-id="${escHtml(ticket.row_id)}">${statusOptions}</select></td>
       <td><select class="inline-select verdict-select ${verdictClass}" data-field="verdict" data-row-id="${escHtml(ticket.row_id)}">${verdictOptions}</select></td>
       <td class="wjira-cell"><input type="checkbox" class="wjira-checkbox" data-field="wjira_updated" data-row-id="${escHtml(ticket.row_id)}"${wjiraChecked}></td>
+      <td class="drag-handle-cell">${isActive ? `<span class="drag-handle" title="드래그하여 순서 변경">⠿</span>` : ''}</td>
     </tr>`;
 }
 
@@ -569,6 +573,62 @@ async function handleInlineChange(e) {
     console.error('업데이트 실패:', err);
     alert('저장에 실패했습니다: ' + err.message);
   }
+}
+
+// ─── 드래그앤드롭으로 실시순서 변경 ──────────────────────────────────────────────
+
+function setupDragDrop(tbody, group) {
+  let dragRow = null;
+
+  tbody.addEventListener('dragstart', e => {
+    // 핸들 셀에서 시작한 드래그만 허용
+    if (!e.target.closest('.drag-handle')) { e.preventDefault(); return; }
+    const row = e.target.closest('tr.draggable-row');
+    if (!row) { e.preventDefault(); return; }
+    dragRow = row;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', row.dataset.rowId);
+    requestAnimationFrame(() => { if (dragRow) dragRow.classList.add('dragging'); });
+  });
+
+  tbody.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragRow) return;
+    const row = e.target.closest('tr.draggable-row');
+    if (!row || row === dragRow) return;
+    const rect = row.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) row.before(dragRow);
+    else row.after(dragRow);
+  });
+
+  tbody.addEventListener('dragenter', e => e.preventDefault());
+
+  tbody.addEventListener('dragend', async () => {
+    if (!dragRow) return;
+    dragRow.classList.remove('dragging');
+
+    // DOM 순서에서 새 priority 결정 (1부터 순번 부여)
+    const rows = [...tbody.querySelectorAll('tr.draggable-row[data-row-id]')];
+    const updates = [];
+    rows.forEach((row, idx) => {
+      const rowId = row.dataset.rowId;
+      const ticket = allTickets[group].find(tk => tk.row_id === rowId);
+      if (!ticket) return;
+      const newPri = String(idx + 1);
+      if (ticket.priority !== newPri) {
+        ticket.priority = newPri;
+        updates.push({ row_id: rowId, priority: newPri });
+      }
+    });
+
+    dragRow = null;
+    renderAll(); // priority 숫자 칩 갱신
+
+    // 변경된 항목만 GAS에 저장
+    if (updates.length) {
+      await Promise.all(updates.map(u => updateTicket(u).catch(console.error)));
+    }
+  });
 }
 
 // ─── 섹션 접기/펼치기 ─────────────────────────────────────────────────────────

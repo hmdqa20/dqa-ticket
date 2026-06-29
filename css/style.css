@@ -1,3 +1,4 @@
+/* 수정: 2026-06-29 — 드래그 핸들 스타일 복구 (.drag-handle-cell/.drag-handle/.draggable-row/.priority-num) */
 /* 수정: 2026-06-29 — 편집 잠금 배너(.lock-banner) 및 목록 잠금 아이콘(.lock-icon) 스타일 추가 */
 /* 수정: 2026-06-29 — 진행중 셀렉트 보색 강조 스타일 적용 */
 /* 수정: 2026-06-29 — 진행중 행 강조 스타일 추가 (연노랑 배경 + 앰버 왼쪽 보더) */
@@ -704,6 +705,35 @@ body {
 
 /* ─── 실시순서 비활성 텍스트 ──────────────────────────────────────────────── */
 .order-dash { display: block; text-align: center; color: #d1d5db; }
+
+/* ─── 드래그 핸들 ─────────────────────────────────────────────────────────── */
+.drag-handle-cell {
+  padding: 0 4px;
+  text-align: center;
+  vertical-align: middle;
+}
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: var(--text-muted);
+  font-size: 20px;
+  min-width: 32px;
+  min-height: 32px;
+  user-select: none;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.12s;
+}
+.drag-handle:hover { color: var(--text-primary); }
+.draggable-row.dragging { opacity: 0.4; background: var(--ww-light) !important; }
+
+/* 실시순서 숫자 칩 */
+.priority-num { font-size: 12px; font-weight: 700; vertical-align: middle; }
+.priority-num.order-1 { color: var(--p1); }
+.priority-num.order-2 { color: var(--p2); }
+.priority-num.order-3 { color: var(--p3); }
 
 /* ─── 재테스트 뱃지 ───────────────────────────────────────────────────────── */
 .retest-badge {
