@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <!--
-  수정: 2026-06-28 17:00 — 티켓번호 칸 flex:1 적용, btn-wjira-link 제거, vi 확인결과 fix
+  수정: 2026-06-29 — btn-wjira-link 복원 (신규 모드 전용, 번호 입력 시 표시)
 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -68,6 +68,7 @@
               <input type="text" id="ticket-id-num" inputmode="numeric" pattern="[0-9]+" placeholder="1234">
             </div>
             <span id="ticket-id-static" class="static-value" style="display:none"></span>
+            <a id="btn-wjira-link" href="#" target="_blank" class="btn btn-secondary" data-i18n="btn_wjira_link" style="display:none">티켓 바로 가기</a>
             <button type="button" id="btn-fetch" class="btn btn-secondary" data-i18n="btn_fetch" style="display:none">가져오기</button>
           </div>
         </div>
