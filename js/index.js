@@ -1,3 +1,4 @@
+// 수정: 2026-06-30 — 이슈명도 커스텀 툴팁(data-tip)으로 전환
 // 수정: 2026-06-30 — 클립/자물쇠 툴팁을 요소 위쪽 커스텀 툴팁(data-tip)으로 변경 (커서가 글씨 안 가림)
 // 수정: 2026-06-29 — 클립(첨부 대표 파일명)·자물쇠(편집중) title 툴팁 추가
 // 수정: 2026-06-29 — 잠긴 항목 클릭 시 즉시 팝업(캐시 판단, 상세 진입 생략), 내가 푼 항목 자물쇠 억제
@@ -421,7 +422,7 @@ function buildRow(ticket, dimmed, group) {
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
       <td class="clip-cell"${hasFiles ? ` data-tip="첨부 파일 - ${escHtml(firstFileName)}"` : ''}>${hasFiles ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
       <td class="ticket-id-cell">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
-      <td class="title-cell navigate-cell" title="${escHtml(ticket.title)}">${escHtml(ticket.title)}</td>
+      <td class="title-cell navigate-cell"${ticket.title ? ` data-tip="${escHtml(ticket.title)}"` : ''}>${escHtml(ticket.title)}</td>
       <td class="navigate-cell version-cell">${versionHtml}</td>
       <td>${orderCell}</td>
       <td class="assignee-cell">${buildAssigneeSelectHtml(ticket.assignee || '', ticket.row_id)}</td>
