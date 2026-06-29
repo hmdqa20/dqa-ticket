@@ -843,8 +843,8 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 /* 상단 메타 3단 그리드 */
 .meta-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px 32px;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 20px 24px;
   align-items: start;
 }
 
