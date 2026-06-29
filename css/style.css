@@ -1,3 +1,4 @@
+/* 수정: 2026-06-29 — 드래그 드롭 위치 녹색 인디케이터(.drop-above/.drop-below) 추가 */
 /* 수정: 2026-06-29 — 담당자/진행상태 컬럼 폭 확대(110/120px)로 셀렉트 간 간격 확보, min-width 940px */
 /* 수정: 2026-06-29 — 진행상태 셀 status-cell 클래스화, 왼쪽 패딩 14px로 담당자와 간격 확보 */
 /* 수정: 2026-06-29 — 담당자/진행상태 셀렉트 최소 폭 및 여백 확보 */
@@ -732,6 +733,10 @@ body {
 }
 .drag-handle:hover { color: var(--text-primary); }
 .draggable-row.dragging { opacity: 0.4; background: var(--ww-light) !important; }
+
+/* 드롭 위치 인디케이터 (진한 녹색 줄) */
+.ticket-table tr.drop-above td { box-shadow: inset 0 3px 0 #15803d; }
+.ticket-table tr.drop-below td { box-shadow: inset 0 -3px 0 #15803d; }
 
 /* 실시순서 숫자 칩 */
 .priority-num { font-size: 12px; font-weight: 700; vertical-align: middle; }

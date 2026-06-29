@@ -1,3 +1,4 @@
+// 수정: 2026-06-29 — 드래그 드롭 위치 녹색 인디케이터 줄 추가 (drop-above/drop-below)
 // 수정: 2026-06-29 — 드래그 핸들 실제 동작 수정 (mousedown 시 draggable 토글, tr 고정 draggable 제거)
 // 수정: 2026-06-29 — 실시순서 드롭다운 복구(드래그 핸들 병행), 그룹 이동 시 priority 초기화로 중복 방지
 // 수정: 2026-06-29 — 담당자/진행상태 컬럼 폭 확대(110/120px)로 셀렉트 간 간격 확보
@@ -624,19 +625,45 @@ function setupDragDrop(tbody, group) {
     requestAnimationFrame(() => { if (dragRow) dragRow.classList.add('dragging'); });
   });
 
+  // 드롭 위치 인디케이터(녹색 줄) 제거
+  const clearIndicators = () => {
+    tbody.querySelectorAll('.drop-above, .drop-below').forEach(el =>
+      el.classList.remove('drop-above', 'drop-below'));
+  };
+
   tbody.addEventListener('dragover', e => {
     e.preventDefault();
     if (!dragRow) return;
+    e.dataTransfer.dropEffect = 'move';
     const row = e.target.closest('tr.draggable-row');
+    clearIndicators();
     if (!row || row === dragRow) return;
     const rect = row.getBoundingClientRect();
-    if (e.clientY < rect.top + rect.height / 2) row.before(dragRow);
-    else row.after(dragRow);
+    const isBefore = e.clientY < rect.top + rect.height / 2;
+    row.classList.add(isBefore ? 'drop-above' : 'drop-below');
   });
 
   tbody.addEventListener('dragenter', e => e.preventDefault());
 
+  tbody.addEventListener('dragleave', e => {
+    // tbody 영역을 완전히 벗어날 때만 인디케이터 정리
+    if (!tbody.contains(e.relatedTarget)) clearIndicators();
+  });
+
+  tbody.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!dragRow) return;
+    const row = e.target.closest('tr.draggable-row');
+    if (row && row !== dragRow) {
+      const rect = row.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) row.before(dragRow);
+      else row.after(dragRow);
+    }
+    clearIndicators();
+  });
+
   tbody.addEventListener('dragend', async () => {
+    clearIndicators();
     if (!dragRow) return;
     dragRow.classList.remove('dragging');
     dragRow.draggable = false; // 드래그 종료 후 draggable 해제
