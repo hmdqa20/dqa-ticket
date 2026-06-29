@@ -1,3 +1,4 @@
+/* 수정: 2026-06-29 — 기본 탭 최신 버전으로 변경, 컬럼 폭 조정 및 가로 스크롤 제거 (min-width 870px) */
 /* 수정: 2026-06-29 — 드래그 핸들 스타일 복구 (.drag-handle-cell/.drag-handle/.draggable-row/.priority-num) */
 /* 수정: 2026-06-29 — 편집 잠금 배너(.lock-banner) 및 목록 잠금 아이콘(.lock-icon) 스타일 추가 */
 /* 수정: 2026-06-29 — 진행중 셀렉트 보색 강조 스타일 적용 */
@@ -593,7 +594,7 @@ body {
 /* ─── 테이블 ──────────────────────────────────────────────────────────────── */
 .ticket-table {
   width: 100%;
-  min-width: 800px;
+  min-width: 870px; /* 고정 컬럼 합계 668px + 이슈명 최소 200px */
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
