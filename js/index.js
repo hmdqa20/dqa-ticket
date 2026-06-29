@@ -1,3 +1,4 @@
+// 수정: 2026-06-30 — 자동 전체 갱신(가드 붙은 20초 주기): 조작 중 아니면 재렌더로 상태 등 최신 반영
 // 수정: 2026-06-30 — 잠긴 항목은 목록 인라인 컨트롤(순서/담당자/상태/결과/WJIRA/핸들)도 변경 불가 처리
 // 수정: 2026-06-30 — 이슈명도 커스텀 툴팁(data-tip)으로 전환
 // 수정: 2026-06-30 — 클립/자물쇠 툴팁을 요소 위쪽 커스텀 툴팁(data-tip)으로 변경 (커서가 글씨 안 가림)
@@ -78,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupDragDrop(document.getElementById('tbody-activeWW'),  'activeWW');
   setupDragDrop(document.getElementById('tbody-activeMVN'), 'activeMVN');
 
-  startLockPolling();  // 다른 사용자의 편집 잠금을 주기적으로 반영 (아이콘만 갱신)
+  startAutoRefresh();  // 주기적 전체 갱신 (가드: 조작 중이면 건너뜀)
   setupTooltips();     // 클립/자물쇠 등 [data-tip] 요소 위쪽 커스텀 툴팁
 
   document.getElementById('btn-new').addEventListener('click', () => {
@@ -486,6 +487,7 @@ function activateCustomAssignee(select) {
     td.innerHTML = buildAssigneeSelectHtml(saveValue, rowId);
     td.querySelector('.assignee-select').addEventListener('change', handleInlineChange);
     if (value) {
+      lastEditAt = Date.now();   // 자동 갱신 레이스 방지
       try { await updateTicket({ row_id: rowId, assignee: value }); }
       catch (err) { console.error(err); alert('저장 실패: ' + err.message); }
     }
@@ -542,6 +544,8 @@ async function handleInlineChange(e) {
     renderAll();
     return;
   }
+
+  lastEditAt = Date.now();   // 자동 갱신이 방금 편집을 덮어쓰지 않도록 잠시 지연
 
   // ── 실시순서: 같은 그룹+버전 기준 중복 확인 + 연속된 번호만 cascade (Rule 4) ──
   if (field === 'priority') {
@@ -669,6 +673,7 @@ function setupDragDrop(tbody, group) {
     const row = e.target.closest('tr.draggable-row');
     if (!row || !row.draggable) { e.preventDefault(); return; }
     dragRow = row;
+    isDragging = true;            // 자동 갱신 가드
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', row.dataset.rowId);
     requestAnimationFrame(() => { if (dragRow) dragRow.classList.add('dragging'); });
@@ -713,6 +718,8 @@ function setupDragDrop(tbody, group) {
 
   tbody.addEventListener('dragend', async () => {
     clearIndicators();
+    isDragging = false;          // 자동 갱신 가드 해제
+    lastEditAt = Date.now();     // 저장 레이스 방지 (재정렬 직후 갱신 지연)
     if (!dragRow) return;
     dragRow.classList.remove('dragging');
     dragRow.draggable = false; // 드래그 종료 후 draggable 해제
@@ -741,68 +748,50 @@ function setupDragDrop(tbody, group) {
   });
 }
 
-// ─── 편집 잠금 폴링 (다른 사용자의 잠금을 아이콘만 갱신) ─────────────────────────
-// 전체 재렌더 없이 .lock-icon만 추가/제거하므로 열린 드롭다운·선택·드래그를 방해하지 않음.
+// ─── 자동 전체 갱신 (가드 붙은 주기적 새로고침) ───────────────────────────────
+// 매 주기 전체 데이터를 받아 재렌더(재정렬·재그룹·잠금아이콘·컨트롤 포함).
+// 단, 사용자가 조작 중이면 그 주기를 건너뛰어 행 점프/드롭다운 닫힘을 방지.
 
-const LOCK_POLL_MS = 20000;        // 20초 주기 (LOCK_EXPIRE_MS는 상단에 정의됨)
-let lockPollTimer = null;
+const REFRESH_MS = 20000;          // 20초 주기 (LOCK_EXPIRE_MS는 상단에 정의됨)
+let refreshTimer = null;
+let isDragging = false;            // 드래그 진행 중 (setupDragDrop에서 토글)
+let lastEditAt = 0;                // 마지막 인라인 편집 시각 (저장 레이스 방지)
 
-function startLockPolling() {
-  if (lockPollTimer) clearInterval(lockPollTimer);
-  lockPollTimer = setInterval(refreshLockIcons, LOCK_POLL_MS);
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshList, REFRESH_MS);
   // 탭이 다시 활성화되면 즉시 한 번 갱신
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refreshLockIcons();
+    if (!document.hidden) refreshList();
   });
 }
 
-async function refreshLockIcons() {
+// 사용자가 조작 중인지 — 이때는 갱신을 건너뜀
+function isUserBusy() {
+  if (isDragging) return true;
+  if (Date.now() - lastEditAt < 4000) return true;          // 방금 편집 후 4초
+  const ae = document.activeElement;                         // 열린 드롭다운/편집중이면 포커스 보유
+  if (ae && ae.closest && ae.closest('.ticket-table')) return true;
+  return false;
+}
+
+async function refreshList() {
   if (document.hidden) return;     // 비활성 탭에서는 GAS 호출 생략
+  if (isUserBusy()) return;        // 조작 중이면 이번 주기 건너뜀
+
   let data;
   try {
     data = await getTickets(currentVersionId === ALL_VERSION ? '' : currentVersionId);
   } catch (_) {
-    return;                         // 폴링 실패는 조용히 무시 (다음 주기에 재시도)
+    return;                         // 실패는 조용히 무시 (다음 주기에 재시도)
   }
 
-  const all = [...data.activeWW, ...data.activeMVN, ...data.done, ...data.hold];
-  const lockedMap = new Map(all.map(tk => [tk.row_id, tk.locked_at]));
+  if (isUserBusy()) return;        // await 사이 조작 시작했을 수 있으니 재확인
 
-  document.querySelectorAll('tr[data-row-id]').forEach(tr => {
-    const rowId = tr.dataset.rowId;
-    if (!lockedMap.has(rowId)) return;
-    const lockedAt = lockedMap.get(rowId);
-
-    // 캐시에 최신 locked_at 반영 (이후 renderAll/억제판정이 일관되도록)
-    const cached = allTicketsFlat().find(tk => tk.row_id === rowId);
-    if (cached) cached.locked_at = lockedAt || '';
-
-    // 억제 로직 포함된 표시용 판정 사용
-    const isLocked = isLockedForDisplay(cached || { row_id: rowId, locked_at: lockedAt });
-
-    const cell = tr.querySelector('.ticket-id-cell');
-    if (!cell) return;
-    const existing = cell.querySelector('.lock-icon');
-    if (isLocked && !existing) {
-      cell.insertAdjacentHTML('afterbegin', '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>');
-    } else if (!isLocked && existing) {
-      existing.remove();
-    }
-
-    // 잠금 상태에 따라 인라인 컨트롤 변경 가능 여부도 함께 토글
-    setRowLockedState(tr, isLocked);
-  });
-}
-
-// 행의 인라인 컨트롤(셀렉트/체크박스/드래그) 변경 가능 여부 토글
-function setRowLockedState(tr, locked) {
-  tr.classList.toggle('locked-row', locked);
-  // 잠긴 행은 드래그 대상에서 제외 (드래그 핸들은 CSS로 숨김)
-  if (locked) tr.classList.remove('draggable-row');
-  else if (['진행중', '진행전', '재테스트'].some(s => tr.querySelector('.status-select')?.value === s)) {
-    tr.classList.add('draggable-row');
-  }
-  tr.querySelectorAll('.inline-select, .wjira-checkbox').forEach(el => { el.disabled = locked; });
+  allTickets = data;
+  versions = data.versions || versions;
+  populateDynamicFilters();
+  renderAll();                      // buildRow가 잠금 아이콘·disabled·재정렬 모두 처리
 }
 
 // ─── 커스텀 툴팁 ([data-tip] 요소 위쪽 표시, table-scroll 클리핑 회피) ───────────
