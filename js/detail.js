@@ -1,14 +1,4 @@
 // 수정: 2026-06-29 — 이탈 시 '방금 해제한 항목' 힌트(sessionStorage) 전달로 목록에서 자기 자물쇠 억제
-// 수정: 2026-06-29 — 로딩 속도 개선: lockTicket+getTickets 병렬, 이탈 시 unlock을 sendBeacon(비차단)으로
-// 수정: 2026-06-29 — 편집 잠금: 읽기전용 모드 → 팝업(확인) 후 목록 이동 방식으로 변경
-// 수정: 2026-06-29 — 티켓 편집 잠금 기능 추가 (lockTicket/unlockTicket, beforeunload 해제)
-// 수정: 2026-06-29 — 바로가기 버튼 항상 표시 (번호 입력 전에도), href만 input 따라 업데이트
-// 수정: 2026-06-29 — btn-wjira-link 복원: 신규 모드에서 번호 입력 시 바로가기 버튼 표시
-// 수정: 2026-06-28 17:00 — btn-wjira-link 완전 제거 (HTML/JS), ticket-id-wrap flex:1
-// 수정: 2026-06-28 16:00 — 실시순서 readonly input으로 변경 (목록 DnD 전용)
-// 수정: 2026-06-28 15:20 — 수정 모드에서 WJIRA 바로가기 버튼 숨기기
-// 수정: 2026-06-28 14:00 — 실시순서 Rule1(그룹+버전 max+1), Rule4(연속 cascade, 저장 시 함께 반영)
-// 수정: 2026-06-28 10:00 — API 1회 호출로 통합, 초기 로딩 오버레이 즉시 표시
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
