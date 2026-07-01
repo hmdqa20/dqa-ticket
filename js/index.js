@@ -376,7 +376,7 @@ function renderSection(group, tickets, dimmed) {
 
   // 활성 그룹만 드래그 핸들 활성화
   if (group === 'activeWW' || group === 'activeMVN') {
-    setupDragAndDrop(group);
+    setupDragDrop(tbody, group);
   }
 }
 
