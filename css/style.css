@@ -14,6 +14,8 @@
 /* 수정: 2026-06-29 — 편집 잠금: .lock-banner 제거(팝업 차단 방식), .lock-icon 유지 */
 /* 수정: 2026-06-29 — 진행중 셀렉트 보색 강조 스타일 적용 */
 /* 수정: 2026-06-29 — 진행중 행 강조 스타일 추가 (연노랑 배경 + 앰버 왼쪽 보더) */
+/* 수정: 2026-06-29 — min-width 제거(풀화면 스크롤 방지), 좁은 화면 전용 미디어쿼리로 대체 */
+/* 수정: 2026-06-29 — 드래그 핸들 컬럼(.drag-handle-cell/.drag-handle) 및 드롭 인디케이터 추가 */
 /* 수정: 2026-06-28 20:00 — WJIRA 헤더 물음표 아이콘(.th-help-icon, .th-row) 추가 */
 /* 수정: 2026-06-28 19:30 — 헤더 필터 뱃지 UI (.th-content/.th-filter-badge/.th-filter-clear) */
 /* 수정: 2026-06-28 19:00 — 그룹헤더 mid 배경, 섹션별 th 색상 계열 연동, 보류&N/A */
@@ -639,6 +641,7 @@ body {
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
   text-align: center;
+  overflow: hidden; /* 셀 내용(긴 select/input 등)이 컬럼을 넘어 가로 스크롤 유발하는 것 방지 */
 }
 
 .ticket-table tr:last-child td { border-bottom: none; }
@@ -774,7 +777,38 @@ body {
 
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
 .assignee-cell { white-space: nowrap; padding-left: 12px; padding-right: 8px; }
-.assignee-select { min-width: 80px; }
+/* min-width 제거: 컬럼(90px) 콘텐츠 영역(66px)보다 커서 셀 밖으로 삐져나가 가로 스크롤 유발 */
+.assignee-select { min-width: 0; }
+
+/* ─── 드래그 핸들 ─────────────────────────────────────────────────────────── */
+.drag-handle-cell {
+  padding: 0;
+  text-align: center;
+  width: 36px;
+}
+
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  cursor: grab;
+  color: #d1d5db;
+  font-size: 18px;
+  border-radius: 4px;
+  user-select: none;
+  transition: color 0.12s, background 0.12s;
+}
+.drag-handle:hover  { color: #6b7280; background: #f3f4f6; }
+.drag-handle:active { cursor: grabbing; }
+
+/* 드래그 중인 행 */
+tr.dragging { opacity: 0.35; }
+
+/* 드롭 위치 인디케이터 */
+tr.drag-over-top td    { border-top: 2px solid var(--ww) !important; }
+tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 
 /* 진행상태 셀: 왼쪽 패딩을 키워 담당자 셀렉트와 명확히 간격 확보 */
 .status-cell { padding-left: 14px; padding-right: 8px; }
@@ -792,6 +826,7 @@ body {
 
 /* ─── 인라인 드롭다운 (리스트 화면 즉시 수정) ─────────────────────────────── */
 .inline-select {
+  max-width: 100%; /* 셀(컬럼)을 넘지 않도록 */
   appearance: none;
   -webkit-appearance: none;
   border: 1px solid var(--border);
@@ -833,6 +868,7 @@ body {
   font-family: inherit;
   outline: none;
   width: 110px;
+  max-width: 100%; /* 셀을 넘지 않도록 */
   box-shadow: 0 0 0 2px #dbeafe;
 }
 
@@ -900,8 +936,8 @@ body {
 /* 상단 메타 3단 그리드 */
 .meta-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px 32px;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 20px 24px;
   align-items: start;
 }
 
@@ -966,11 +1002,18 @@ body {
 .ticket-id-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  overflow: hidden; /* 컬럼 밖으로 절대 삐져나가지 않도록 */
 }
-/* 신규/수정 모드 모두 입력란이 1fr 칸 전체를 채우도록 */
-.ticket-id-row .static-value { flex: 1; }
-.ticket-id-wrap { flex: 1; }
+.ticket-id-row .static-value { flex: 1; min-width: 0; }
+.ticket-id-wrap { flex: 1; min-width: 0; } /* 입력란이 남은 공간 채움, 버튼에 밀려 줄어들 수 있음 */
+
+/* 바로가기 버튼: 입력란 오른쪽에 딱 붙어 표시, 글씨 크기 기본, 패딩은 텍스트 폭에 맞게 최소화 */
+.btn-link-compact {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 5px 10px;
+}
 
 /* 티켓번호 접두사 + 숫자 입력 */
 .ticket-id-wrap {
@@ -1183,6 +1226,8 @@ body {
 .file-item-pending .file-name { color: #854d0e; }
 
 /* ─── 반응형 ──────────────────────────────────────────────────────────────── */
+
+/* 테이블 min-width(950px)는 기본값 유지 — 좁은 화면에선 가로 스크롤로 모든 컬럼 표시 */
 @media (max-width: 900px) {
   .title-cell { max-width: 180px; }
 }

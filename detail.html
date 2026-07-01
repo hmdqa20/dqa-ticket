@@ -58,7 +58,7 @@
   <div class="detail-card">
     <form id="ticket-form" class="ticket-form" onsubmit="return false">
 
-      <!-- 상단 메타 3단: 티켓번호 | 등록날짜 | WJIRA 결과기재 -->
+      <!-- 상단 메타 4단: 티켓번호 | 바로가기 | 등록날짜 | WJIRA 결과기재 -->
       <div class="meta-grid">
         <div class="form-group">
           <label data-i18n="label_ticket_id">티켓번호</label>
@@ -70,6 +70,10 @@
             <span id="ticket-id-static" class="static-value" style="display:none"></span>
             <button type="button" id="btn-fetch" class="btn btn-secondary" data-i18n="btn_fetch" style="display:none">가져오기</button>
           </div>
+        </div>
+        <div class="form-group">
+          <label data-i18n="btn_wjira_link">티켓 바로가기</label>
+          <a id="btn-wjira-link" href="#" target="_blank" class="btn btn-secondary btn-link-compact" data-i18n="btn_wjira_link" style="display:none">티켓 바로 가기</a>
         </div>
         <div class="form-group">
           <label data-i18n="label_created_date">등록날짜</label>

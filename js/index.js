@@ -15,6 +15,8 @@
 // 수정: 2026-06-29 — 편집 잠금 중인 티켓에 🔒 아이콘 표시 (buildRow)
 // 수정: 2026-06-29 — 진행중 상태 변경 시 row-active 클래스 동적 반영
 // 수정: 2026-06-29 — 진행중 행 강조 스타일 추가 (연노랑 배경 + 앰버 왼쪽 보더)
+// 수정: 2026-06-29 — cascadeShift 함수 누락 버그 수정 (빈칸은 밀지 않음)
+// 수정: 2026-06-29 — 맨 오른쪽 드래그 핸들 컬럼 추가, DnD 실시순서 변경 + GAS 저장
 // 수정: 2026-06-28 20:00 — WJIRA 헤더 레이블 → 'WJIRA' + 빨간 물음표 아이콘(툴팁)
 // 수정: 2026-06-28 19:30 — 헤더 필터 뱃지 버그 수정: 컬럼명 항상 유지, 활성 필터는 × 뱃지 표시
 // 수정: 2026-06-28 14:00 — 실시순서 Rule4: 같은 그룹+버전 필터, 연속된 번호만 cascade (빈칸에서 중지)
@@ -184,6 +186,7 @@ function buildHeaderHtml(sectionType = 'active') {
     <th>${wrap('status', t('col_status'), `<option value=""></option>${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
     <th>${wrap('verdict', t('col_verdict'), `<option value=""></option><option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
     <th>${wrap('wjira', 'WJIRA', `<option value=""></option><option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`, f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : '', '<span class="th-help-icon" title="WJIRA 결과 기재">?</span>')}</th>
+    <th></th>
   `;
 }
 
@@ -371,6 +374,10 @@ function renderSection(group, tickets, dimmed) {
     el.addEventListener('change', handleInlineChange);
   });
 
+  // 활성 그룹만 드래그 핸들 활성화
+  if (group === 'activeWW' || group === 'activeMVN') {
+    setupDragAndDrop(group);
+  }
 }
 
 function buildRow(ticket, dimmed, group) {
@@ -518,6 +525,29 @@ function getTicketGroup(ticket) {
 }
 
 // ─── 인라인 필드 즉시 수정 ────────────────────────────────────────────────────
+
+// cascadeShift: fromNum 번호부터 연속된 숫자만 뒤로 한 칸씩 밀기
+// - 빈칸(-) 만나면 중지 (빈칸은 버퍼, 밀지 않음)
+// - targetRowId (현재 변경 중인 티켓)는 제외
+function cascadeShift(tickets, fromNum, targetRowId) {
+  const changed = [];
+  let next = fromNum;
+  const sorted = tickets
+    .filter(tk => tk.row_id !== targetRowId && String(tk.priority) !== '')
+    .sort((a, b) => Number(a.priority) - Number(b.priority));
+
+  for (const tk of sorted) {
+    const p = Number(tk.priority);
+    if (p === next) {
+      tk.priority = String(p + 1);
+      changed.push(tk);
+      next++;
+    } else if (p > next) {
+      break; // 연속 끊김 → 중지
+    }
+  }
+  return changed;
+}
 
 async function handleInlineChange(e) {
   const el = e.target;
