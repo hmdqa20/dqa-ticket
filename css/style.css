@@ -1,4 +1,4 @@
-/* 수정: 2026-06-30 — 잠긴 행 인라인 컨트롤 비활성 표시(.locked-row) 추가 */
+/* 수정: 2026-07-03 — 헤더 필터: 하단 뱃지 제거 → 아이콘 교체(▼/깔때기)+활성 pill, --filter-active 추가 */
 /* ─── CSS 변수 ───────────────────────────────────────────────────────────── */
 :root {
   --ww:          #2563eb;
@@ -28,6 +28,7 @@
   --shadow:      0 1px 3px rgba(0,0,0,0.08);
   --surface-2:   #ffffff;
   --fill-accent:   #2563eb;
+  --filter-active: #4f46e5;  /* 헤더 필터 활성 깔때기 아이콘 강조색 (인디고) */
   --sidebar-bg:    #F0F2F5;
   --bg-accent:     #eff6ff;
   --text-accent:   #1d4ed8;
@@ -241,18 +242,31 @@ body {
   position: relative;
   display: inline-flex;
   align-items: center;
+  gap: 3px;
   cursor: pointer;
+  border-radius: 5px;
+  padding: 1px 5px;
+  transition: background 0.12s;
 }
-.th-filter-wrap::after {
-  content: '▼';
-  font-size: 10px;
-  color: inherit;  /* 섹션 th 색상 상속 */
-  opacity: 0.5;
+/* 활성 필터: 은은한 배경 pill (높이 변화 최소, 세로 밀림 없음) */
+.th-filter-wrap.active {
+  background: rgba(79, 70, 229, 0.10);
+}
+
+/* 필터 아이콘: 비활성=얇은 ▼(회색), 활성=깔때기(인디고 강조) */
+.th-filter-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  opacity: 0.55;
   pointer-events: none;
-  line-height: 1;
-  margin-left: 2px;
+  line-height: 0;
+  transition: color 0.12s, opacity 0.12s;
 }
-.th-filter-wrap.active::after { opacity: 1; }
+.th-filter-wrap.active .th-filter-icon {
+  color: var(--filter-active);
+  opacity: 1;
+}
 
 .th-filter-label {
   font-size: 11px;
@@ -261,7 +275,10 @@ body {
   white-space: nowrap;
   pointer-events: none;
 }
-.th-filter-wrap.active .th-filter-label { font-weight: 700; }
+.th-filter-wrap.active .th-filter-label {
+  font-weight: 700;
+  color: var(--filter-active);
+}
 
 /* 필터 래퍼 + 아이콘을 가로로 나란히 배치 */
 .th-row {
@@ -290,49 +307,11 @@ body {
   letter-spacing: 0;
 }
 
-/* 필터 th 내부 컨테이너: 컬럼명 + 뱃지를 세로로 쌓음 */
+/* 필터 th 내부 컨테이너 (단일 행: 컬럼명 + 아이콘) */
 .th-content {
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
-  gap: 3px;
 }
-
-/* 활성 필터 뱃지 */
-.th-filter-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  font-weight: 600;
-  color: inherit;
-  border: 1px solid currentColor;
-  padding: 0 5px;
-  border-radius: 10px;
-  max-width: 90%;
-  line-height: 1.7;
-  text-transform: none;
-  letter-spacing: 0;
-  pointer-events: auto; /* 셀렉트 오버레이 바깥에 위치해 클릭 가능 */
-}
-.th-badge-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 65px;
-}
-.th-filter-clear {
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: inherit;
-  font-size: 13px;
-  padding: 0;
-  line-height: 1;
-  font-family: inherit;
-  flex-shrink: 0;
-}
-.th-filter-clear:hover { opacity: 0.6; }
 
 .th-filter-select {
   position: absolute;

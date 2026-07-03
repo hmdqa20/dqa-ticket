@@ -1,4 +1,4 @@
-// 수정: 2026-07-03 — 빈칸 실시순서 티켓번호 오름차순 정렬 + 드래그 4케이스(빈칸→번호/번호→빈칸 gap 유지)
+// 수정: 2026-07-03 — 헤더 필터 표시를 Google식 아이콘 교체(▼→깔때기)로 변경, 하단 뱃지 제거(UI 밀림 해소)
 // 티켓 데이터 캐시
 let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
 let searchQuery = '';
@@ -90,18 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     populateDynamicFilters();
     renderAll();
   });
-
-  // 헤더 필터 초기화(×) 버튼 이벤트 위임
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.th-filter-clear');
-    if (!btn) return;
-    const key = btn.dataset.filterKey;
-    activeFilters[key] = '';
-    document.querySelectorAll(`.th-filter-select[data-filter-key="${key}"]`).forEach(s => { s.value = ''; });
-    buildAllHeaders();
-    populateDynamicFilters();
-    renderAll();
-  });
+  // 필터 해제: 드롭다운에서 빈 항목 선택(value='') → 위 change 핸들러가 처리
 });
 
 // ─── 헤더 생성 ───────────────────────────────────────────────────────────────
@@ -110,6 +99,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 이슈명은 테이블 min-width(950px)에서 고정 컬럼 합(684px)을 뺀 나머지를 자동 배분 (≥266px 보장)
 const COL_WIDTHS = ['24px', '110px', '', '110px', '70px', '110px', '120px', '70px', '80px', '44px'];
 // 클립 | 티켓번호 | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA | 핸들
+
+// 헤더 필터 아이콘: 비활성=얇은 ▼(드롭다운 힌트), 활성=깔때기(필터 걸림 표시)
+const CHEVRON_SVG = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
+const FUNNEL_SVG  = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M4.25 5.61C6.27 8.2 10 13 10 13v5c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-5s3.73-4.8 5.75-7.39c.51-.66.04-1.61-.79-1.61H5.04c-.83 0-1.3.95-.79 1.61z"/></svg>`;
+
+// 필터 래퍼의 아이콘을 활성/비활성 상태에 맞게 교체
+function setFilterIcon(wrapEl, active) {
+  const ic = wrapEl && wrapEl.querySelector('.th-filter-icon');
+  if (ic) ic.innerHTML = active ? FUNNEL_SVG : CHEVRON_SVG;
+}
 
 function buildAllHeaders() {
   [['ww', 'active'], ['mvn', 'active'], ['done', 'done'], ['hold', 'hold']].forEach(([id, type]) => {
@@ -136,22 +135,21 @@ function buildHeaderHtml(sectionType = 'active') {
     ? `<option value="보류"${sel('status','보류')}>${statusLabel('보류')}</option><option value="N/A"${sel('status','N/A')}>N/A</option>`
     : `<option value="진행중"${sel('status','진행중')}>${statusLabel('진행중')}</option><option value="진행전"${sel('status','진행전')}>${statusLabel('진행전')}</option><option value="재테스트"${sel('status','재테스트')}>${statusLabel('재테스트')}</option>`;
 
-  // 컬럼명은 항상 유지, 활성 필터는 하단 뱃지(× 포함)로 표시
+  // 컬럼명은 항상 유지. 필터 활성 여부는 아이콘 교체(▼→깔때기)+강조색으로 표시(높이 불변).
+  // 필터 값은 select의 title 툴팁으로 확인, 해제는 드롭다운 빈 항목 선택.
   // iconHtml: 필터 텍스트 우측에 추가 아이콘 (th-filter-wrap 바깥 → select 오버레이 밖에 위치)
   const wrap = (key, label, inner, displayVal, iconHtml = '') => {
     const active = !!f[key];
-    const badgeText = escHtml(displayVal || f[key]);
-    const badge = active
-      ? `<span class="th-filter-badge"><span class="th-badge-text">${badgeText}</span>` +
-        `<button class="th-filter-clear" data-filter-key="${key}" type="button">×</button></span>`
-      : '';
+    const titleVal = active ? escHtml(displayVal || f[key]) : '';
+    const titleAttr = titleVal ? ` title="${escHtml(label)}: ${titleVal}"` : '';
     const filterWrap = `<span class="th-filter-wrap${active ? ' active' : ''}">` +
       `<span class="th-filter-label">${label}</span>` +
-      `<select class="th-filter-select" data-filter-key="${key}">${inner}</select>` +
+      `<span class="th-filter-icon">${active ? FUNNEL_SVG : CHEVRON_SVG}</span>` +
+      `<select class="th-filter-select" data-filter-key="${key}"${titleAttr}>${inner}</select>` +
       `</span>`;
     // 아이콘이 있으면 필터 래퍼와 나란히 배치
     const topRow = iconHtml ? `<span class="th-row">${filterWrap}${iconHtml}</span>` : filterWrap;
-    return `<span class="th-content">${topRow}${badge}</span>`;
+    return `<span class="th-content">${topRow}</span>`;
   };
 
   return `
@@ -241,9 +239,7 @@ function populateDynamicFilters() {
     const cur = activeFilters.assignee;
     sel.innerHTML = `<option value=""></option>` +
       assignees.map(a => `<option value="${escHtml(a)}"${cur === a ? ' selected' : ''}>${escHtml(a)}</option>`).join('');
-    const labelEl = sel.previousElementSibling;
-    if (labelEl) labelEl.textContent = cur || t('col_assignee');
-    sel.closest('.th-filter-wrap').classList.toggle('active', cur !== '');
+    syncFilterWrap(sel, t('col_assignee'), cur);
   });
 
   const versions = [...new Set(
@@ -253,10 +249,21 @@ function populateDynamicFilters() {
     const cur = activeFilters.version;
     sel.innerHTML = `<option value=""></option>` +
       versions.map(v => `<option value="${escHtml(v)}"${cur === v ? ' selected' : ''}>${escHtml(v)}</option>`).join('');
-    const labelEl = sel.previousElementSibling;
-    if (labelEl) labelEl.textContent = cur || t('col_check_version');
-    sel.closest('.th-filter-wrap').classList.toggle('active', cur !== '');
+    syncFilterWrap(sel, t('col_check_version'), cur);
   });
+}
+
+// 동적 필터(담당자·확인버전) 래퍼의 라벨(항상 컬럼명)·활성 아이콘·툴팁 동기화
+function syncFilterWrap(sel, label, cur) {
+  const wrapEl = sel.closest('.th-filter-wrap');
+  if (!wrapEl) return;
+  const active = cur !== '';
+  const labelEl = wrapEl.querySelector('.th-filter-label');
+  if (labelEl) labelEl.textContent = label;   // 컬럼명 고정(값은 툴팁으로)
+  wrapEl.classList.toggle('active', active);
+  setFilterIcon(wrapEl, active);
+  if (active) sel.title = `${label}: ${cur}`;
+  else sel.removeAttribute('title');
 }
 
 function allTicketsFlat() {
