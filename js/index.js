@@ -1,4 +1,4 @@
-// 수정: 2026-07-03 — 섹션 자동접힘을 원본 개수 기준으로(필터 결과 0개여도 그룹 열림 유지)
+// 수정: 2026-07-03 — 필터 드롭다운 첫 항목에 '전체'(filter_all) 라벨 표시(빈칸 → 필터 해제 명시)
 // 티켓 데이터 캐시
 let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
 let searchQuery = '';
@@ -153,16 +153,19 @@ function buildHeaderHtml(sectionType = 'active') {
     return `<span class="th-content">${topRow}</span>`;
   };
 
+  // 필터 첫 항목: 선택 시 필터 해제(전체 보기)
+  const allOpt = `<option value="">${t('filter_all')}</option>`;
+
   return `
     <th></th>
     <th>${t('col_ticket_id')}</th>
     <th>${t('col_title')}</th>
-    <th>${wrap('version', t('col_check_version'), `<option value=""></option>`)}</th>
+    <th>${wrap('version', t('col_check_version'), allOpt)}</th>
     <th>${t('col_order')}</th>
-    <th>${wrap('assignee', t('col_assignee'), `<option value=""></option>`)}</th>
-    <th>${wrap('status', t('col_status'), `<option value=""></option>${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
-    <th>${wrap('verdict', t('col_verdict'), `<option value=""></option><option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
-    <th>${wrap('wjira', 'WJIRA', `<option value=""></option><option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`, f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : '', '<span class="th-help-icon" title="WJIRA 결과 기재">?</span>')}</th>
+    <th>${wrap('assignee', t('col_assignee'), allOpt)}</th>
+    <th>${wrap('status', t('col_status'), `${allOpt}${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
+    <th>${wrap('verdict', t('col_verdict'), `${allOpt}<option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
+    <th>${wrap('wjira', 'WJIRA', `${allOpt}<option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`, f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : '', '<span class="th-help-icon" title="WJIRA 결과 기재">?</span>')}</th>
     <th></th>
   `;
 }
@@ -238,7 +241,7 @@ function populateDynamicFilters() {
   const assignees = [...new Set(all.map(tk => tk.assignee).filter(Boolean))].sort();
   document.querySelectorAll('.th-filter-select[data-filter-key="assignee"]').forEach(sel => {
     const cur = activeFilters.assignee;
-    sel.innerHTML = `<option value=""></option>` +
+    sel.innerHTML = `<option value="">${t('filter_all')}</option>` +
       assignees.map(a => `<option value="${escHtml(a)}"${cur === a ? ' selected' : ''}>${escHtml(a)}</option>`).join('');
     syncFilterWrap(sel, t('col_assignee'), cur);
   });
@@ -248,7 +251,7 @@ function populateDynamicFilters() {
   )].sort();
   document.querySelectorAll('.th-filter-select[data-filter-key="version"]').forEach(sel => {
     const cur = activeFilters.version;
-    sel.innerHTML = `<option value=""></option>` +
+    sel.innerHTML = `<option value="">${t('filter_all')}</option>` +
       versions.map(v => `<option value="${escHtml(v)}"${cur === v ? ' selected' : ''}>${escHtml(v)}</option>`).join('');
     syncFilterWrap(sel, t('col_check_version'), cur);
   });
