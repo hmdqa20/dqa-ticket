@@ -1,4 +1,4 @@
-// 수정: 2026-07-03 — WJIRA 컬럼 80→100px(물음표 잘림 해소), 헤더 필터 아이콘 교체(▼→깔때기)
+// 수정: 2026-07-03 — 섹션 자동접힘을 원본 개수 기준으로(필터 결과 0개여도 그룹 열림 유지)
 // 티켓 데이터 캐시
 let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
 let searchQuery = '';
@@ -322,11 +322,13 @@ function renderAll() {
   renderSection('hold',      filterTickets(allTickets.hold),      true);
 
   // 항목 수에 따라 activeWW/activeMVN/done/hold 섹션 자동 펼침/접힘
+  // 판정은 원본 개수 기준(필터 무시) → 필터 결과가 0개여도 그룹은 열린 채 유지,
+  // 그룹에 티켓이 애초에 하나도 없을 때만 접는다.
   for (const group of ['activeWW', 'activeMVN', 'done', 'hold']) {
     const body = document.getElementById('section-' + group + '-body');
     const icon = document.getElementById('toggle-' + group);
     if (!body || !icon) continue;
-    const hasItems = filterTickets(allTickets[group]).length > 0;
+    const hasItems = allTickets[group].length > 0;
     if (!hasItems) {
       body.classList.add('collapsed');
       icon.textContent = '▶';
