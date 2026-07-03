@@ -1,4 +1,4 @@
-// 수정: 2026-06-30 — 자동 전체 갱신(가드 붙은 20초 주기): 조작 중 아니면 재렌더로 상태 등 최신 반영
+// 수정: 2026-07-03 — 빈칸 실시순서 티켓번호 오름차순 정렬 + 드래그 4케이스(빈칸→번호/번호→빈칸 gap 유지)
 // 티켓 데이터 캐시
 let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
 let searchQuery = '';
@@ -291,11 +291,19 @@ function filterTickets(tickets) {
 
 // ─── 렌더링 ───────────────────────────────────────────────────────────────────
 
+// 티켓번호(XAX2-2667)의 끝 숫자를 추출 (정렬 2차 기준용)
+function ticketNo(t) {
+  const m = String(t.ticket_id || '').match(/(\d+)\s*$/);
+  return m ? Number(m[1]) : Infinity;
+}
+
 function sortByPriority(tickets) {
   return [...tickets].sort((a, b) => {
     const pa = Number(a.priority) || Infinity;
     const pb = Number(b.priority) || Infinity;
-    return pa - pb;
+    if (pa !== pb) return pa - pb;
+    // 동순위(둘 다 빈칸이면 Infinity 동률) → 티켓번호 오름차순
+    return ticketNo(a) - ticketNo(b);
   });
 }
 
@@ -732,22 +740,52 @@ function setupDragDrop(tbody, group) {
     dragRow.classList.remove('dragging');
     dragRow.draggable = false; // 드래그 종료 후 draggable 해제
 
-    // DOM 순서에서 새 priority 결정 (1부터 순번 부여)
-    const rows = [...tbody.querySelectorAll('tr.draggable-row[data-row-id]')];
-    const updates = [];
-    rows.forEach((row, idx) => {
-      const rowId = row.dataset.rowId;
-      const ticket = allTickets[group].find(tk => tk.row_id === rowId);
-      if (!ticket) return;
-      const newPri = String(idx + 1);
-      if (ticket.priority !== newPri) {
-        ticket.priority = newPri;
-        updates.push({ row_id: rowId, priority: newPri });
-      }
-    });
-
+    const draggedId = dragRow.dataset.rowId;
     dragRow = null;
-    renderAll(); // priority 숫자 칩 갱신
+
+    // DOM 순서 (드롭 반영됨). allTickets는 아직 이전 priority 상태 → 영역 판정에 사용.
+    const rows = [...tbody.querySelectorAll('tr.draggable-row[data-row-id]')];
+    const getT = id => allTickets[group].find(tk => tk.row_id === id);
+    const wasNumbered = t => t && String(t.priority) !== '';   // 드래그 전 번호 보유 여부
+
+    const dragIdx = rows.findIndex(r => r.dataset.rowId === draggedId);
+    const draggedT = getT(draggedId);
+    if (dragIdx === -1 || !draggedT) { renderAll(); return; }
+
+    // 드롭 위치의 앞/뒤 이웃으로 번호영역 vs 빈칸영역 판정
+    // (번호 항목은 항상 빈칸 항목보다 위에 정렬되므로 이웃만 봐도 충분)
+    const nextT = dragIdx + 1 < rows.length ? getT(rows[dragIdx + 1].dataset.rowId) : null;
+    const prevT = dragIdx - 1 >= 0 ? getT(rows[dragIdx - 1].dataset.rowId) : null;
+    // 번호영역: 바로 뒤가 번호 항목 || (맨 끝인데 바로 앞이 번호 항목 = 빈칸 없이 맨 끝 재배치)
+    const inNumberedZone = wasNumbered(nextT) || (nextT === null && wasNumbered(prevT));
+
+    const updates = [];
+    const setPri = (t, id, val) => {
+      const v = String(val);
+      if (String(t.priority ?? '') !== v) {
+        t.priority = v;
+        updates.push({ row_id: id, priority: v });
+      }
+    };
+
+    if (inNumberedZone) {
+      // 번호영역: 드래그 항목 + 기존 번호 항목들을 DOM 순서로 1..n 재번호. 빈칸 항목은 그대로.
+      let n = 0;
+      rows.forEach(r => {
+        const id = r.dataset.rowId;
+        const t = getT(id);
+        if (!t) return;
+        if (id === draggedId || wasNumbered(t)) {
+          setPri(t, id, ++n);
+        }
+        // 빈칸 항목(빈칸→빈칸 유지)은 건드리지 않음
+      });
+    } else {
+      // 빈칸영역: 드래그 항목만 번호 삭제(원래 자리는 gap으로 유지), 나머지는 그대로.
+      setPri(draggedT, draggedId, '');
+    }
+
+    renderAll(); // 재정렬 + priority 숫자 칩 갱신
 
     // 변경된 항목만 GAS에 저장
     if (updates.length) {
