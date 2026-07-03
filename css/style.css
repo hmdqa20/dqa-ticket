@@ -1,4 +1,4 @@
-/* 수정: 2026-07-03 — 헤더 필터: 하단 뱃지 제거 → 아이콘 교체(▼/깔때기)+활성 pill, --filter-active 추가 */
+/* 수정: 2026-07-03 — 비활성 필터 화살표 진하게(text-secondary/0.9), 헤더 필터 아이콘 교체(▼/깔때기)+pill */
 /* ─── CSS 변수 ───────────────────────────────────────────────────────────── */
 :root {
   --ww:          #2563eb;
@@ -257,8 +257,8 @@ body {
 .th-filter-icon {
   display: inline-flex;
   align-items: center;
-  color: var(--text-muted);
-  opacity: 0.55;
+  color: var(--text-secondary);
+  opacity: 0.9;
   pointer-events: none;
   line-height: 0;
   transition: color 0.12s, opacity 0.12s;
