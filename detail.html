@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <!--
-  수정: 2026-07-02 — 파비콘 교체 (marusys-ci.png → favicon_32x32.png)
+  수정: 2026-07-03 — 메타 4단 중 '티켓 바로가기' 헤더 텍스트 삭제(빈 label로 컬럼·높이 유지)
 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -73,7 +73,8 @@
           </div>
         </div>
         <div class="form-group">
-          <label data-i18n="btn_wjira_link">티켓 바로가기</label>
+          <!-- 헤더 텍스트 삭제, 4단 그리드 유지 위해 빈 label로 높이만 확보 -->
+          <label>&nbsp;</label>
           <a id="btn-wjira-link" href="#" target="_blank" class="btn btn-secondary btn-link-compact" data-i18n="btn_wjira_link" style="display:none">티켓 바로 가기</a>
         </div>
         <div class="form-group">
