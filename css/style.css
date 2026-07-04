@@ -598,7 +598,7 @@ body {
 }
 .scroll-hint-btn {
   position: absolute; /* top은 JS(updateScrollHintPositions)로 동적 설정 */
-  pointer-events: auto;
+  pointer-events: none; /* 기본: 이벤트 차단 (오버레이 비가시 상태에서 클릭 가로채기 방지) */
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -616,6 +616,8 @@ body {
 }
 .scroll-hint-right .scroll-hint-btn { right: 6px; }
 .scroll-hint-left  .scroll-hint-btn { left:  6px; }
+/* 오버레이가 visible일 때만 버튼이 포인터 이벤트 수신 */
+.scroll-hint-overlay.visible .scroll-hint-btn { pointer-events: auto; }
 .scroll-hint-btn:hover {
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.18);

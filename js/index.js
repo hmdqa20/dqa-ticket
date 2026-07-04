@@ -374,11 +374,6 @@ function renderSection(group, tickets, dimmed) {
   tbody.querySelectorAll('.inline-select, .wjira-checkbox').forEach(el => {
     el.addEventListener('change', handleInlineChange);
   });
-
-  // 활성 그룹만 드래그 핸들 활성화
-  if (group === 'activeWW' || group === 'activeMVN') {
-    setupDragDrop(tbody, group);
-  }
 }
 
 function buildRow(ticket, dimmed, group) {
