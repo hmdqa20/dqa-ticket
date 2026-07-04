@@ -897,12 +897,66 @@ function setupStickyScrollBars() {
   document.querySelectorAll('.table-scroll').forEach(tableScroll => {
     const bar = document.createElement('div');
     bar.className = 'sticky-scrollbar';
+
+    // ── 화살표 버튼 생성
+    function makeArrow(dir) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sticky-scrollbar-arrow';
+      btn.textContent = dir === 'left' ? '◀' : '▶';
+      btn.setAttribute('aria-label', dir === 'left' ? '왼쪽 스크롤' : '오른쪽 스크롤');
+
+      const STEP_CLICK    = () => tableScroll.clientWidth * 0.25; // 클릭 1회
+      const STEP_REPEAT   = 10;   // hold 중 px/frame
+      const REPEAT_DELAY  = 400;  // hold 인식 딜레이(ms)
+      const REPEAT_INTV   = 30;   // 반복 간격(ms)
+      const sign = dir === 'left' ? -1 : 1;
+
+      let startTimer = null;
+      let repeatTimer = null;
+      let didRepeat   = false;    // hold 중이었으면 click 무시
+
+      const stopRepeat = () => {
+        clearTimeout(startTimer);
+        clearInterval(repeatTimer);
+        startTimer = repeatTimer = null;
+      };
+
+      btn.addEventListener('click', () => {
+        if (btn.disabled || didRepeat) { didRepeat = false; return; }
+        tableScroll.scrollBy({ left: sign * STEP_CLICK(), behavior: 'smooth' });
+      });
+
+      btn.addEventListener('mousedown', e => {
+        if (e.button !== 0 || btn.disabled) return;
+        didRepeat = false;
+        startTimer = setTimeout(() => {
+          didRepeat = true;
+          repeatTimer = setInterval(() => {
+            if (btn.disabled) { stopRepeat(); return; }
+            tableScroll.scrollLeft += sign * STEP_REPEAT;
+          }, REPEAT_INTV);
+        }, REPEAT_DELAY);
+      });
+
+      btn.addEventListener('mouseup',    stopRepeat);
+      btn.addEventListener('mouseleave', stopRepeat);
+
+      return btn;
+    }
+
+    const leftArrow  = makeArrow('left');
+    const rightArrow = makeArrow('right');
+
     const track = document.createElement('div');
     track.className = 'sticky-scrollbar-track';
     const thumb = document.createElement('div');
     thumb.className = 'sticky-scrollbar-thumb';
     track.appendChild(thumb);
+
+    bar.appendChild(leftArrow);
     bar.appendChild(track);
+    bar.appendChild(rightArrow);
     tableScroll.parentNode.appendChild(bar);
 
     function update() {
@@ -917,7 +971,10 @@ function setupStickyScrollBars() {
         ? (scrollLeft / (scrollWidth - clientWidth)) * maxThumbLeft
         : 0;
       thumb.style.width = thumbW + 'px';
-      thumb.style.left = thumbLeft + 'px';
+      thumb.style.left  = thumbLeft + 'px';
+      // 끝 지점 도달 시 해당 방향 버튼 비활성화
+      leftArrow.disabled  = scrollLeft <= 0;
+      rightArrow.disabled = scrollLeft >= scrollWidth - clientWidth - 1;
     }
 
     stickyBarUpdaters.push(update);
@@ -934,12 +991,12 @@ function setupStickyScrollBars() {
     thumb.addEventListener('mousedown', e => {
       e.preventDefault();
       thumb.classList.add('dragging');
-      const startX = e.clientX;
+      const startX    = e.clientX;
       const startLeft = tableScroll.scrollLeft;
       const maxScroll = tableScroll.scrollWidth - tableScroll.clientWidth;
-      const trackW = track.clientWidth;
-      const thumbW = thumb.offsetWidth;
-      const ratio = maxScroll / (trackW - thumbW || 1);
+      const trackW    = track.clientWidth;
+      const thumbW    = thumb.offsetWidth;
+      const ratio     = maxScroll / (trackW - thumbW || 1);
       const onMove = e => {
         tableScroll.scrollLeft = Math.max(0, Math.min(maxScroll, startLeft + (e.clientX - startX) * ratio));
       };
