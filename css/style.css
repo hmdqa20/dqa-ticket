@@ -553,30 +553,23 @@ body {
   top: 0;
   bottom: 0;
   width: 56px;
-  display: flex;
-  align-items: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
   z-index: 15;
 }
-.scroll-hint-overlay.visible {
-  opacity: 1;
-  pointer-events: auto;
-}
+.scroll-hint-overlay.visible { opacity: 1; }
 .scroll-hint-right {
   right: 0;
   background: linear-gradient(to right, transparent, #fff 65%);
-  justify-content: flex-end;
-  padding-right: 6px;
 }
 .scroll-hint-left {
   left: 0;
   background: linear-gradient(to left, transparent, #fff 65%);
-  justify-content: flex-start;
-  padding-left: 6px;
 }
 .scroll-hint-btn {
+  position: absolute; /* top은 JS(updateScrollHintPositions)로 동적 설정 */
+  pointer-events: auto;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -591,8 +584,9 @@ body {
   justify-content: center;
   box-shadow: 0 1px 4px rgba(0,0,0,0.12);
   transition: background 0.15s, box-shadow 0.15s, color 0.15s;
-  flex-shrink: 0;
 }
+.scroll-hint-right .scroll-hint-btn { right: 6px; }
+.scroll-hint-left  .scroll-hint-btn { left:  6px; }
 .scroll-hint-btn:hover {
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.18);

@@ -963,6 +963,23 @@ function updateAllStickyBars() {
 // ─── 좌우 스크롤 힌트 버튼 [실험적 기능 — 이 JS 블록 + CSS .scroll-hint-* 블록을 삭제하면 기능 제거] ──
 
 const scrollHintUpdaters = [];
+const SCROLL_HINT_TOPBAR_H = 56; // .topbar 높이 (position:sticky top:0)
+
+function updateScrollHintPositions() {
+  document.querySelectorAll('.scroll-hint-wrapper').forEach(wrapper => {
+    const rect = wrapper.getBoundingClientRect();
+    const visTop = Math.max(rect.top, SCROLL_HINT_TOPBAR_H);
+    const visBot = Math.min(rect.bottom, window.innerHeight);
+    if (visBot <= visTop) return;
+    // 화면에 보이는 영역의 세로 중앙 → wrapper 기준 top 값으로 변환
+    const btnTop = Math.max(0, (visTop + visBot) / 2 - rect.top - 20); // 20 = 버튼 반지름
+    wrapper.querySelectorAll('.scroll-hint-btn').forEach(btn => {
+      btn.style.top = btnTop + 'px';
+    });
+  });
+}
+
+let _scrollHintWindowListenerAdded = false;
 
 function setupScrollHints() {
   document.querySelectorAll('.table-scroll').forEach(tableScroll => {
@@ -1002,10 +1019,18 @@ function setupScrollHints() {
     new ResizeObserver(update).observe(tableScroll);
     update();
   });
+
+  if (!_scrollHintWindowListenerAdded) {
+    window.addEventListener('scroll', updateScrollHintPositions, { passive: true });
+    window.addEventListener('resize', updateScrollHintPositions, { passive: true });
+    _scrollHintWindowListenerAdded = true;
+  }
+  updateScrollHintPositions();
 }
 
 function updateAllScrollHints() {
   scrollHintUpdaters.forEach(fn => fn());
+  updateScrollHintPositions();
 }
 // ──────────────────────────────────────────────────────────────────────────────
 
