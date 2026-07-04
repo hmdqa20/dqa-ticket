@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupDragDrop(document.getElementById('tbody-activeWW'),  'activeWW');
   setupDragDrop(document.getElementById('tbody-activeMVN'), 'activeMVN');
+  setupTopScrollBars(); // 그룹명 바로 아래 상단 가로스크롤바 (하단 스크롤바와 위치 동기화)
 
   startAutoRefresh();  // 주기적 전체 갱신 (가드: 조작 중이면 건너뜀)
   setupTooltips();     // 클립/자물쇠 등 [data-tip] 요소 위쪽 커스텀 툴팁
@@ -884,6 +885,35 @@ function setupTooltips() {
   });
   // 스크롤/이동 시 위치가 어긋나지 않도록 숨김
   window.addEventListener('scroll', hide, true);
+}
+
+// ─── 상단 가로스크롤바 (그룹명↔컬럼 헤더 사이) ──────────────────────────────────
+
+function setupTopScrollBars() {
+  document.querySelectorAll('.table-scroll').forEach(tableScroll => {
+    const topBar = document.createElement('div');
+    topBar.className = 'scroll-top-bar';
+    const topInner = document.createElement('div');
+    topInner.className = 'scroll-top-bar-inner';
+    topBar.appendChild(topInner);
+    tableScroll.parentNode.insertBefore(topBar, tableScroll);
+
+    const syncWidth = () => { topInner.style.width = tableScroll.scrollWidth + 'px'; };
+    syncWidth();
+    new ResizeObserver(syncWidth).observe(tableScroll);
+
+    let busy = false;
+    topBar.addEventListener('scroll', () => {
+      if (busy) return; busy = true;
+      tableScroll.scrollLeft = topBar.scrollLeft;
+      busy = false;
+    });
+    tableScroll.addEventListener('scroll', () => {
+      if (busy) return; busy = true;
+      topBar.scrollLeft = tableScroll.scrollLeft;
+      busy = false;
+    });
+  });
 }
 
 // ─── 섹션 접기/펼치기 ─────────────────────────────────────────────────────────

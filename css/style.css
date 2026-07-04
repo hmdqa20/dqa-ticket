@@ -505,6 +505,17 @@ body {
   box-shadow: var(--shadow);
 }
 
+/* 테이블 상단 가로스크롤바 (그룹명 바로 아래, 컬럼 헤더 위) */
+.scroll-top-bar {
+  overflow-x: scroll;
+  overflow-y: hidden;
+  height: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.scroll-top-bar-inner {
+  height: 1px;
+}
+
 /* 테이블 가로 스크롤 컨테이너 */
 .table-scroll {
   overflow-x: auto;
