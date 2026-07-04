@@ -39,9 +39,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadTickets();
 
-  // localStorage 값이 없고 버전이 있으면 sort_order 최대(최신) 버전을 기본 탭으로 설정
+  // localStorage 값이 없고 버전이 있으면 리스트 최상단 버전을 기본 탭으로 설정
   if (!localStorage.getItem('dqa_current_version') && versions.length > 0) {
-    const latest = versions.reduce((a, b) => a.sort_order > b.sort_order ? a : b);
+    const latest = versions[0];
     currentVersionId = latest.version_id;
     const filterByVer = arr => arr.filter(tk => tk.version_id === latest.version_id);
     allTickets = {
@@ -323,10 +323,10 @@ function renderAll() {
   renderSection('done',      filterTickets(allTickets.done),      true);
   renderSection('hold',      filterTickets(allTickets.hold),      true);
 
-  // 항목 수에 따라 activeWW/activeMVN/done/hold 섹션 자동 펼침/접힘
-  // 판정은 원본 개수 기준(필터 무시) → 필터 결과가 0개여도 그룹은 열린 채 유지,
-  // 그룹에 티켓이 애초에 하나도 없을 때만 접는다.
-  for (const group of ['activeWW', 'activeMVN', 'done', 'hold']) {
+  // 항목 수에 따라 activeMVN/done/hold 섹션 자동 펼침/접힘
+  // activeWW는 항목 유무와 무관하게 항상 열린 상태 유지 (자동 접힘 대상 제외)
+  // 판정은 원본 개수 기준(필터 무시) → 그룹에 티켓이 애초에 없을 때만 접는다.
+  for (const group of ['activeMVN', 'done', 'hold']) {
     const body = document.getElementById('section-' + group + '-body');
     const icon = document.getElementById('toggle-' + group);
     if (!body || !icon) continue;
