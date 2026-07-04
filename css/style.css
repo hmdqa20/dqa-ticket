@@ -544,6 +544,62 @@ body {
 .sticky-scrollbar-thumb:hover { background: var(--muted); }
 .sticky-scrollbar-thumb.dragging { background: var(--muted); cursor: grabbing; }
 
+/* ─── 좌우 스크롤 힌트 [실험적 기능 — 이 CSS 블록 + JS setupScrollHints 블록을 삭제하면 기능 제거] ── */
+.scroll-hint-wrapper {
+  position: relative;
+}
+.scroll-hint-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 56px;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 15;
+}
+.scroll-hint-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.scroll-hint-right {
+  right: 0;
+  background: linear-gradient(to right, transparent, #fff 65%);
+  justify-content: flex-end;
+  padding-right: 6px;
+}
+.scroll-hint-left {
+  left: 0;
+  background: linear-gradient(to left, transparent, #fff 65%);
+  justify-content: flex-start;
+  padding-left: 6px;
+}
+.scroll-hint-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #d1d5db;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  transition: background 0.15s, box-shadow 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.scroll-hint-btn:hover {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  color: var(--text);
+}
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 .section-header {
   display: flex;
   align-items: center;

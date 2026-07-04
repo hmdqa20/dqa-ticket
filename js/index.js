@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupDragDrop(document.getElementById('tbody-activeWW'),  'activeWW');
   setupDragDrop(document.getElementById('tbody-activeMVN'), 'activeMVN');
   setupStickyScrollBars();
+  setupScrollHints(); // [실험적 기능]
 
   startAutoRefresh();  // 주기적 전체 갱신 (가드: 조작 중이면 건너뜀)
   setupTooltips();     // 클립/자물쇠 등 [data-tip] 요소 위쪽 커스텀 툴팁
@@ -342,6 +343,7 @@ function renderAll() {
   }
 
   updateCounts();
+  updateAllScrollHints(); // [실험적 기능] 렌더링 후 힌트 가시성 재계산
 }
 
 function renderSection(group, tickets, dimmed) {
@@ -958,6 +960,55 @@ function updateAllStickyBars() {
   stickyBarUpdaters.forEach(fn => fn());
 }
 
+// ─── 좌우 스크롤 힌트 버튼 [실험적 기능 — 이 JS 블록 + CSS .scroll-hint-* 블록을 삭제하면 기능 제거] ──
+
+const scrollHintUpdaters = [];
+
+function setupScrollHints() {
+  document.querySelectorAll('.table-scroll').forEach(tableScroll => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'scroll-hint-wrapper';
+    tableScroll.parentNode.insertBefore(wrapper, tableScroll);
+    wrapper.appendChild(tableScroll);
+
+    function makeOverlay(dir) {
+      const overlay = document.createElement('div');
+      overlay.className = 'scroll-hint-overlay scroll-hint-' + dir;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'scroll-hint-btn';
+      btn.setAttribute('aria-label', dir === 'right' ? '오른쪽 스크롤' : '왼쪽 스크롤');
+      btn.textContent = dir === 'right' ? '▶' : '◀';
+      overlay.appendChild(btn);
+      wrapper.appendChild(overlay);
+      btn.addEventListener('click', () => {
+        tableScroll.scrollBy({ left: (dir === 'right' ? 1 : -1) * tableScroll.clientWidth * 0.75, behavior: 'smooth' });
+      });
+      return overlay;
+    }
+
+    const leftOverlay  = makeOverlay('left');
+    const rightOverlay = makeOverlay('right');
+
+    function update() {
+      const { scrollLeft, scrollWidth, clientWidth } = tableScroll;
+      const canScroll = scrollWidth > clientWidth + 1;
+      leftOverlay.classList.toggle('visible',  canScroll && scrollLeft > 1);
+      rightOverlay.classList.toggle('visible', canScroll && scrollLeft < scrollWidth - clientWidth - 1);
+    }
+
+    scrollHintUpdaters.push(update);
+    tableScroll.addEventListener('scroll', update, { passive: true });
+    new ResizeObserver(update).observe(tableScroll);
+    update();
+  });
+}
+
+function updateAllScrollHints() {
+  scrollHintUpdaters.forEach(fn => fn());
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 // ─── 섹션 접기/펼치기 ─────────────────────────────────────────────────────────
 
 function toggleSection(group) {
@@ -971,6 +1022,7 @@ function toggleSection(group) {
   } else {
     userCollapsed.delete(group);
     updateAllStickyBars();
+    updateAllScrollHints(); // [실험적 기능]
   }
 }
 
