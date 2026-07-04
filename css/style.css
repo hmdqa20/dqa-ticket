@@ -1126,7 +1126,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 /* 이슈명 입력란 (× 버튼 포함) */
 .input-clearable {
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -1136,7 +1136,8 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   border-color: var(--ww);
   box-shadow: 0 0 0 2px #dbeafe;
 }
-.input-clearable input {
+.input-clearable input,
+.input-clearable textarea {
   flex: 1;
   border: none !important;
   border-radius: 0 !important;
@@ -1149,11 +1150,16 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   background: transparent;
   min-width: 0;
 }
+.input-clearable textarea {
+  resize: vertical;
+  overflow: auto;
+}
 .btn-clear-input {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 34px;
+  min-height: 36px;
   flex-shrink: 0;
   background: #f1f5f9;
   border: none;
