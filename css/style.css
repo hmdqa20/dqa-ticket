@@ -1065,8 +1065,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 .form-group select:disabled { background: #f9fafb; color: var(--muted); cursor: not-allowed; }
 
 .form-group textarea { resize: vertical; }
-#check-content { min-height: 100px; }
-#note          { min-height: 60px; }
+#note { min-height: 60px; }
 
 /* 티켓번호 행 */
 .ticket-id-row {
