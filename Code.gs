@@ -701,3 +701,82 @@ function setupVersionHeaders() {
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.setFrozenRows(1);
 }
+
+// ─── 일회성 복구: 중복 row_id 재생성 + locked_at 전체 초기화 ─────────────────
+// ⚠️  실행 전 반드시 스프레드시트 사본을 만들 것 (파일 → 사본 만들기)
+// ⚠️  아무도 티켓을 편집하고 있지 않은 상태에서 실행할 것
+// 실행 방법: GAS 에디터 상단 함수 드롭다운에서 fixDuplicateRowIds 선택 → 실행
+function fixDuplicateRowIds() {
+  const sheet = getSheet();
+  const data  = sheet.getDataRange().getValues();
+
+  if (data.length <= 1) {
+    Logger.log('[fixDuplicateRowIds] 데이터 행이 없습니다 — 종료.');
+    return;
+  }
+
+  const numDataRows = data.length - 1; // 헤더 제외
+
+  // ── Pass 1: row_id 등장 횟수 집계 ──────────────────────────────────────────
+  const rowIdFirstIdx = {}; // row_id → 첫 등장 data[] 인덱스 (1~)
+  const rowIdCount    = {}; // row_id → 총 등장 횟수
+
+  for (let i = 1; i < data.length; i++) {
+    const rowId = String(data[i][COL.ROW_ID] || '').trim();
+    if (!rowId) continue;
+    if (rowIdFirstIdx[rowId] === undefined) {
+      rowIdFirstIdx[rowId] = i;
+      rowIdCount[rowId]    = 1;
+    } else {
+      rowIdCount[rowId]++;
+    }
+  }
+
+  // 중복 row_id 종류 로그
+  const duplicatedIds = Object.keys(rowIdCount).filter(id => rowIdCount[id] > 1);
+  if (duplicatedIds.length === 0) {
+    Logger.log('[fixDuplicateRowIds] 중복 row_id 없음. locked_at 초기화만 진행합니다.');
+  } else {
+    Logger.log('[fixDuplicateRowIds] 중복 row_id %s종류 발견:', duplicatedIds.length);
+    duplicatedIds.forEach(id =>
+      Logger.log('  └ %s ... %s개 행이 동일 UUID 공유', id, rowIdCount[id])
+    );
+  }
+
+  // ── Pass 2: 변경 값 결정 (배치 쓰기용 2차원 배열 구성) ─────────────────────
+  const newRowIds   = []; // column N 전체 (numDataRows × 1)
+  const newLockedAt = []; // column Q 전체 (numDataRows × 1)
+  let duplicateRowsFixed = 0;
+  let lockedAtCleared    = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const rowId    = String(data[i][COL.ROW_ID]    || '').trim();
+    const lockedAt = String(data[i][COL.LOCKED_AT]  || '').trim();
+
+    // 중복 row_id이고 첫 등장이 아닌 행 → 새 UUID 부여 (첫 번째 행은 원본 유지)
+    let newId = rowId;
+    if (rowId && rowIdCount[rowId] > 1 && rowIdFirstIdx[rowId] !== i) {
+      newId = Utilities.getUuid();
+      duplicateRowsFixed++;
+    }
+    newRowIds.push([newId]);
+
+    // locked_at 값이 있으면 빈 문자열로 초기화
+    let newLock = lockedAt;
+    if (lockedAt) {
+      newLock = '';
+      lockedAtCleared++;
+    }
+    newLockedAt.push([newLock]);
+  }
+
+  // ── 배치 쓰기 (2회 호출로 전체 열 한꺼번에 반영) ────────────────────────────
+  sheet.getRange(2, COL.ROW_ID    + 1, numDataRows, 1).setValues(newRowIds);
+  sheet.getRange(2, COL.LOCKED_AT + 1, numDataRows, 1).setValues(newLockedAt);
+  SpreadsheetApp.flush();
+
+  Logger.log('=== fixDuplicateRowIds 완료 ===');
+  Logger.log('중복 row_id → 새 UUID 부여: %s행', duplicateRowsFixed);
+  Logger.log('locked_at 초기화: %s행', lockedAtCleared);
+  Logger.log('총 데이터 행: %s행', numDataRows);
+}
