@@ -20,9 +20,28 @@ async function callGAS(type, params = {}) {
 // 전체 티켓 조회 (doGet) — versionId 주면 해당 버전 티켓만 / versions도 함께 반환
 async function getTickets(versionId) {
   const url = versionId ? `${GAS_URL}?version_id=${encodeURIComponent(versionId)}` : GAS_URL;
-  const res = await fetch(url, { redirect: 'follow' });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const json = await res.json();
+
+  let res;
+  try {
+    res = await fetch(url, { redirect: 'follow' });
+  } catch (networkErr) {
+    console.error('[getTickets] 네트워크 오류:', networkErr);
+    throw new Error('네트워크 오류 — 인터넷 연결을 확인하세요.');
+  }
+
+  if (!res.ok) {
+    console.error('[getTickets] HTTP 오류:', res.status, res.statusText);
+    throw new Error(`서버 오류 (HTTP ${res.status})`);
+  }
+
+  let json;
+  try {
+    json = await res.json();
+  } catch (parseErr) {
+    console.error('[getTickets] 응답 형식 오류:', parseErr);
+    throw new Error('응답 형식 오류 — GAS 배포 설정을 확인하세요.');
+  }
+
   if (!json.success) throw new Error(json.error || '알 수 없는 오류');
   return { ...(json.data || {}), versions: json.versions || [] };
 }

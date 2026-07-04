@@ -178,7 +178,19 @@ async function loadTickets() {
   showError(false);
   try {
     const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
-    allTickets = await getTickets(vid);
+
+    // 1차 시도 실패 시 RETRY_DELAY_MS 대기 후 1회 자동 재시도
+    // 로딩 인디케이터는 재시도 동안 계속 표시 (finally에서만 숨김)
+    let data;
+    try {
+      data = await getTickets(vid);
+    } catch (firstErr) {
+      console.warn('[loadTickets] 1차 실패, 재시도 중...', firstErr.message);
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+      data = await getTickets(vid);  // 실패 시 throw → outer catch
+    }
+
+    allTickets = data;
     versions = allTickets.versions || [];
     // 저장된 선택 버전이 더 이상 존재하지 않으면 전체로 복귀
     if (currentVersionId !== ALL_VERSION && !versions.some(v => v.version_id === currentVersionId)) {
@@ -808,7 +820,8 @@ function setupDragDrop(tbody, group) {
 // 매 주기 전체 데이터를 받아 재렌더(재정렬·재그룹·잠금아이콘·컨트롤 포함).
 // 단, 사용자가 조작 중이면 그 주기를 건너뛰어 행 점프/드롭다운 닫힘을 방지.
 
-const REFRESH_MS = 20000;          // 20초 주기 (LOCK_EXPIRE_MS는 상단에 정의됨)
+const REFRESH_MS    = 20000;       // 20초 주기 (LOCK_EXPIRE_MS는 상단에 정의됨)
+const RETRY_DELAY_MS = 1500;       // 첫 번째 요청 실패 후 자동 재시도 대기
 let refreshTimer = null;
 let isDragging = false;            // 드래그 진행 중 (setupDragDrop에서 토글)
 let lastEditAt = 0;                // 마지막 인라인 편집 시각 (저장 레이스 방지)
