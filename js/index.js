@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupDragDrop(document.getElementById('tbody-activeWW'),  'activeWW');
   setupDragDrop(document.getElementById('tbody-activeMVN'), 'activeMVN');
-  setupTopScrollBars(); // 그룹명 바로 아래 상단 가로스크롤바 (하단 스크롤바와 위치 동기화)
+  setupStickyScrollBars();
 
   startAutoRefresh();  // 주기적 전체 갱신 (가드: 조작 중이면 건너뜀)
   setupTooltips();     // 클립/자물쇠 등 [data-tip] 요소 위쪽 커스텀 툴팁
@@ -887,33 +887,75 @@ function setupTooltips() {
   window.addEventListener('scroll', hide, true);
 }
 
-// ─── 상단 가로스크롤바 (그룹명↔컬럼 헤더 사이) ──────────────────────────────────
+// ─── 하단 고정 가로스크롤바 ────────────────────────────────────────────────────
 
-function setupTopScrollBars() {
+const stickyBarUpdaters = [];
+
+function setupStickyScrollBars() {
   document.querySelectorAll('.table-scroll').forEach(tableScroll => {
-    const topBar = document.createElement('div');
-    topBar.className = 'scroll-top-bar';
-    const topInner = document.createElement('div');
-    topInner.className = 'scroll-top-bar-inner';
-    topBar.appendChild(topInner);
-    tableScroll.parentNode.insertBefore(topBar, tableScroll);
+    const bar = document.createElement('div');
+    bar.className = 'sticky-scrollbar';
+    const track = document.createElement('div');
+    track.className = 'sticky-scrollbar-track';
+    const thumb = document.createElement('div');
+    thumb.className = 'sticky-scrollbar-thumb';
+    track.appendChild(thumb);
+    bar.appendChild(track);
+    tableScroll.parentNode.appendChild(bar);
 
-    const syncWidth = () => { topInner.style.width = tableScroll.scrollWidth + 'px'; };
-    syncWidth();
-    new ResizeObserver(syncWidth).observe(tableScroll);
+    function update() {
+      const { scrollLeft, scrollWidth, clientWidth } = tableScroll;
+      const needsScroll = scrollWidth > clientWidth + 1;
+      bar.classList.toggle('visible', needsScroll);
+      if (!needsScroll) return;
+      const trackW = track.clientWidth;
+      const thumbW = Math.max(40, (clientWidth / scrollWidth) * trackW);
+      const maxThumbLeft = trackW - thumbW;
+      const thumbLeft = maxThumbLeft > 0
+        ? (scrollLeft / (scrollWidth - clientWidth)) * maxThumbLeft
+        : 0;
+      thumb.style.width = thumbW + 'px';
+      thumb.style.left = thumbLeft + 'px';
+    }
 
-    let busy = false;
-    topBar.addEventListener('scroll', () => {
-      if (busy) return; busy = true;
-      tableScroll.scrollLeft = topBar.scrollLeft;
-      busy = false;
+    stickyBarUpdaters.push(update);
+    tableScroll.addEventListener('scroll', update);
+    new ResizeObserver(update).observe(tableScroll);
+
+    track.addEventListener('click', e => {
+      if (e.target === thumb) return;
+      const rect = track.getBoundingClientRect();
+      const ratio = (e.clientX - rect.left) / rect.width;
+      tableScroll.scrollLeft = ratio * (tableScroll.scrollWidth - tableScroll.clientWidth);
     });
-    tableScroll.addEventListener('scroll', () => {
-      if (busy) return; busy = true;
-      topBar.scrollLeft = tableScroll.scrollLeft;
-      busy = false;
+
+    thumb.addEventListener('mousedown', e => {
+      e.preventDefault();
+      thumb.classList.add('dragging');
+      const startX = e.clientX;
+      const startLeft = tableScroll.scrollLeft;
+      const maxScroll = tableScroll.scrollWidth - tableScroll.clientWidth;
+      const trackW = track.clientWidth;
+      const thumbW = thumb.offsetWidth;
+      const ratio = maxScroll / (trackW - thumbW || 1);
+      const onMove = e => {
+        tableScroll.scrollLeft = Math.max(0, Math.min(maxScroll, startLeft + (e.clientX - startX) * ratio));
+      };
+      const onUp = () => {
+        thumb.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     });
+
+    update();
   });
+}
+
+function updateAllStickyBars() {
+  stickyBarUpdaters.forEach(fn => fn());
 }
 
 // ─── 섹션 접기/펼치기 ─────────────────────────────────────────────────────────
@@ -928,6 +970,7 @@ function toggleSection(group) {
     userCollapsed.add(group);
   } else {
     userCollapsed.delete(group);
+    updateAllStickyBars();
   }
 }
 

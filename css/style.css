@@ -501,25 +501,48 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 10px;
-  overflow: hidden;
+  overflow: clip; /* hidden 대신 clip: 스크롤 컨테이너를 만들지 않아 sticky 자식이 뷰포트 기준으로 동작 */
   box-shadow: var(--shadow);
-}
-
-/* 테이블 상단 가로스크롤바 (그룹명 바로 아래, 컬럼 헤더 위) */
-.scroll-top-bar {
-  overflow-x: scroll;
-  overflow-y: hidden;
-  height: 14px;
-  border-bottom: 1px solid var(--border);
-}
-.scroll-top-bar-inner {
-  height: 1px;
 }
 
 /* 테이블 가로 스크롤 컨테이너 */
 .table-scroll {
   overflow-x: auto;
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE/Edge */
 }
+.table-scroll::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+/* 하단 고정 가로스크롤바 */
+.sticky-scrollbar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  height: 10px;
+  background: var(--surface-1);
+  border-top: 1px solid var(--border);
+  z-index: 20;
+  display: none;
+}
+.sticky-scrollbar.visible { display: block; }
+.sticky-scrollbar-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.sticky-scrollbar-thumb {
+  position: absolute;
+  top: 1px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--text-muted);
+  cursor: grab;
+  min-width: 40px;
+  transition: background 0.15s;
+}
+.sticky-scrollbar-thumb:hover { background: var(--muted); }
+.sticky-scrollbar-thumb.dragging { background: var(--muted); cursor: grabbing; }
 
 .section-header {
   display: flex;
