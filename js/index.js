@@ -1,4 +1,3 @@
-// 수정: 2026-07-03 — 필터 드롭다운 첫 항목에 '전체'(filter_all) 라벨 표시(빈칸 → 필터 해제 명시)
 // 티켓 데이터 캐시
 let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
 let searchQuery = '';

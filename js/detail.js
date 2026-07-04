@@ -1,4 +1,3 @@
-// 수정: 2026-06-29 — 이탈 시 '방금 해제한 항목' 힌트(sessionStorage) 전달로 목록에서 자기 자물쇠 억제
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

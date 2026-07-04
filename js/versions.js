@@ -1,4 +1,3 @@
-// 수정: 2026-06-28 10:00 — API 1회 호출(getTickets)로 버전+티켓 동시 취득
 // 버전 목록과 티켓 수를 담는 상태
 let versionList = [];      // sort_order 기준 정렬 유지
 let ticketCounts = {};     // { version_id: count }

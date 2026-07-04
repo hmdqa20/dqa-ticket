@@ -1,6 +1,3 @@
-// 수정: 2026-06-29 — 티켓 편집 잠금 기능 추가 (LOCKED_AT, lockTicket/unlockTicket/checkLock)
-// 수정: 2026-06-28 14:00 — 실시순서 로직 전면 재작성: renumberActiveGroup 제거, cascade 프론트엔드 위임
-// 수정: 2026-06-28 10:00 — doGet에 versions 포함, API 호출 2회→1회 감소
 // ─── Column indices (0-based for array access) ───────────────────────────────
 const COL = {
   TICKET_ID:         0,  // A

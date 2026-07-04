@@ -1,4 +1,3 @@
-// 수정: 2026-06-29 — GAS_URL을 회사 계정 새 배포 URL로 교체
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec';
 
 // POST 공통 함수 — URLSearchParams로 form-encoded 전송

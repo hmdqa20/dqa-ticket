@@ -1,4 +1,3 @@
-// 수정: 2026-06-28 17:00 — 베트남어 placeholder_check_content 누락분 수정
 // 다국어 번역 테이블
 const I18N = {
   ko: {
