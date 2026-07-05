@@ -34,17 +34,20 @@
   --border-accent: #bfdbfe;
   --info-i:        #0891b2;  /* 번역 안내 'i' 기본색 (cyan-600) */
   --info-i-hover:  #0e7490;  /* hover 진해짐 (cyan-700) */
+  --info-i-bg:     rgba(8, 145, 178, 0.12);  /* 아이콘 셀 hover 배경 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --info-i:       #22d3ee;  /* dark모드: 배경 대비 잘 보이는 cyan-400 */
     --info-i-hover: #67e8f9;
+    --info-i-bg:    rgba(34, 211, 238, 0.12);
   }
 }
 :root[data-theme="dark"] {
   --info-i:       #22d3ee;
   --info-i-hover: #67e8f9;
+  --info-i-bg:    rgba(34, 211, 238, 0.12);
 }
 
 /* ─── 리셋 & 기본 ─────────────────────────────────────────────────────────── */
@@ -692,7 +695,7 @@ body {
 /* ─── 테이블 ──────────────────────────────────────────────────────────────── */
 .ticket-table {
   width: 100%;
-  min-width: 940px; /* 고정 컬럼 합계 738px + 이슈명 최소 200px */
+  min-width: 970px; /* 고정 컬럼 합계 768px + 이슈명 최소 200px (아이콘 독립 컬럼 30px 추가) */
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
@@ -747,20 +750,10 @@ body {
 
 .title-cell {
   max-width: 280px;
-  text-align: left;
-}
-.title-cell-inner {
-  display: flex;
-  align-items: center;
-  /* overflow:hidden 제거 — .title-orig-icon 음수 margin 확장 영역이 clip되지 않도록;
-     텍스트 절삭은 .title-text 자체의 overflow:hidden으로 처리 */
-}
-.title-cell-inner .title-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+  text-align: left;
 }
 
 
@@ -980,36 +973,41 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   user-select: none;   /* 드래그 선택 방지 */
 }
 
-/* ─── 이슈명 번역 안내 'i' 아이콘 & 원문 팝오버 ───────────────────────────── */
-.title-orig-icon {
-  display: inline-flex;
-  align-items: center;
+/* ─── 원문보기 아이콘 독립 컬럼 ─────────────────────────────────────────────── */
+.orig-icon-col {
+  padding: 0;
+  text-align: center;
+}
+.orig-icon-cell {
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
   font-family: Georgia, 'Palatino Linotype', Palatino, 'Times New Roman', serif;
   font-style: italic;
   font-weight: 600;
   font-size: 13px;
   color: var(--info-i);
-  cursor: pointer;
-  /* margin-left 음수로 hit area를 td 왼쪽 border까지 확장 (12px).
-     좌우 7px 대칭 패딩. 'i' 위치 = 12(td pad) - 12(margin) + 7(pad) = 7px from td left */
-  margin-left: -12px;
-  padding: 5px 7px;
-  margin-right: 0;
-  flex-shrink: 0;
   user-select: none;
+  border-radius: 6px;
+  background: transparent;
   text-decoration-line: underline;
   text-decoration-color: transparent;
   text-underline-offset: 2px;
-  transition: color 0.15s, text-decoration-color 0.15s;
+  transition: color 0.15s, text-decoration-color 0.15s, background 0.15s;
+  outline: none;
 }
-.title-orig-icon:hover {
+.orig-icon-cell:hover {
+  background: var(--info-i-bg);
   color: var(--info-i-hover);
   text-decoration-color: var(--info-i-hover);
 }
-.title-orig-placeholder {
-  visibility: hidden;
-  pointer-events: none;
+.orig-icon-cell:focus-visible {
+  background: var(--info-i-bg);
+  box-shadow: inset 0 0 0 2px var(--info-i);
+}
+.orig-icon-cell.orig-icon-empty {
   cursor: default;
+  pointer-events: none;
 }
 
 .orig-title-popover {
@@ -1424,7 +1422,6 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   .ticket-table { font-size: 12px; }
   .ticket-table th, .ticket-table td { padding: 7px 8px; }
   .title-cell { max-width: 120px; }
-  .title-orig-icon { margin-left: -8px; } /* td padding 8px 기준; padding 7px(base)은 유지 */
 
   .ticket-form { padding: 20px; gap: 20px; }
   .meta-grid { grid-template-columns: 1fr; }

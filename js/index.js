@@ -97,11 +97,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ─── 헤더 생성 ───────────────────────────────────────────────────────────────
 
-// 컬럼 너비: 클립 | 티켓번호 | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA
-// 이슈명은 테이블 min-width(950px)에서 고정 컬럼 합(758px)을 뺀 나머지를 자동 배분 (≥192px 보장)
+// 컬럼 너비: 클립 | 티켓번호 | [i] | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA
+// 이슈명은 테이블 min-width(970px)에서 고정 컬럼 합(768px)을 뺀 나머지를 자동 배분 (≥200px 보장)
 // WJIRA는 컬럼명+아이콘+물음표(?)가 들어가도록 100px
-const COL_WIDTHS = ['24px', '110px', '', '110px', '70px', '110px', '120px', '70px', '100px', '44px'];
-// 클립 | 티켓번호 | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA | 핸들
+const COL_WIDTHS = ['24px', '110px', '30px', '', '110px', '70px', '110px', '120px', '70px', '100px', '44px'];
+// 클립 | 티켓번호 | [i] | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA | 핸들
 
 // 헤더 필터 아이콘: 비활성=얇은 ▼(드롭다운 힌트), 활성=깔때기(필터 걸림 표시)
 const CHEVRON_SVG = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`;
@@ -161,6 +161,7 @@ function buildHeaderHtml(sectionType = 'active') {
   return `
     <th></th>
     <th>${t('col_ticket_id')}</th>
+    <th class="orig-icon-col"></th>
     <th>${t('col_title')}</th>
     <th>${wrap('version', t('col_check_version'), allOpt)}</th>
     <th>${t('col_order')}</th>
@@ -364,29 +365,32 @@ function renderSection(group, tickets, dimmed) {
   if (!tbody) return;
 
   if (tickets.length === 0) {
-    tbody.innerHTML = `<tr class="no-data"><td colspan="10">${t('no_tickets')}</td></tr>`;
+    tbody.innerHTML = `<tr class="no-data"><td colspan="11">${t('no_tickets')}</td></tr>`;
     return;
   }
 
   tbody.innerHTML = tickets.map(ticket => buildRow(ticket, dimmed, group)).join('');
 
   tbody.querySelectorAll('.navigate-cell').forEach(td => {
-    td.addEventListener('click', (e) => {
-      const icon = e.target.closest('.title-orig-icon');
-      if (icon) {
-        e.stopPropagation(); // navigate-cell 및 상위 요소로 전파 차단
-        _toggleOrigPopover(icon);
-        return;
-      }
+    td.addEventListener('click', () => {
       const rowId = td.closest('tr').dataset.rowId;
       if (!rowId) return;
-      // 잠긴 항목은 상세로 가지 않고 즉시 팝업 (GAS 재조회 없이 캐시로 판단)
       const ticket = allTicketsFlat().find(tk => tk.row_id === rowId);
       if (ticket && isLockedForDisplay(ticket)) {
         alert('다른 사용자가 편집 중인 항목입니다.\n편집이 완료된 후 다시 시도해 주세요.');
         return;
       }
       location.href = 'detail.html?id=' + rowId;
+    });
+  });
+
+  tbody.querySelectorAll('.orig-icon-cell[data-orig]').forEach(td => {
+    td.addEventListener('click', () => _toggleOrigPopover(td));
+    td.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        _toggleOrigPopover(td);
+      }
     });
   });
 
@@ -454,15 +458,16 @@ function buildRow(ticket, dimmed, group) {
   } else if (lang === 'vi' && ticket.title_vi && ticket.title_vi !== ticket.title) {
     displayTitle = ticket.title_vi; isTranslated = true;
   }
-  const origIcon = isTranslated
-    ? `<span class="title-orig-icon" data-orig="${escHtml(ticket.title)}">i</span>`
-    : `<span class="title-orig-icon title-orig-placeholder" aria-hidden="true">i</span>`;
+  const origIconTd = isTranslated
+    ? `<td class="orig-icon-cell" tabindex="0" aria-label="원문 보기" data-orig="${escHtml(ticket.title)}">i</td>`
+    : `<td class="orig-icon-cell orig-icon-empty"></td>`;
 
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
       <td class="clip-cell"${hasFiles ? ` data-tip="첨부 파일 - ${escHtml(firstFileName)}"` : ''}>${hasFiles ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
       <td class="ticket-id-cell">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
-      <td class="title-cell navigate-cell"${displayTitle ? ` data-tip="${escHtml(displayTitle)}"` : ''}><div class="title-cell-inner">${origIcon}<span class="title-text">${escHtml(displayTitle)}</span></div></td>
+      ${origIconTd}
+      <td class="title-cell navigate-cell"${displayTitle ? ` data-tip="${escHtml(displayTitle)}"` : ''}>${escHtml(displayTitle)}</td>
       <td class="navigate-cell version-cell">${versionHtml}</td>
       <td>${orderCell}</td>
       <td class="assignee-cell">${buildAssigneeSelectHtml(ticket.assignee || '', ticket.row_id, locked)}</td>
@@ -1182,24 +1187,23 @@ function setupOrigTitlePopover() {
   _previewTooltip.textContent = '원문 표시';
   document.body.appendChild(_previewTooltip);
 
-  // 아이콘 위 → 사전 안내 툴팁 표시
+  // 아이콘 셀 위 → 사전 안내 툴팁 표시 (PC 호버 전용)
   document.addEventListener('mouseover', e => {
-    if (e.target.closest('.title-orig-icon')) {
-      _showPreviewTooltip(e.target.closest('.title-orig-icon'));
-    }
+    const cell = e.target.closest('.orig-icon-cell[data-orig]');
+    if (cell) _showPreviewTooltip(cell);
   });
 
-  // 아이콘 벗어남 → 사전 안내 툴팁 닫기
+  // 아이콘 셀 벗어남 → 사전 안내 툴팁 닫기
   document.addEventListener('mouseout', e => {
-    if (!e.target.closest('.title-orig-icon')) return;
+    if (!e.target.closest('.orig-icon-cell[data-orig]')) return;
     const dest = e.relatedTarget;
-    if (!dest || !dest.closest('.title-orig-icon')) _hidePreviewTooltip();
+    if (!dest || !dest.closest('.orig-icon-cell[data-orig]')) _hidePreviewTooltip();
   });
 
-  // 팝오버 외부 클릭 → 닫기 (아이콘 클릭 자체는 td listener에서 처리)
+  // 팝오버 외부 클릭 → 닫기 (아이콘 셀 클릭은 td listener에서 처리)
   document.addEventListener('click', e => {
     if (!_openPopoverIcon) return;
-    if (e.target.closest('.title-orig-icon') || e.target.closest('#orig-title-popover')) return;
+    if (e.target.closest('.orig-icon-cell') || e.target.closest('#orig-title-popover')) return;
     _origPopover.classList.remove('show');
     _openPopoverIcon = null;
   });
