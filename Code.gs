@@ -200,30 +200,24 @@ function doPost(e) {
 }
 
 // ─── 이슈명 번역 헬퍼 ────────────────────────────────────────────────────────────
-
-function containsJapanese(text) {
-  return /[぀-ゟ゠-ヿ一-鿿㐀-䶿]/.test(text);
-}
-
-// 전각 ／ 우선, 없으면 반각 /로 일본어/영어 파트 분리
-function splitTitleParts(title) {
-  const hasFull = title.indexOf('／') !== -1;
-  const hasHalf = title.indexOf('/') !== -1;
-  const sepChar = hasFull ? '／' : hasHalf ? '/' : null;
-  if (sepChar !== null) {
-    const idx = title.indexOf(sepChar);
-    return { jpPart: title.slice(0, idx).trim(), enPart: title.slice(idx + sepChar.length).trim() };
-  }
-  return containsJapanese(title) ? { jpPart: title, enPart: '' } : { jpPart: '', enPart: title };
-}
-
-// 일본어 파트 → targetLang 번역 후 영어 파트 재조합. 번역 불필요 시 원문 반환.
+// 문자열 전체에서 일본어 연속 구간(run)을 찾아 개별 번역 후 원위치 치환.
+// 일본어 구간 없으면 원문 그대로 반환. 영어/일본어 혼합·슬래시 순서 무관.
 function buildTranslatedTitle(title, targetLang) {
   if (!title) return '';
-  const { jpPart, enPart } = splitTitleParts(title);
-  if (!jpPart || !containsJapanese(jpPart)) return title;
-  const translated = LanguageApp.translate(jpPart, 'ja', targetLang);
-  return enPart ? translated + '／' + enPart : translated;
+  var JP_RUN_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]+/g;
+  var runs = [];
+  var m;
+  while ((m = JP_RUN_RE.exec(title)) !== null) {
+    runs.push({ text: m[0], index: m.index });
+  }
+  if (runs.length === 0) return title;
+  var result = title;
+  for (var i = runs.length - 1; i >= 0; i--) {
+    var r = runs[i];
+    var translated = LanguageApp.translate(r.text, 'ja', targetLang);
+    result = result.slice(0, r.index) + translated + result.slice(r.index + r.text.length);
+  }
+  return result;
 }
 
 // ─── addTicket ────────────────────────────────────────────────────────────────
@@ -872,4 +866,42 @@ function backfillTitleTranslations() {
 
   SpreadsheetApp.flush();
   Logger.log('=== backfillTitleTranslations 완료: 처리=%s, 건너뜀=%s, 오류=%s ===', processed, skipped, errors);
+}
+
+// 모든 티켓의 title_ko / title_vi 를 강제 재번역 (기존 캐시 무시).
+function backfillTitleTranslationsForce() {
+  const sheet = getSheet();
+  const data  = sheet.getDataRange().getValues();
+  if (data.length <= 1) { Logger.log('데이터 없음'); return; }
+
+  const header = data[0];
+  if (!header[COL.TITLE_KO]) sheet.getRange(1, COL.TITLE_KO + 1).setValue('title_ko');
+  if (!header[COL.TITLE_VI]) sheet.getRange(1, COL.TITLE_VI + 1).setValue('title_vi');
+
+  let processed = 0, skipped = 0, errors = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const row   = data[i];
+    const rowId = String(row[COL.ROW_ID] || '').trim();
+    if (!rowId) { skipped++; continue; }
+
+    const title = String(row[COL.TITLE] || '').trim();
+    if (!title) { skipped++; continue; }
+
+    try {
+      const ko = buildTranslatedTitle(title, 'ko');
+      const vi = buildTranslatedTitle(title, 'vi');
+      sheet.getRange(i + 1, COL.TITLE_KO + 1).setValue(ko);
+      sheet.getRange(i + 1, COL.TITLE_VI + 1).setValue(vi);
+      Utilities.sleep(300);
+      processed++;
+      Logger.log('[%s/%s] %s → ko:%s', i, data.length - 1, title.slice(0, 30), ko.slice(0, 30));
+    } catch (err) {
+      Logger.log('Row %s 번역 실패: %s', i + 1, err.message);
+      errors++;
+    }
+  }
+
+  SpreadsheetApp.flush();
+  Logger.log('=== backfillTitleTranslationsForce 완료: 처리=%s, 건너뜀=%s, 오류=%s ===', processed, skipped, errors);
 }

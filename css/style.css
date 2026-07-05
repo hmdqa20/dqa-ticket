@@ -735,9 +735,18 @@ body {
 .title-cell {
   max-width: 280px;
   text-align: left;
+}
+.title-cell-inner {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.title-cell-inner .title-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 
