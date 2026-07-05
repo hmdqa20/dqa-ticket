@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupStatusListener();
   setupFileUpload();
+  setupLinkListeners();
 
   document.querySelectorAll('.version-input').forEach(inp => {
     inp.addEventListener('input', () => {
@@ -325,6 +326,12 @@ function fillForm(ticket) {
     renderFileList();
   }
 
+  [1,2,3].forEach(n => {
+    document.querySelector(`.link-label-input[data-link-num="${n}"]`).value = ticket[`link${n}_label`] || '';
+    document.querySelector(`.link-url-input[data-link-num="${n}"]`).value   = ticket[`link${n}_url`]   || '';
+  });
+  renderLinks();
+
   updatePriorityState();
   // fillForm이 끝난 뒤 dirty 초기화 (setValue로 발생한 이벤트 무시)
   setTimeout(resetDirty, 0);
@@ -360,6 +367,12 @@ function updatePriorityState() {
 }
 
 // ─── 파일 업로드 ──────────────────────────────────────────────────────────────
+
+function setupLinkListeners() {
+  document.querySelectorAll('.link-label-input, .link-url-input').forEach(inp => {
+    inp.addEventListener('input', renderLinks);
+  });
+}
 
 function setupFileUpload() {
   const dropZone = document.getElementById('drop-zone');
@@ -473,6 +486,22 @@ function renderFileList() {
       renderFileList();
     });
   });
+}
+
+function renderLinks() {
+  const display = document.getElementById('links-display');
+  if (!display) return;
+  const items = [1,2,3].map(n => ({
+    label: (document.querySelector(`.link-label-input[data-link-num="${n}"]`) || {}).value || '',
+    url:   (document.querySelector(`.link-url-input[data-link-num="${n}"]`)   || {}).value || ''
+  })).filter(item => item.url.trim());
+
+  display.innerHTML = items.map(item => {
+    const text = item.label.trim() || item.url;
+    return `<div class="links-display-item">
+      <a href="${escHtml(item.url)}" target="_blank" class="link-display-anchor">${escHtml(text)}</a>
+    </div>`;
+  }).join('');
 }
 
 // ─── 삭제 ─────────────────────────────────────────────────────────────────────
@@ -603,6 +632,8 @@ function resetFormForContinue(savedFormData) {
   pendingFiles    = [];
   removedFileUrls = [];
   renderFileList();
+  document.querySelectorAll('.link-label-input, .link-url-input').forEach(inp => { inp.value = ''; });
+  renderLinks();
 
   // 담당자·버전은 그대로 유지, 실시순서만 +1로 갱신
   updatePriorityState();
@@ -627,7 +658,13 @@ function collectFormData() {
     check_content: document.getElementById('check-content').value,
     note:          document.getElementById('note').value,
     wjira_updated: document.getElementById('wjira-updated').checked ? 'OK' : '',
-    file_urls:     uploadedFiles.map(f => `${f.name}|${f.size || 0}|${f.url}`).join(',')
+    file_urls:     uploadedFiles.map(f => `${f.name}|${f.size || 0}|${f.url}`).join(','),
+    link1_label:   document.querySelector('.link-label-input[data-link-num="1"]').value,
+    link1_url:     document.querySelector('.link-url-input[data-link-num="1"]').value,
+    link2_label:   document.querySelector('.link-label-input[data-link-num="2"]').value,
+    link2_url:     document.querySelector('.link-url-input[data-link-num="2"]').value,
+    link3_label:   document.querySelector('.link-label-input[data-link-num="3"]').value,
+    link3_url:     document.querySelector('.link-url-input[data-link-num="3"]').value,
   };
 }
 

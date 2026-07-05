@@ -1353,6 +1353,66 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   line-height: 1.6;
 }
 
+/* ─── 용량 안내 힌트 ──────────────────────────────────────────────────────── */
+.hint-text {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ─── 링크 섹션 ───────────────────────────────────────────────────────────── */
+.links-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px 24px;
+}
+
+.link-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.link-group-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.links-display {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.links-display:empty { display: none; }
+
+.links-display-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--done-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.link-display-anchor {
+  color: var(--ww);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-display-anchor:hover { opacity: 0.75; }
+
 /* ─── 드롭존 ──────────────────────────────────────────────────────────────── */
 .drop-zone {
   border: 2px dashed var(--border);
@@ -1422,6 +1482,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   .ticket-form { padding: 20px; gap: 20px; }
   .meta-grid { grid-template-columns: 1fr; }
   .detail-3col { grid-template-columns: 1fr; }
+  .links-grid   { grid-template-columns: 1fr; }
   .form-section { gap: 12px; }
   .detail-main { padding: 12px 14px; }
 }

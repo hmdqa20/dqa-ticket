@@ -18,7 +18,13 @@ const COL = {
   VERSION_ID:       15,  // P — 소속 버전 탭 ID
   LOCKED_AT:        16,  // Q — 편집 잠금 시각 (JST ISO)
   TITLE_KO:         17,  // R — 한국어 번역 이슈명 캐시
-  TITLE_VI:         18   // S — 베트남어 번역 이슈명 캐시
+  TITLE_VI:         18,  // S — 베트남어 번역 이슈명 캐시
+  LINK1_LABEL:      19,  // T
+  LINK1_URL:        20,  // U
+  LINK2_LABEL:      21,  // V
+  LINK2_URL:        22,  // W
+  LINK3_LABEL:      23,  // X
+  LINK3_URL:        24   // Y
 };
 
 // ─── versions 시트 컬럼 인덱스 (0-based) ─────────────────────────────────────
@@ -95,7 +101,13 @@ function rowToObj(row) {
     version_id:        String(row[COL.VERSION_ID]        || ''),
     locked_at:         String(row[COL.LOCKED_AT]         || ''),
     title_ko:          String(row[COL.TITLE_KO]          || ''),
-    title_vi:          String(row[COL.TITLE_VI]          || '')
+    title_vi:          String(row[COL.TITLE_VI]          || ''),
+    link1_label:       String(row[COL.LINK1_LABEL]       || ''),
+    link1_url:         String(row[COL.LINK1_URL]         || ''),
+    link2_label:       String(row[COL.LINK2_LABEL]       || ''),
+    link2_url:         String(row[COL.LINK2_URL]         || ''),
+    link3_label:       String(row[COL.LINK3_LABEL]       || ''),
+    link3_url:         String(row[COL.LINK3_URL]         || '')
   };
 }
 
@@ -257,7 +269,13 @@ function addTicket(e) {
       p.version_id    || '',
       '',                                         // LOCKED_AT: 신규 등록 시 항상 빈칸
       titleKo,
-      titleVi
+      titleVi,
+      p.link1_label || '',
+      p.link1_url   || '',
+      p.link2_label || '',
+      p.link2_url   || '',
+      p.link3_label || '',
+      p.link3_url   || ''
     ];
 
     sheet.appendRow(newRow);
@@ -332,7 +350,13 @@ function updateTicket(e) {
       pick('version_id',    COL.VERSION_ID) || '',
       old[COL.LOCKED_AT]  || '',              // LOCKED_AT 기존 값 보존
       titleKo,
-      titleVi
+      titleVi,
+      pick('link1_label', COL.LINK1_LABEL) || '',
+      pick('link1_url',   COL.LINK1_URL)   || '',
+      pick('link2_label', COL.LINK2_LABEL) || '',
+      pick('link2_url',   COL.LINK2_URL)   || '',
+      pick('link3_label', COL.LINK3_LABEL) || '',
+      pick('link3_url',   COL.LINK3_URL)   || ''
     ];
 
     sheet.getRange(sheetRow, 1, 1, updatedRow.length).setValues([updatedRow]);
@@ -722,7 +746,9 @@ function setupInitialHeaders() {
     'ticket_id', 'created_date', 'title', 'check_version',
     'assignee', 'priority', 'status', 'verdict',
     'check_content', 'note', 'wjira_updated', 'status_changed_at',
-    'file_urls', 'row_id', 'retest_ref', 'version_id'
+    'file_urls', 'row_id', 'retest_ref', 'version_id',
+    'locked_at', 'title_ko', 'title_vi',
+    'link1_label', 'link1_url', 'link2_label', 'link2_url', 'link3_label', 'link3_url'
   ];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.setFrozenRows(1);

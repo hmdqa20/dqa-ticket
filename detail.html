@@ -192,9 +192,36 @@
       <!-- 파일 첨부 -->
       <div class="form-group">
         <label data-i18n="label_files">파일 첨부</label>
+        <p class="hint-text" data-i18n="hint_file_size_limit">구글 드라이브 공유 용량(15GB) 한도를 고려해, 1GB 이상의 대용량 파일(펌웨어 등)은 직접 올리지 말고 아래 링크 항목을 이용해 주세요.</p>
         <div id="drop-zone" class="drop-zone" data-i18n="drag_drop">파일을 드래그하거나 클릭하여 업로드</div>
         <input type="file" id="file-input" style="display:none" multiple>
         <div id="file-list" class="file-list"></div>
+      </div>
+
+      <!-- 구분선 -->
+      <div class="form-divider"></div>
+
+      <!-- 링크 -->
+      <div class="form-group">
+        <label data-i18n="label_links">링크</label>
+        <div id="links-display" class="links-display"></div>
+        <div class="links-grid">
+          <div class="link-group">
+            <div class="link-group-header">Link 1</div>
+            <input type="text" class="link-label-input" data-link-num="1" data-i18n-placeholder="placeholder_link_label" placeholder="파일 설명">
+            <input type="url" class="link-url-input" data-link-num="1" placeholder="https://...">
+          </div>
+          <div class="link-group">
+            <div class="link-group-header">Link 2</div>
+            <input type="text" class="link-label-input" data-link-num="2" data-i18n-placeholder="placeholder_link_label" placeholder="파일 설명">
+            <input type="url" class="link-url-input" data-link-num="2" placeholder="https://...">
+          </div>
+          <div class="link-group">
+            <div class="link-group-header">Link 3</div>
+            <input type="text" class="link-label-input" data-link-num="3" data-i18n-placeholder="placeholder_link_label" placeholder="파일 설명">
+            <input type="url" class="link-url-input" data-link-num="3" placeholder="https://...">
+          </div>
+        </div>
       </div>
 
       <!-- 비고 -->
