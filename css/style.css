@@ -695,7 +695,7 @@ body {
 /* ─── 테이블 ──────────────────────────────────────────────────────────────── */
 .ticket-table {
   width: 100%;
-  min-width: 956px; /* 고정 컬럼 합계 774px + 이슈명 최소 182px (티켓번호 110→96px) */
+  min-width: 944px; /* 고정 컬럼 합계 762px + 이슈명 최소 182px (티켓번호 96→84px) */
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
