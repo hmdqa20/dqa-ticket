@@ -858,7 +858,8 @@ body {
 }
 
 /* ─── 상태 표시 셀 (자물쇠 + 클립) ──────────────────────────────────────────── */
-.clip-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 1px; }
+.clip-cell { text-align: center; padding: 4px 1px; vertical-align: middle; }
+.status-icons { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; line-height: 0; }
 
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
 .assignee-cell { white-space: nowrap; padding-left: 12px; padding-right: 8px; }

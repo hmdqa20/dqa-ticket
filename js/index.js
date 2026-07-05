@@ -472,7 +472,7 @@ function buildRow(ticket, dimmed, group) {
 
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
-      <td class="clip-cell">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
+      <td class="clip-cell">${(isLockedForDisplay(ticket) || hasFiles) ? `<div class="status-icons">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</div>` : ''}</td>
       <td class="ticket-id-cell"><a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
       ${origIconTd}
       <td class="title-cell navigate-cell"${displayTitle ? ` data-tip="${escHtml(displayTitle)}"` : ''}>${escHtml(displayTitle)}</td>
