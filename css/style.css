@@ -110,7 +110,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 9px;
+  padding: 7px 9px;
   border: 1px solid #d1d5db;
   border-radius: var(--radius);
   background: #fff;
