@@ -991,10 +991,11 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   color: var(--info-i);
   cursor: pointer;
   /* margin-left 음수로 hit area를 td 왼쪽 border까지 확장 (12px).
-     padding 좌우 14px 대칭 → 'i' 가 hit box 정중앙 위치.
-     계산: 'i' 위치 = 12(td pad) - 12(margin) + 14(pad-left) = 14px from td left */
+     'i' 왼쪽 정렬: pad-left 5px(시각적 작은 여백), pad-right 23px(hit area 우측 유지).
+     박스 총 너비 = 5+glyph+23 ≈ 33px (이전 14+14와 동일), 히트박스 위치 불변.
+     계산: 'i' 위치 = 12(td pad) - 12(margin) + 5(pad-left) = 5px from td left */
   margin-left: -12px;
-  padding: 5px 14px;
+  padding: 5px 23px 5px 5px;
   margin-right: 0;
   flex-shrink: 0;
   user-select: none;
