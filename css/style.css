@@ -32,6 +32,19 @@
   --bg-accent:     #eff6ff;
   --text-accent:   #1d4ed8;
   --border-accent: #bfdbfe;
+  --info-i:        #0891b2;  /* 번역 안내 'i' 기본색 (cyan-600) */
+  --info-i-hover:  #0e7490;  /* hover 진해짐 (cyan-700) */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --info-i:       #22d3ee;  /* dark모드: 배경 대비 잘 보이는 cyan-400 */
+    --info-i-hover: #67e8f9;
+  }
+}
+:root[data-theme="dark"] {
+  --info-i:       #22d3ee;
+  --info-i-hover: #67e8f9;
 }
 
 /* ─── 리셋 & 기본 ─────────────────────────────────────────────────────────── */
@@ -966,27 +979,27 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   user-select: none;   /* 드래그 선택 방지 */
 }
 
-/* ─── 이슈명 번역 ⓘ 아이콘 & 원문 팝오버 ────────────────────────────────────── */
+/* ─── 이슈명 번역 안내 'i' 아이콘 & 원문 팝오버 ───────────────────────────── */
 .title-orig-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: #e0e7ff;
-  color: #4f46e5;
-  font-size: 10px;
-  font-style: normal;
+  font-family: Georgia, 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--info-i);
   cursor: pointer;
-  margin-left: 4px;
+  margin-right: 5px;
   flex-shrink: 0;
-  vertical-align: middle;
   user-select: none;
   line-height: 1;
-  transition: background 0.12s;
+  text-decoration-line: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: color 0.15s, text-decoration-color 0.15s;
 }
-.title-orig-icon:hover { background: #c7d2fe; }
+.title-orig-icon:hover {
+  color: var(--info-i-hover);
+  text-decoration-color: var(--info-i-hover);
+}
 
 .orig-title-popover {
   position: fixed;
