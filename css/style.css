@@ -943,6 +943,9 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 .status-select.status-hold    { background-color: #fef9c3; color: #854d0e; }
 .status-select.status-na      { background-color: #f3f4f6; color: #9ca3af; }
 
+/* option은 select 배경색을 상속하지 않도록 — 드롭다운 펼쳤을 때 흰 배경으로 표시 */
+.status-select option { background-color: #fff; color: #111827; }
+
 /* 판정 색상 */
 .verdict-select.verdict-ok { background-color: #dcfce7; color: var(--ok); }
 .verdict-select.verdict-ng { background-color: #fee2e2; color: var(--ng); }
@@ -1211,6 +1214,21 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   white-space: nowrap;
   border-right: 1px solid var(--border);
 }
+.ticket-prefix-select {
+  border: none;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: #f9fafb;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 2px 0 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: stretch;
+  font-family: inherit;
+}
+.ticket-prefix-select:focus { outline: none; box-shadow: none; }
 .ticket-id-wrap input {
   border: none !important;
   border-radius: 0 !important;

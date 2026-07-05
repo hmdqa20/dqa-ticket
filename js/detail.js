@@ -16,6 +16,11 @@ let currentRowId = '';      // 편집 중인 티켓 row_id (잠금 관리용)
 function markDirty() { isDirty = true; }
 function resetDirty() { isDirty = false; }
 
+function getPrefix() {
+  const sel = document.getElementById('ticket-prefix');
+  return sel ? sel.value : 'XAX2-';
+}
+
 function confirmLeave() {
   if (!isDirty && pendingFiles.length === 0) return true;
   return confirm(t('confirm_leave'));
@@ -155,7 +160,7 @@ async function initNewMode() {
   const updateLinkBtn = () => {
     const num = numInput.value.trim();
     linkBtn.href = num
-      ? 'https://wjira.humaxdigital.com/browse/XAX2-' + num
+      ? 'https://wjira.humaxdigital.com/browse/' + getPrefix() + num
       : '#';
   };
   numInput.addEventListener('input', updateLinkBtn);
@@ -165,7 +170,7 @@ async function initNewMode() {
   document.getElementById('btn-fetch').addEventListener('click', async () => {
     const numPart = document.getElementById('ticket-id-num').value.trim();
     if (!numPart) return;
-    const ticketId = 'XAX2-' + numPart;
+    const ticketId = getPrefix() + numPart;
     const btn = document.getElementById('btn-fetch');
     btn.disabled = true;
     btn.textContent = '...';
@@ -576,7 +581,7 @@ async function handleSave(continueAfterSave = false) {
     if (isNewMode) {
       const numPart = document.getElementById('ticket-id-num').value.trim();
       if (!numPart) { alert('티켓번호를 입력하세요.'); setSavingState(false); return; }
-      const ticketId = 'XAX2-' + numPart;
+      const ticketId = getPrefix() + numPart;
       savedFormData = collectFormData();
       await addTicket({ ticket_id: ticketId, version_id: currentVersionId, ...savedFormData });
     } else {

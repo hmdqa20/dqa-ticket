@@ -62,7 +62,10 @@
           <label data-i18n="label_ticket_id">티켓번호</label>
           <div class="ticket-id-row">
             <div class="ticket-id-wrap" id="ticket-id-edit-wrap">
-              <span class="ticket-prefix">XAX2-</span>
+              <select id="ticket-prefix" class="ticket-prefix-select">
+                <option value="XAX2-">XAX2-</option>
+                <option value="XAX-">XAX-</option>
+              </select>
               <input type="text" id="ticket-id-num" inputmode="numeric" pattern="[0-9]+" placeholder="1234">
             </div>
             <span id="ticket-id-static" class="static-value" style="display:none"></span>

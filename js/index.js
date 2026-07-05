@@ -437,7 +437,7 @@ function buildRow(ticket, dimmed, group) {
   ].filter(Boolean).join(' ');
 
   const statusOptions = ['진행중', '진행전', '재테스트', '완료', '보류', 'N/A'].map(v =>
-    `<option value="${v}"${ticket.status === v ? ' selected' : ''}>${statusLabel(v)}</option>`
+    `<option value="${v}" style="background-color:#fff;color:#111827"${ticket.status === v ? ' selected' : ''}>${statusLabel(v)}</option>`
   ).join('');
 
   const verdictOptions = ['', 'OK', 'NG'].map(v =>
