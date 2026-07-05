@@ -1488,13 +1488,14 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 .app-toast {
   position: fixed;
   transform: translateX(-50%) translateY(-50%);
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fcd34d;
+  background: #f59e0b;
+  color: #1c1917;
+  border: none;
   font-size: 13px;
+  font-weight: 600;
   padding: 9px 18px;
   border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(251,191,36,0.22);
+  box-shadow: 0 4px 14px rgba(245,158,11,0.35);
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
