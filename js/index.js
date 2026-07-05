@@ -1200,7 +1200,14 @@ function setupOrigTitlePopover() {
     if (!dest || !dest.closest('.orig-icon-cell[data-orig]')) _hidePreviewTooltip();
   });
 
-  // 팝오버 외부 클릭 → 닫기 (아이콘 셀 클릭은 td listener에서 처리)
+  // 팝오버 자체 클릭 → 닫기 (텍스트 드래그 선택 중이면 스킵)
+  _origPopover.addEventListener('click', () => {
+    if (window.getSelection && window.getSelection().toString().length > 0) return;
+    _origPopover.classList.remove('show');
+    _openPopoverIcon = null;
+  });
+
+  // 팝오버 외부 클릭 → 닫기 (아이콘 셀·팝오버 클릭은 각자 리스너에서 처리)
   document.addEventListener('click', e => {
     if (!_openPopoverIcon) return;
     if (e.target.closest('.orig-icon-cell') || e.target.closest('#orig-title-popover')) return;
