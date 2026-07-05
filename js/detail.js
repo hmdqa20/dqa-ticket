@@ -743,6 +743,22 @@ function showToast(msg) {
     document.body.appendChild(el);
   }
   el.textContent = msg;
+
+  // 버튼 중앙 X, 카드 상단~버튼 상단 중간 Y에 배치
+  const btn  = document.getElementById('btn-wjira-link');
+  const card = document.querySelector('.detail-card');
+  if (btn && card) {
+    const b = btn.getBoundingClientRect();
+    const c = card.getBoundingClientRect();
+    const cx = b.left + b.width / 2;
+    const cy = (c.top + b.top) / 2;
+    el.style.left = cx + 'px';
+    el.style.top  = cy + 'px';
+    // 카드 좌우 경계를 벗어나지 않도록 maxWidth 제한 (여백 16px)
+    const maxHalf = Math.min(cx - c.left, c.right - cx) - 16;
+    el.style.maxWidth = Math.max(100, maxHalf * 2) + 'px';
+  }
+
   el.classList.add('app-toast-show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => el.classList.remove('app-toast-show'), 3000);
