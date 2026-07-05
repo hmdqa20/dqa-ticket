@@ -1484,6 +1484,29 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 .file-item-pending .file-clip { color: #92400e; }
 .file-item-pending .file-name { color: #854d0e; }
 
+/* ─── 토스트 ──────────────────────────────────────────────────────────────── */
+.app-toast {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 13px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s, transform 0.18s;
+  z-index: 9999;
+}
+.app-toast.app-toast-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ─── 반응형 ──────────────────────────────────────────────────────────────── */
 
 /* 테이블 min-width(950px)는 기본값 유지 — 좁은 화면에선 가로 스크롤로 모든 컬럼 표시 */

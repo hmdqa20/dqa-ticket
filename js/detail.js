@@ -165,6 +165,12 @@ async function initNewMode() {
   };
   numInput.addEventListener('input', updateLinkBtn);
   updateLinkBtn();
+  linkBtn.addEventListener('click', (e) => {
+    if (!numInput.value.trim()) {
+      e.preventDefault();
+      showToast('티켓 번호를 입력해 주세요.');
+    }
+  });
 
   // btn-fetch는 숨겨두되 함수는 유지
   document.getElementById('btn-fetch').addEventListener('click', async () => {
@@ -723,4 +729,21 @@ function applyTranslations() {
     el.textContent = num ? base + ' ' + num : base;
   });
   document.title = t('app_title');
+}
+
+// ─── 토스트 ───────────────────────────────────────────────────────────────────
+
+let _toastTimer = null;
+function showToast(msg) {
+  let el = document.getElementById('app-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'app-toast';
+    el.className = 'app-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('app-toast-show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('app-toast-show'), 3000);
 }
