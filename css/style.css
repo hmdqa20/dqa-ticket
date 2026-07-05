@@ -752,7 +752,8 @@ body {
 .title-cell-inner {
   display: flex;
   align-items: center;
-  overflow: hidden;
+  /* overflow:hidden 제거 — .title-orig-icon 음수 margin 확장 영역이 clip되지 않도록;
+     텍스트 절삭은 .title-text 자체의 overflow:hidden으로 처리 */
 }
 .title-cell-inner .title-text {
   overflow: hidden;
@@ -989,7 +990,10 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   font-size: 13px;
   color: var(--info-i);
   cursor: pointer;
-  padding: 5px 8px;
+  /* margin-left 음수 + padding-left 보정: 'i' 글자 시각적 위치 불변,
+     hit area는 td 왼쪽 padding 영역(12px)까지 확장. 계산: 12 + 20 - 12 = 20px */
+  margin-left: -12px;
+  padding: 5px 8px 5px 20px;
   margin-right: 0;
   flex-shrink: 0;
   user-select: none;
@@ -1395,6 +1399,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   .ticket-table { font-size: 12px; }
   .ticket-table th, .ticket-table td { padding: 7px 8px; }
   .title-cell { max-width: 120px; }
+  .title-orig-icon { margin-left: -8px; padding-left: 16px; } /* td padding 8px 기준 재조정 */
 
   .ticket-form { padding: 20px; gap: 20px; }
   .meta-grid { grid-template-columns: 1fr; }
