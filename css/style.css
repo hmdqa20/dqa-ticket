@@ -991,11 +991,9 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   color: var(--info-i);
   cursor: pointer;
   /* margin-left 음수로 hit area를 td 왼쪽 border까지 확장 (12px).
-     'i' 왼쪽 정렬: pad-left 5px(시각적 작은 여백), pad-right 23px(hit area 우측 유지).
-     박스 총 너비 = 5+glyph+23 ≈ 33px (이전 14+14와 동일), 히트박스 위치 불변.
-     계산: 'i' 위치 = 12(td pad) - 12(margin) + 5(pad-left) = 5px from td left */
+     좌우 7px 대칭 패딩. 'i' 위치 = 12(td pad) - 12(margin) + 7(pad) = 7px from td left */
   margin-left: -12px;
-  padding: 5px 23px 5px 5px;
+  padding: 5px 7px;
   margin-right: 0;
   flex-shrink: 0;
   user-select: none;
@@ -1007,6 +1005,11 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 .title-orig-icon:hover {
   color: var(--info-i-hover);
   text-decoration-color: var(--info-i-hover);
+}
+.title-orig-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+  cursor: default;
 }
 
 .orig-title-popover {
@@ -1421,7 +1424,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   .ticket-table { font-size: 12px; }
   .ticket-table th, .ticket-table td { padding: 7px 8px; }
   .title-cell { max-width: 120px; }
-  .title-orig-icon { margin-left: -8px; } /* td padding 8px 기준; padding 대칭(14px)은 base 유지 */
+  .title-orig-icon { margin-left: -8px; } /* td padding 8px 기준; padding 7px(base)은 유지 */
 
   .ticket-form { padding: 20px; gap: 20px; }
   .meta-grid { grid-template-columns: 1fr; }

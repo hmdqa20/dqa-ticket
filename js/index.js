@@ -456,7 +456,7 @@ function buildRow(ticket, dimmed, group) {
   }
   const origIcon = isTranslated
     ? `<span class="title-orig-icon" data-orig="${escHtml(ticket.title)}">i</span>`
-    : '';
+    : `<span class="title-orig-icon title-orig-placeholder" aria-hidden="true">i</span>`;
 
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
