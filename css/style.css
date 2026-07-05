@@ -455,7 +455,8 @@ body {
 .btn-xs { padding: 4px 8px; font-size: 12px; flex: 1; justify-content: center; }
 
 /* ─── 티켓 이동 버튼 / 메뉴 ───────────────────────────────────────────────── */
-.ticket-id-cell { white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 3px; }
+.ticket-id-cell { white-space: nowrap; text-align: center; }
+.ticket-table td.ticket-id-cell { padding: 9px 6px; }
 .btn-move {
   margin-left: 5px;
   border: 1px solid var(--border);
@@ -856,8 +857,8 @@ body {
   white-space: nowrap;
 }
 
-/* ─── 클립 셀 ─────────────────────────────────────────────────────────────── */
-.clip-cell { text-align: center; padding: 0 2px; line-height: 0; }
+/* ─── 상태 표시 셀 (자물쇠 + 클립) ──────────────────────────────────────────── */
+.clip-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 1px; }
 
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
 .assignee-cell { white-space: nowrap; padding-left: 12px; padding-right: 8px; }
@@ -958,10 +959,9 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 .lock-icon {
-  flex-shrink: 0;
-  font-size: 12px;
-  opacity: 0.8;
+  font-size: 11px;
   line-height: 1;
+  opacity: 0.85;
   cursor: default;
   user-select: none;
 }
