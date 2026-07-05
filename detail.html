@@ -36,7 +36,7 @@
     <p id="cascade-msg" class="modal-msg"></p>
     <label class="modal-skip-label">
       <input type="checkbox" id="cascade-skip-today">
-      오늘 그만 보기
+      <span data-i18n="skip_today">오늘 그만 보기</span>
     </label>
     <div class="modal-actions">
       <button id="cascade-cancel" class="btn btn-secondary" data-i18n="btn_cancel">취소</button>
@@ -110,19 +110,19 @@
         <div class="form-section">
           <div class="form-section-title" data-i18n="label_check_version">확인버전</div>
           <div class="form-group">
-            <label>버전 1</label>
+            <label data-i18n-version-label="placeholder_version" data-version-num="1">버전 1</label>
             <input type="text" class="version-input" data-version-num="1" data-i18n-placeholder="placeholder_version" placeholder="버전 1">
           </div>
           <div class="form-group">
-            <label>버전 2</label>
+            <label data-i18n-version-label="placeholder_version" data-version-num="2">버전 2</label>
             <input type="text" class="version-input" data-version-num="2" data-i18n-placeholder="placeholder_version" placeholder="버전 2">
           </div>
           <div class="form-group">
-            <label>버전 3</label>
+            <label data-i18n-version-label="placeholder_version" data-version-num="3">버전 3</label>
             <input type="text" class="version-input" data-version-num="3" data-i18n-placeholder="placeholder_version" placeholder="버전 3">
           </div>
           <div class="form-group">
-            <label>버전 4</label>
+            <label data-i18n-version-label="placeholder_version" data-version-num="4">버전 4</label>
             <input type="text" class="version-input" data-version-num="4" data-i18n-placeholder="placeholder_version" placeholder="버전 4">
           </div>
         </div>
@@ -171,8 +171,8 @@
           <div class="form-section-title" data-i18n="label_version_move">버전 이동</div>
           <div class="form-group" id="version-move-group">
             <div class="version-move-header">
-              <label>버전 선택</label>
-              <span class="version-badge" id="version-move-badge">미지정</span>
+              <label data-i18n="label_version_select">버전 선택</label>
+              <span class="version-badge" id="version-move-badge"></span>
             </div>
             <select id="version-move-select"></select>
           </div>

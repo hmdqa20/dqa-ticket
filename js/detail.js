@@ -18,7 +18,7 @@ function resetDirty() { isDirty = false; }
 
 function confirmLeave() {
   if (!isDirty && pendingFiles.length === 0) return true;
-  return confirm('저장하지 않은 변경 사항이 있습니다. 페이지를 떠나시겠습니까?');
+  return confirm(t('confirm_leave'));
 }
 
 // beforeunload 시 잠금 해제 (sendBeacon = 페이지 언로드 중에도 전송 보장)
@@ -45,6 +45,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   onLangChange(() => {
     applyTranslations();
     if (currentTicket) updateTitleTranslationHint(currentTicket);
+    const vsel = document.getElementById('version-move-select');
+    if (vsel) {
+      if (vsel.disabled && vsel.options[0]) {
+        vsel.options[0].textContent = `(${t('label_no_versions')})`;
+      } else if (vsel.options[0] && vsel.options[0].value === '') {
+        vsel.options[0].textContent = `(${t('label_unassigned')})`;
+      }
+      updateCurrentVersionLabel(vsel.value);
+    }
   });
 
   const params = new URLSearchParams(location.search);
@@ -163,7 +172,7 @@ async function initNewMode() {
       const result = await fetchJira(ticketId);
       document.getElementById('title-input').value = result.title;
     } catch (err) {
-      alert('JIRA 조회 실패: ' + err.message);
+      alert(t('error_jira_fetch') + err.message);
     } finally {
       btn.disabled = false;
       btn.textContent = t('btn_fetch');
@@ -184,7 +193,7 @@ async function loadTicket(rowId) {
   // 잠금 결과 먼저 확인 — 다른 세션이 편집 중이면 팝업 후 목록으로 (데이터는 버림)
   const lockResult = await lockPromise;
   if (lockResult && lockResult.locked) {
-    alert('다른 사용자가 편집 중인 항목입니다.\n편집이 완료된 후 다시 시도해 주세요.');
+    alert(t('error_ticket_locked'));
     location.href = 'index.html';
     return;
   }
@@ -219,7 +228,7 @@ function renderVersionSelect(selectedId) {
 
   // 버전 없음: select 비활성화 처리 후 종료
   if (allVersions.length === 0) {
-    sel.innerHTML = '<option value="">(버전 없음)</option>';
+    sel.innerHTML = `<option value="">(${t('label_no_versions')})</option>`;
     sel.disabled = true;
     updateCurrentVersionLabel('');
     return;
@@ -241,7 +250,7 @@ function renderVersionSelect(selectedId) {
   const newSel = sel.cloneNode(false);
   sel.parentNode.replaceChild(newSel, sel);
 
-  newSel.innerHTML = `<option value="">(미지정)</option>` +
+  newSel.innerHTML = `<option value="">(${t('label_unassigned')})</option>` +
     allVersions.map(v =>
       `<option value="${escHtml(v.version_id)}">${escHtml(v.version_name)}</option>`
     ).join('');
@@ -265,7 +274,7 @@ function renderVersionSelect(selectedId) {
       currentTicket.version_id = targetId;
       updateCurrentVersionLabel(targetId);
     } catch (err) {
-      alert('버전 이동에 실패했습니다: ' + err.message);
+      alert(t('error_move_version') + err.message);
       newSel.value = currentTicket.version_id || '';
     } finally {
       if (overlay) overlay.style.display = 'none';
@@ -278,7 +287,7 @@ function updateCurrentVersionLabel(versionId) {
   const badge = document.getElementById('version-move-badge');
   if (!badge) return;
   const v = allVersions.find(v => v.version_id === versionId);
-  badge.textContent = `현재: ${v ? v.version_name : '미지정'}`;
+  badge.textContent = `${t('label_current')}: ${v ? v.version_name : t('label_unassigned')}`;
 }
 
 function fillForm(ticket) {
@@ -665,6 +674,11 @@ function applyTranslations() {
     const base = t(el.dataset.i18nPlaceholder);
     const num  = el.dataset.versionNum;
     el.placeholder = num ? base + ' ' + num : base;
+  });
+  document.querySelectorAll('[data-i18n-version-label]').forEach(el => {
+    const base = t(el.dataset.i18nVersionLabel);
+    const num  = el.dataset.versionNum;
+    el.textContent = num ? base + ' ' + num : base;
   });
   document.title = t('app_title');
 }
