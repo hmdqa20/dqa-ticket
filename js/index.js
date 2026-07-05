@@ -1154,9 +1154,13 @@ function _showPreviewTooltip(icon) {
   _previewTooltip.style.top  = '0';
   const tw   = _previewTooltip.offsetWidth;
   const rect = icon.getBoundingClientRect();
-  const left = Math.max(4, Math.min(rect.left, window.innerWidth - tw - 8));
+  // 아이콘 오른쪽 옆 + 상단 정렬 → 커서(아이콘 내부)와 겹치지 않음
+  let left = rect.right + 10;
+  let top  = rect.top - 2;
+  if (left + tw > window.innerWidth - 8) left = rect.left - tw - 10; // 우측 벗어나면 왼쪽
+  if (top < 4) top = rect.bottom + 4;                                 // 상단 벗어나면 아래
   _previewTooltip.style.left = left + 'px';
-  _previewTooltip.style.top  = (rect.bottom + 4) + 'px';
+  _previewTooltip.style.top  = top + 'px';
 }
 
 // 사전 안내 툴팁 닫기
