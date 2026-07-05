@@ -957,6 +957,62 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   user-select: none;   /* 드래그 선택 방지 */
 }
 
+/* ─── 이슈명 번역 ⓘ 아이콘 & 원문 팝오버 ────────────────────────────────────── */
+.title-orig-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4f46e5;
+  font-size: 10px;
+  font-style: normal;
+  cursor: pointer;
+  margin-left: 4px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  user-select: none;
+  line-height: 1;
+  transition: background 0.12s;
+}
+.title-orig-icon:hover { background: #c7d2fe; }
+
+.orig-title-popover {
+  position: fixed;
+  z-index: 10001;
+  max-width: 400px;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: none;
+}
+.orig-title-popover.show { display: block; }
+
+/* 상세 페이지 번역 힌트 */
+.title-translation-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.title-hint-label {
+  font-weight: 600;
+  color: #4f46e5;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.title-hint-text { color: var(--muted); }
+
 /* 커스텀 툴팁 (요소 위쪽 표시, body에 부착되어 클리핑 없음) — native title 풍 */
 .app-tooltip {
   position: fixed;

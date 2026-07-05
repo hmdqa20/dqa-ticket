@@ -16,7 +16,9 @@ const COL = {
   ROW_ID:           13,  // N
   RETEST_REF:       14,  // O — 복제 원본 ticket_id
   VERSION_ID:       15,  // P — 소속 버전 탭 ID
-  LOCKED_AT:        16   // Q — 편집 잠금 시각 (JST ISO)
+  LOCKED_AT:        16,  // Q — 편집 잠금 시각 (JST ISO)
+  TITLE_KO:         17,  // R — 한국어 번역 이슈명 캐시
+  TITLE_VI:         18   // S — 베트남어 번역 이슈명 캐시
 };
 
 // ─── versions 시트 컬럼 인덱스 (0-based) ─────────────────────────────────────
@@ -91,7 +93,9 @@ function rowToObj(row) {
     row_id:            String(row[COL.ROW_ID]            || ''),
     retest_ref:        String(row[COL.RETEST_REF]        || ''),
     version_id:        String(row[COL.VERSION_ID]        || ''),
-    locked_at:         String(row[COL.LOCKED_AT]         || '')
+    locked_at:         String(row[COL.LOCKED_AT]         || ''),
+    title_ko:          String(row[COL.TITLE_KO]          || ''),
+    title_vi:          String(row[COL.TITLE_VI]          || '')
   };
 }
 
@@ -195,6 +199,33 @@ function doPost(e) {
   }
 }
 
+// ─── 이슈명 번역 헬퍼 ────────────────────────────────────────────────────────────
+
+function containsJapanese(text) {
+  return /[぀-ゟ゠-ヿ一-鿿㐀-䶿]/.test(text);
+}
+
+// 전각 ／ 우선, 없으면 반각 /로 일본어/영어 파트 분리
+function splitTitleParts(title) {
+  const hasFull = title.indexOf('／') !== -1;
+  const hasHalf = title.indexOf('/') !== -1;
+  const sepChar = hasFull ? '／' : hasHalf ? '/' : null;
+  if (sepChar !== null) {
+    const idx = title.indexOf(sepChar);
+    return { jpPart: title.slice(0, idx).trim(), enPart: title.slice(idx + sepChar.length).trim() };
+  }
+  return containsJapanese(title) ? { jpPart: title, enPart: '' } : { jpPart: '', enPart: title };
+}
+
+// 일본어 파트 → targetLang 번역 후 영어 파트 재조합. 번역 불필요 시 원문 반환.
+function buildTranslatedTitle(title, targetLang) {
+  if (!title) return '';
+  const { jpPart, enPart } = splitTitleParts(title);
+  if (!jpPart || !containsJapanese(jpPart)) return title;
+  const translated = LanguageApp.translate(jpPart, 'ja', targetLang);
+  return enPart ? translated + '／' + enPart : translated;
+}
+
 // ─── addTicket ────────────────────────────────────────────────────────────────
 
 function addTicket(e) {
@@ -209,10 +240,14 @@ function addTicket(e) {
     const status   = p.status || '진행전';
     const isActive = ACTIVE_STATUSES.includes(status);
 
+    const title   = p.title || '';
+    const titleKo = buildTranslatedTitle(title, 'ko');
+    const titleVi = buildTranslatedTitle(title, 'vi');
+
     const newRow = [
       p.ticket_id     || '',
       today,                                      // created_date: auto-set in JST
-      p.title         || '',
+      title,
       p.check_version || '',
       p.assignee      || '',
       isActive ? (p.priority || '') : '',         // priority only for active tickets
@@ -225,7 +260,10 @@ function addTicket(e) {
       p.file_urls     || '',
       rowId,
       p.retest_ref    || '',
-      p.version_id    || ''
+      p.version_id    || '',
+      '',                                         // LOCKED_AT: 신규 등록 시 항상 빈칸
+      titleKo,
+      titleVi
     ];
 
     sheet.appendRow(newRow);
@@ -275,6 +313,12 @@ function updateTicket(e) {
     const pick = (key, colIdx) =>
       p[key] !== undefined ? p[key] : old[colIdx];
 
+    // 이슈명 변경 시 번역 재캐싱, 변경 없으면 기존 캐시값 유지
+    const newTitle     = p.title !== undefined ? p.title : String(old[COL.TITLE] || '');
+    const titleChanged = p.title !== undefined && p.title !== String(old[COL.TITLE] || '');
+    const titleKo = titleChanged ? buildTranslatedTitle(newTitle, 'ko') : String(old[COL.TITLE_KO] || '');
+    const titleVi = titleChanged ? buildTranslatedTitle(newTitle, 'vi') : String(old[COL.TITLE_VI] || '');
+
     const updatedRow = [
       pick('ticket_id',     COL.TICKET_ID),
       pick('created_date',  COL.CREATED_DATE),
@@ -291,7 +335,10 @@ function updateTicket(e) {
       pick('file_urls',     COL.FILE_URLS),
       rowId,
       pick('retest_ref',    COL.RETEST_REF) || '',
-      pick('version_id',    COL.VERSION_ID) || ''
+      pick('version_id',    COL.VERSION_ID) || '',
+      old[COL.LOCKED_AT]  || '',              // LOCKED_AT 기존 값 보존
+      titleKo,
+      titleVi
     ];
 
     sheet.getRange(sheetRow, 1, 1, updatedRow.length).setValues([updatedRow]);
@@ -779,4 +826,50 @@ function fixDuplicateRowIds() {
   Logger.log('중복 row_id → 새 UUID 부여: %s행', duplicateRowsFixed);
   Logger.log('locked_at 초기화: %s행', lockedAtCleared);
   Logger.log('총 데이터 행: %s행', numDataRows);
+}
+
+// ─── backfillTitleTranslations ────────────────────────────────────────────────
+// 기존 티켓의 title_ko / title_vi 컬럼을 일괄 채우는 일회성 수동 실행 함수.
+// GAS 에디터에서 직접 실행하고, 완료 후 재배포하세요.
+function backfillTitleTranslations() {
+  const sheet = getSheet();
+  const data  = sheet.getDataRange().getValues();
+  if (data.length <= 1) { Logger.log('데이터 없음'); return; }
+
+  // 헤더가 없으면 추가
+  const header = data[0];
+  if (!header[COL.TITLE_KO]) sheet.getRange(1, COL.TITLE_KO + 1).setValue('title_ko');
+  if (!header[COL.TITLE_VI]) sheet.getRange(1, COL.TITLE_VI + 1).setValue('title_vi');
+
+  let processed = 0, skipped = 0, errors = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const row   = data[i];
+    const rowId = String(row[COL.ROW_ID] || '').trim();
+    if (!rowId) { skipped++; continue; }
+
+    const title   = String(row[COL.TITLE]    || '').trim();
+    const existKo = String(row[COL.TITLE_KO] || '').trim();
+    const existVi = String(row[COL.TITLE_VI] || '').trim();
+
+    if (existKo && existVi) { skipped++; continue; } // 이미 채워진 행은 건너뜀
+
+    if (!title) { skipped++; continue; }
+
+    try {
+      const ko = existKo || buildTranslatedTitle(title, 'ko');
+      const vi = existVi || buildTranslatedTitle(title, 'vi');
+      if (!existKo) sheet.getRange(i + 1, COL.TITLE_KO + 1).setValue(ko);
+      if (!existVi) sheet.getRange(i + 1, COL.TITLE_VI + 1).setValue(vi);
+      Utilities.sleep(200); // LanguageApp 레이트 제한 방지
+      processed++;
+      Logger.log('[%s/%s] %s → ko:%s', i, data.length - 1, title.slice(0, 30), ko.slice(0, 30));
+    } catch (err) {
+      Logger.log('Row %s 번역 실패: %s', i + 1, err.message);
+      errors++;
+    }
+  }
+
+  SpreadsheetApp.flush();
+  Logger.log('=== backfillTitleTranslations 완료: 처리=%s, 건너뜀=%s, 오류=%s ===', processed, skipped, errors);
 }

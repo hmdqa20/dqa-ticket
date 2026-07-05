@@ -287,6 +287,7 @@ function fillForm(ticket) {
 
   document.getElementById('title-input').value = ticket.title;
   if (ticket.title) document.getElementById('btn-clear-title').style.display = '';
+  updateTitleTranslationHint(ticket);
 
   // 등록날짜 — 읽기전용
   document.getElementById('created-date').textContent = formatDate(ticket.created_date);
@@ -623,6 +624,29 @@ function formatDate(raw) {
   if (isNaN(d.getTime())) return String(raw);
   const pad = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// ─── 이슈명 번역 힌트 (상세 페이지) ──────────────────────────────────────────────
+
+function updateTitleTranslationHint(ticket) {
+  const hint = document.getElementById('title-translation-hint');
+  if (!hint) return;
+  const lang = getLang();
+  let translated = '';
+  let langLabel  = '';
+  if (lang === 'ko' && ticket.title_ko && ticket.title_ko !== ticket.title) {
+    translated = ticket.title_ko; langLabel = '한국어';
+  } else if (lang === 'vi' && ticket.title_vi && ticket.title_vi !== ticket.title) {
+    translated = ticket.title_vi; langLabel = 'Tiếng Việt';
+  }
+  if (translated) {
+    hint.innerHTML =
+      `<span class="title-hint-label">${escHtml(langLabel)}:</span>` +
+      `<span class="title-hint-text">${escHtml(translated)}</span>`;
+    hint.style.display = 'flex';
+  } else {
+    hint.style.display = 'none';
+  }
 }
 
 // ─── 언어/번역 ────────────────────────────────────────────────────────────────

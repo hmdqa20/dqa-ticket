@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   startAutoRefresh();  // 주기적 전체 갱신 (가드: 조작 중이면 건너뜀)
   setupTooltips();     // 클립/자물쇠 등 [data-tip] 요소 위쪽 커스텀 툴팁
+  setupOrigTitlePopover(); // 번역된 이슈명 ⓘ → 원문 팝오버
 
   document.getElementById('btn-new').addEventListener('click', () => {
     const vid = currentVersionId && currentVersionId !== ALL_VERSION ? '?version_id=' + encodeURIComponent(currentVersionId) : '';
@@ -370,7 +371,8 @@ function renderSection(group, tickets, dimmed) {
   tbody.innerHTML = tickets.map(ticket => buildRow(ticket, dimmed, group)).join('');
 
   tbody.querySelectorAll('.navigate-cell').forEach(td => {
-    td.addEventListener('click', () => {
+    td.addEventListener('click', (e) => {
+      if (e.target.closest('.title-orig-icon')) return; // ⓘ 클릭은 팝오버가 처리
       const rowId = td.closest('tr').dataset.rowId;
       if (!rowId) return;
       // 잠긴 항목은 상세로 가지 않고 즉시 팝업 (GAS 재조회 없이 캐시로 판단)
@@ -438,11 +440,24 @@ function buildRow(ticket, dimmed, group) {
     .map(v => v.trim()).filter(Boolean)
     .map(v => `<div class="version-line">${escHtml(v)}</div>`).join('');
 
+  // 언어 모드에 따라 번역된 이슈명 선택; 번역이 있으면 ⓘ 아이콘 추가
+  const lang = getLang();
+  let displayTitle = ticket.title;
+  let isTranslated = false;
+  if (lang === 'ko' && ticket.title_ko && ticket.title_ko !== ticket.title) {
+    displayTitle = ticket.title_ko; isTranslated = true;
+  } else if (lang === 'vi' && ticket.title_vi && ticket.title_vi !== ticket.title) {
+    displayTitle = ticket.title_vi; isTranslated = true;
+  }
+  const origIcon = isTranslated
+    ? `<span class="title-orig-icon" data-orig="${escHtml(ticket.title)}">ⓘ</span>`
+    : '';
+
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
       <td class="clip-cell"${hasFiles ? ` data-tip="첨부 파일 - ${escHtml(firstFileName)}"` : ''}>${hasFiles ? `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</td>
       <td class="ticket-id-cell">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
-      <td class="title-cell navigate-cell"${ticket.title ? ` data-tip="${escHtml(ticket.title)}"` : ''}>${escHtml(ticket.title)}</td>
+      <td class="title-cell navigate-cell"${displayTitle ? ` data-tip="${escHtml(displayTitle)}"` : ''}>${escHtml(displayTitle)}${origIcon}</td>
       <td class="navigate-cell version-cell">${versionHtml}</td>
       <td>${orderCell}</td>
       <td class="assignee-cell">${buildAssigneeSelectHtml(ticket.assignee || '', ticket.row_id, locked)}</td>
@@ -1098,6 +1113,47 @@ function updateAllScrollHints() {
   updateScrollHintPositions();
 }
 // ──────────────────────────────────────────────────────────────────────────────
+
+// ─── 번역된 이슈명 원문 팝오버 ────────────────────────────────────────────────────
+let _origPopover     = null;
+let _openPopoverIcon = null;
+
+function setupOrigTitlePopover() {
+  _origPopover = document.createElement('div');
+  _origPopover.id = 'orig-title-popover';
+  _origPopover.className = 'orig-title-popover';
+  document.body.appendChild(_origPopover);
+
+  document.addEventListener('click', e => {
+    const icon = e.target.closest('.title-orig-icon');
+    if (icon) {
+      e.stopPropagation();
+      if (_openPopoverIcon === icon) {
+        // 같은 아이콘 재클릭 → 닫기
+        _origPopover.classList.remove('show');
+        _openPopoverIcon = null;
+        return;
+      }
+      _openPopoverIcon = icon;
+      _origPopover.textContent = icon.dataset.orig;
+      _origPopover.classList.add('show');
+      // 위치: 아이콘 아래, 화면 가장자리를 넘지 않도록 보정
+      _origPopover.style.left = '0';
+      _origPopover.style.top  = '0';
+      const pw   = _origPopover.offsetWidth;
+      const rect = icon.getBoundingClientRect();
+      const left = Math.max(4, Math.min(rect.left, window.innerWidth - pw - 8));
+      _origPopover.style.left = left + 'px';
+      _origPopover.style.top  = (rect.bottom + 6) + 'px';
+      return;
+    }
+    // 팝오버 외부 클릭 → 닫기
+    if (_openPopoverIcon) {
+      _origPopover.classList.remove('show');
+      _openPopoverIcon = null;
+    }
+  });
+}
 
 // ─── 섹션 접기/펼치기 ─────────────────────────────────────────────────────────
 
