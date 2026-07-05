@@ -1122,9 +1122,12 @@ function updateAllScrollHints() {
 // ─── 번역된 이슈명 원문 팝오버 ────────────────────────────────────────────────────
 let _origPopover     = null;
 let _openPopoverIcon = null;
+let _previewTooltip  = null;
+let _previewShowing  = false;
 
 // 팝오버 열기/닫기 토글. td listener에서 직접 호출.
 function _toggleOrigPopover(icon) {
+  _hidePreviewTooltip(); // 클릭 시 사전 안내 툴팁 즉시 닫기
   if (_openPopoverIcon === icon) {
     _origPopover.classList.remove('show');
     _openPopoverIcon = null;
@@ -1142,11 +1145,52 @@ function _toggleOrigPopover(icon) {
   _origPopover.style.top  = (rect.bottom + 6) + 'px';
 }
 
+// 사전 안내 툴팁 표시 — 팝오버가 열려 있거나 이미 표시 중이면 스킵
+function _showPreviewTooltip(icon) {
+  if (_openPopoverIcon || _previewShowing) return;
+  _previewShowing = true;
+  _previewTooltip.classList.add('show');
+  _previewTooltip.style.left = '0';
+  _previewTooltip.style.top  = '0';
+  const tw   = _previewTooltip.offsetWidth;
+  const rect = icon.getBoundingClientRect();
+  const left = Math.max(4, Math.min(rect.left, window.innerWidth - tw - 8));
+  _previewTooltip.style.left = left + 'px';
+  _previewTooltip.style.top  = (rect.bottom + 4) + 'px';
+}
+
+// 사전 안내 툴팁 닫기
+function _hidePreviewTooltip() {
+  if (!_previewShowing) return;
+  _previewShowing = false;
+  _previewTooltip.classList.remove('show');
+}
+
 function setupOrigTitlePopover() {
   _origPopover = document.createElement('div');
   _origPopover.id = 'orig-title-popover';
   _origPopover.className = 'orig-title-popover';
   document.body.appendChild(_origPopover);
+
+  // 사전 안내 툴팁 ('원문 표시') — PC hover 전용, touch에서는 mouseover 미발동
+  _previewTooltip = document.createElement('div');
+  _previewTooltip.className = 'icon-preview-tooltip';
+  _previewTooltip.textContent = '원문 표시';
+  document.body.appendChild(_previewTooltip);
+
+  // 아이콘 위 → 사전 안내 툴팁 표시
+  document.addEventListener('mouseover', e => {
+    if (e.target.closest('.title-orig-icon')) {
+      _showPreviewTooltip(e.target.closest('.title-orig-icon'));
+    }
+  });
+
+  // 아이콘 벗어남 → 사전 안내 툴팁 닫기
+  document.addEventListener('mouseout', e => {
+    if (!e.target.closest('.title-orig-icon')) return;
+    const dest = e.relatedTarget;
+    if (!dest || !dest.closest('.title-orig-icon')) _hidePreviewTooltip();
+  });
 
   // 팝오버 외부 클릭 → 닫기 (아이콘 클릭 자체는 td listener에서 처리)
   document.addEventListener('click', e => {

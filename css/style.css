@@ -1026,6 +1026,26 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 }
 .orig-title-popover.show { display: block; }
 
+/* 'i' 아이콘 hover 시 사전 안내 툴팁 (PC 전용, touch에서 미발동) */
+.icon-preview-tooltip {
+  position: fixed;
+  z-index: 10002;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 4px 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  white-space: nowrap;
+  pointer-events: none;
+  display: none;
+}
+.icon-preview-tooltip.show { display: block; }
+
 /* 상세 페이지 번역 힌트 */
 .title-translation-hint {
   display: flex;
