@@ -107,8 +107,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 컬럼 너비: 클립 | 티켓번호 | [i] | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA
 // 이슈명은 테이블 min-width(944px)에서 고정 컬럼 합(762px)을 뺀 나머지를 자동 배분 (≥182px 보장)
 // WJIRA는 컬럼명+아이콘+물음표(?)가 들어가도록 100px
-// 티켓번호 84px: 12px semi-bold font, "XAX2-XXXX"(4자리 현행) ≈ 59px 텍스트 + 24px 패딩 = 83px; 최소 여유 1px
-const COL_WIDTHS = ['24px', '84px', '30px', '', '110px', '70px', '110px', '120px', '70px', '100px', '44px'];
+// 티켓번호 76px
+const COL_WIDTHS = ['24px', '76px', '30px', '', '110px', '70px', '110px', '120px', '70px', '100px', '44px'];
 // 클립 | 티켓번호 | [i] | 이슈명(flex) | 확인버전 | 실시순서 | 담당자 | 진행상태 | 판정 | WJIRA | 핸들
 
 // 헤더 필터 아이콘: 비활성=얇은 ▼(드롭다운 힌트), 활성=깔때기(필터 걸림 표시)

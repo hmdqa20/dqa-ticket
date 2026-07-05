@@ -455,9 +455,7 @@ body {
 .btn-xs { padding: 4px 8px; font-size: 12px; flex: 1; justify-content: center; }
 
 /* ─── 티켓 이동 버튼 / 메뉴 ───────────────────────────────────────────────── */
-/* 자물쇠 아이콘 자리를 항상 확보(padding-left)하고 아이콘은 절대 위치로 빼서,
-   잠금 여부와 상관없이 티켓번호 시작 위치를 고정 → 행 간 정렬 유지 */
-.ticket-id-cell { white-space: nowrap; position: relative; text-align: left; padding-left: 26px; }
+.ticket-id-cell { white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 3px; }
 .btn-move {
   margin-left: 5px;
   border: 1px solid var(--border);
@@ -695,7 +693,7 @@ body {
 /* ─── 테이블 ──────────────────────────────────────────────────────────────── */
 .ticket-table {
   width: 100%;
-  min-width: 944px; /* 고정 컬럼 합계 762px + 이슈명 최소 182px (티켓번호 96→84px) */
+  min-width: 936px; /* 고정 컬럼 합계 754px + 이슈명 최소 182px (티켓번호 76px) */
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
@@ -959,18 +957,13 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
-/* 목록 티켓번호 셀 잠금 아이콘 — 절대 위치(흐름에서 제외)로 번호를 밀지 않음 */
 .lock-icon {
-  position: absolute;
-  left: 7px;
-  top: 50%;
-  transform: translateY(-50%);
-  margin: 0;
+  flex-shrink: 0;
   font-size: 12px;
   opacity: 0.8;
   line-height: 1;
-  cursor: default;     /* 이모지 위 텍스트(I-beam) 커서 → 화살표 유지 */
-  user-select: none;   /* 드래그 선택 방지 */
+  cursor: default;
+  user-select: none;
 }
 
 /* ─── 원문보기 아이콘 독립 컬럼 ─────────────────────────────────────────────── */
@@ -1713,4 +1706,5 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 
   /* 좁은 화면에서도 가로스크롤로 모든 컬럼 표시 — 컬럼 숨김 없음 */
 }
+
 
