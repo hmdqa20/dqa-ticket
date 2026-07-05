@@ -372,7 +372,12 @@ function renderSection(group, tickets, dimmed) {
 
   tbody.querySelectorAll('.navigate-cell').forEach(td => {
     td.addEventListener('click', (e) => {
-      if (e.target.closest('.title-orig-icon')) return; // ⓘ 클릭은 팝오버가 처리
+      const icon = e.target.closest('.title-orig-icon');
+      if (icon) {
+        e.stopPropagation(); // navigate-cell 및 상위 요소로 전파 차단
+        _toggleOrigPopover(icon);
+        return;
+      }
       const rowId = td.closest('tr').dataset.rowId;
       if (!rowId) return;
       // 잠긴 항목은 상세로 가지 않고 즉시 팝업 (GAS 재조회 없이 캐시로 판단)
@@ -1118,40 +1123,37 @@ function updateAllScrollHints() {
 let _origPopover     = null;
 let _openPopoverIcon = null;
 
+// 팝오버 열기/닫기 토글. td listener에서 직접 호출.
+function _toggleOrigPopover(icon) {
+  if (_openPopoverIcon === icon) {
+    _origPopover.classList.remove('show');
+    _openPopoverIcon = null;
+    return;
+  }
+  _openPopoverIcon = icon;
+  _origPopover.textContent = icon.dataset.orig;
+  _origPopover.classList.add('show');
+  _origPopover.style.left = '0';
+  _origPopover.style.top  = '0';
+  const pw   = _origPopover.offsetWidth;
+  const rect = icon.getBoundingClientRect();
+  const left = Math.max(4, Math.min(rect.left, window.innerWidth - pw - 8));
+  _origPopover.style.left = left + 'px';
+  _origPopover.style.top  = (rect.bottom + 6) + 'px';
+}
+
 function setupOrigTitlePopover() {
   _origPopover = document.createElement('div');
   _origPopover.id = 'orig-title-popover';
   _origPopover.className = 'orig-title-popover';
   document.body.appendChild(_origPopover);
 
+  // 팝오버 외부 클릭 → 닫기 (아이콘 클릭 자체는 td listener에서 처리)
   document.addEventListener('click', e => {
-    const icon = e.target.closest('.title-orig-icon');
-    if (icon) {
-      e.stopPropagation();
-      if (_openPopoverIcon === icon) {
-        // 같은 아이콘 재클릭 → 닫기
-        _origPopover.classList.remove('show');
-        _openPopoverIcon = null;
-        return;
-      }
-      _openPopoverIcon = icon;
-      _origPopover.textContent = icon.dataset.orig;
-      _origPopover.classList.add('show');
-      // 위치: 아이콘 아래, 화면 가장자리를 넘지 않도록 보정
-      _origPopover.style.left = '0';
-      _origPopover.style.top  = '0';
-      const pw   = _origPopover.offsetWidth;
-      const rect = icon.getBoundingClientRect();
-      const left = Math.max(4, Math.min(rect.left, window.innerWidth - pw - 8));
-      _origPopover.style.left = left + 'px';
-      _origPopover.style.top  = (rect.bottom + 6) + 'px';
-      return;
-    }
-    // 팝오버 외부 클릭 → 닫기
-    if (_openPopoverIcon) {
-      _origPopover.classList.remove('show');
-      _openPopoverIcon = null;
-    }
+    if (!_openPopoverIcon) return;
+    if (e.target.closest('.title-orig-icon') || e.target.closest('#orig-title-popover')) return;
+    _origPopover.classList.remove('show');
+    _openPopoverIcon = null;
   });
 }
 

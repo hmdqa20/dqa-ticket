@@ -981,16 +981,18 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 
 /* ─── 이슈명 번역 안내 'i' 아이콘 & 원문 팝오버 ───────────────────────────── */
 .title-orig-icon {
+  display: inline-flex;
+  align-items: center;
   font-family: Georgia, 'Palatino Linotype', Palatino, 'Times New Roman', serif;
   font-style: italic;
   font-weight: 600;
   font-size: 13px;
   color: var(--info-i);
   cursor: pointer;
-  margin-right: 5px;
+  padding: 5px 8px;
+  margin-right: 0;
   flex-shrink: 0;
   user-select: none;
-  line-height: 1;
   text-decoration-line: underline;
   text-decoration-color: transparent;
   text-underline-offset: 2px;
