@@ -41,6 +41,12 @@ function releaseLockNow() {
 document.addEventListener('DOMContentLoaded', async () => {
   applyTranslations();
 
+  // 언어 전환 시 UI 텍스트 + 번역 힌트만 갱신 — 잠금(lock) 로직 일체 건드리지 않음
+  onLangChange(() => {
+    applyTranslations();
+    if (currentTicket) updateTitleTranslationHint(currentTicket);
+  });
+
   const params = new URLSearchParams(location.search);
   const rowId = params.get('id');
   currentVersionId = params.get('version_id') || '';

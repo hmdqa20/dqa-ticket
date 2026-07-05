@@ -34,6 +34,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTranslations();
   buildAllHeaders();
 
+  // 언어 전환 시 API 재호출 없이 현재 데이터로 재렌더링
+  onLangChange(() => {
+    applyTranslations();
+    buildAllHeaders();
+    renderAll();
+  });
+
   // 마지막 선택 버전 복원 (없으면 ALL_VERSION으로 전체 로드 후 최신 버전으로 전환)
   currentVersionId = localStorage.getItem('dqa_current_version') || ALL_VERSION;
 

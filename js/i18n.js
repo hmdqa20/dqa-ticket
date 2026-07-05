@@ -279,10 +279,27 @@ function t(key) {
     : (I18N.ko[key] !== undefined ? I18N.ko[key] : key);
 }
 
-// 언어 변경 후 페이지 새로고침
+// 언어 변경 콜백 — 각 페이지(index.js, detail.js)가 onLangChange()로 등록
+let _onLangChange = null;
+function onLangChange(cb) { _onLangChange = cb; }
+
+// 드롭다운 버튼 텍스트와 active 클래스 갱신 (init 시 + setLang 시 공통 사용)
+function _refreshLangDropdown(lang) {
+  const btn  = document.getElementById('lang-dropdown-btn');
+  const menu = document.getElementById('lang-dropdown-menu');
+  if (!btn || !menu) return;
+  const m = LANG_META[lang] || LANG_META.ko;
+  btn.innerHTML = `<span class="fi ${m.flag}"></span><span>${m.label}</span><span class="lang-arrow">▼</span>`;
+  menu.querySelectorAll('[data-lang]').forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.lang === lang);
+  });
+}
+
+// 언어 변경: localStorage 저장 → 드롭다운 갱신 → 페이지 콜백 호출 (reload 없음)
 function setLang(lang) {
   localStorage.setItem('dqa_lang', lang);
-  location.reload();
+  _refreshLangDropdown(lang);
+  if (_onLangChange) _onLangChange(lang);
 }
 
 // 언어 드롭다운 초기화
@@ -298,9 +315,7 @@ function initLangDropdown() {
   const menu = document.getElementById('lang-dropdown-menu');
   if (!btn || !menu) return;
 
-  const lang = getLang();
-  const m = LANG_META[lang] || LANG_META.ko;
-  btn.innerHTML = `<span class="fi ${m.flag}"></span><span>${m.label}</span><span class="lang-arrow">▼</span>`;
+  _refreshLangDropdown(getLang());
 
   btn.addEventListener('click', e => {
     e.stopPropagation();
@@ -308,8 +323,10 @@ function initLangDropdown() {
   });
 
   menu.querySelectorAll('[data-lang]').forEach(opt => {
-    if (opt.dataset.lang === lang) opt.classList.add('active');
-    opt.addEventListener('click', () => setLang(opt.dataset.lang));
+    opt.addEventListener('click', () => {
+      menu.classList.remove('open');
+      setLang(opt.dataset.lang);
+    });
   });
 
   document.addEventListener('click', () => menu.classList.remove('open'));
