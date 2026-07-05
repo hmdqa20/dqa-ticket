@@ -110,7 +110,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 9px;
+  height: 37px;
+  padding: 0 9px;
   border: 1px solid #d1d5db;
   border-radius: var(--radius);
   background: #fff;
@@ -161,7 +162,8 @@ body {
 
 /* ─── 검색 ────────────────────────────────────────────────────────────────── */
 .search-input {
-  padding: 6px 12px;
+  height: 37px;
+  padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 13px;
@@ -177,7 +179,7 @@ body {
   align-items: center;
   padding: 7px 16px;
   border-radius: var(--radius);
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
