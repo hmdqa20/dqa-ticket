@@ -1188,6 +1188,9 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   flex-shrink: 0;
   white-space: nowrap;
   padding: 5px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 티켓번호 접두사 + 숫자 입력 */
