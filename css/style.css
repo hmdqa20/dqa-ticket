@@ -990,10 +990,11 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   font-size: 13px;
   color: var(--info-i);
   cursor: pointer;
-  /* margin-left 음수 + padding-left 보정: 'i' 글자 시각적 위치 불변,
-     hit area는 td 왼쪽 padding 영역(12px)까지 확장. 계산: 12 + 20 - 12 = 20px */
+  /* margin-left 음수로 hit area를 td 왼쪽 border까지 확장 (12px).
+     padding 좌우 14px 대칭 → 'i' 가 hit box 정중앙 위치.
+     계산: 'i' 위치 = 12(td pad) - 12(margin) + 14(pad-left) = 14px from td left */
   margin-left: -12px;
-  padding: 5px 8px 5px 20px;
+  padding: 5px 14px;
   margin-right: 0;
   flex-shrink: 0;
   user-select: none;
@@ -1399,7 +1400,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   .ticket-table { font-size: 12px; }
   .ticket-table th, .ticket-table td { padding: 7px 8px; }
   .title-cell { max-width: 120px; }
-  .title-orig-icon { margin-left: -8px; padding-left: 16px; } /* td padding 8px 기준 재조정 */
+  .title-orig-icon { margin-left: -8px; } /* td padding 8px 기준; padding 대칭(14px)은 base 유지 */
 
   .ticket-form { padding: 20px; gap: 20px; }
   .meta-grid { grid-template-columns: 1fr; }
