@@ -214,7 +214,8 @@ function doPost(e) {
 
 // ─── 이슈명 번역 헬퍼 ────────────────────────────────────────────────────────────
 // 문자열 전체에서 일본어 연속 구간(run)을 찾아 개별 번역 후 원위치 치환.
-// 일본어 구간 없으면 원문 그대로 반환. 영어/일본어 혼합·슬래시 순서 무관.
+// 일본어 구간이 없으면(순수 영어 등): 원문이 이미 대상 언어 문자 위주면 그대로 반환(번역 불필요,
+// 비용 절감), 그 외에는 전체 문자열을 통째로 번역해서 반환한다. 영어/일본어 혼합·슬래시 순서 무관.
 function buildTranslatedTitle(title, targetLang) {
   if (!title) return '';
   var JP_RUN_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]+/g;
@@ -223,7 +224,17 @@ function buildTranslatedTitle(title, targetLang) {
   while ((m = JP_RUN_RE.exec(title)) !== null) {
     runs.push({ text: m[0], index: m.index });
   }
-  if (runs.length === 0) return title;
+  if (runs.length === 0) {
+    // 대상 언어 문자가 이미 원문에 있으면(한글/베트남어 위주) 번역 불필요 — 그대로 반환
+    var ALREADY_TARGET_RE = {
+      ko: /[가-힣]/,                            // 한글 음절
+      vi: /[À-ÿĂăĐđƠơƯưẠ-ỹ]/                     // 베트남어 성조/전용 문자
+    };
+    var alreadyRe = ALREADY_TARGET_RE[targetLang];
+    if (alreadyRe && alreadyRe.test(title)) return title;
+    // 순수 영어 등 — 전체 문자열을 통째로 번역 (source 언어는 자동감지)
+    return LanguageApp.translate(title, '', targetLang);
+  }
   var result = title;
   for (var i = runs.length - 1; i >= 0; i--) {
     var r = runs[i];

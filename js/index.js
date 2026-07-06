@@ -30,6 +30,9 @@ function isLockedForDisplay(ticket) {
 const PRESET_ASSIGNEES = ['정기석', '박수완', '한국', 'MVN'];
 const LEGACY_ASSIGNEES = ['박수원', '홍경두'];
 
+// 원문에 일본어 문자가 있는지 판정 (Code.gs의 JP_RUN_RE와 동일 문자 범위, 존재 여부만 확인)
+const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
+
 document.addEventListener('DOMContentLoaded', async () => {
   applyTranslations();
   buildAllHeaders();
@@ -460,13 +463,19 @@ function buildRow(ticket, dimmed, group) {
     .map(v => `<div class="version-line">${escHtml(v)}</div>`).join('');
 
   // 언어 모드에 따라 번역된 이슈명 선택; 번역이 있으면 ⓘ 아이콘 추가
+  // 원문에 일본어가 없는데 실제로 번역된 경우(순수 영어 등)는 "번역 / 원문"으로 슬래시 병기 —
+  // 번역 결과만 보여주는 게 아니라 "이 티켓이 일본어 없이 등록됐다"는 사실 자체를 알리기 위함.
+  // 일본어 혼용 케이스는 기존과 동일하게 번역 결과만 표시.
   const lang = getLang();
+  const hasJapanese = JP_CHAR_RE.test(ticket.title || '');
   let displayTitle = ticket.title;
   let isTranslated = false;
   if (lang === 'ko' && ticket.title_ko && ticket.title_ko !== ticket.title) {
-    displayTitle = ticket.title_ko; isTranslated = true;
+    displayTitle = hasJapanese ? ticket.title_ko : `${ticket.title_ko} / ${ticket.title}`;
+    isTranslated = true;
   } else if (lang === 'vi' && ticket.title_vi && ticket.title_vi !== ticket.title) {
-    displayTitle = ticket.title_vi; isTranslated = true;
+    displayTitle = hasJapanese ? ticket.title_vi : `${ticket.title_vi} / ${ticket.title}`;
+    isTranslated = true;
   }
   const origIconTd = isTranslated
     ? `<td class="orig-icon-cell" tabindex="0" aria-label="원문 보기" data-orig="${escHtml(ticket.title)}">i</td>`

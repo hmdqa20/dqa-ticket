@@ -2,6 +2,9 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// 원문에 일본어 문자가 있는지 판정 (Code.gs의 JP_RUN_RE와 동일 문자 범위, 존재 여부만 확인)
+const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
+
 let isNewMode = false;
 let currentTicket = null;
 let uploadedFiles = [];    // 이미 Drive에 저장된 {name, size, url} 목록
@@ -713,12 +716,16 @@ function updateTitleTranslationHint(ticket) {
   const hint = document.getElementById('title-translation-hint');
   if (!hint) return;
   const lang = getLang();
+  const hasJapanese = JP_CHAR_RE.test(ticket.title || '');
   let translated = '';
   let langLabel  = '';
+  // 원문에 일본어가 없는데 실제로 번역된 경우(순수 영어 등)는 "번역 / 원문" 슬래시 병기 — index.js와 동일 로직
   if (lang === 'ko' && ticket.title_ko && ticket.title_ko !== ticket.title) {
-    translated = ticket.title_ko; langLabel = '한국어';
+    translated = hasJapanese ? ticket.title_ko : `${ticket.title_ko} / ${ticket.title}`;
+    langLabel = '한국어';
   } else if (lang === 'vi' && ticket.title_vi && ticket.title_vi !== ticket.title) {
-    translated = ticket.title_vi; langLabel = 'Tiếng Việt';
+    translated = hasJapanese ? ticket.title_vi : `${ticket.title_vi} / ${ticket.title}`;
+    langLabel = 'Tiếng Việt';
   }
   if (translated) {
     hint.innerHTML =
