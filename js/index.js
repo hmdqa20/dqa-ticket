@@ -181,7 +181,7 @@ function buildHeaderHtml(sectionType = 'active') {
     <th>${wrap('assignee', t('col_assignee'), allOpt)}</th>
     <th>${wrap('status', t('col_status'), `${allOpt}${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
     <th>${wrap('verdict', t('col_verdict'), `${allOpt}<option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
-    <th>${wrap('wjira', 'WJIRA', `${allOpt}<option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`, f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : '', '<span class="th-help-icon" title="WJIRA 결과 기재">?</span>')}</th>
+    <th>${wrap('wjira', 'WJIRA', `${allOpt}<option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`, f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : '', '<span class="th-help-icon" data-tip="WJIRA 결과 기재">?</span>')}</th>
     <th></th>
   `;
 }
