@@ -799,7 +799,11 @@ function setupDragDrop(tbody, group) {
     dragRow = null;
 
     // DOM 순서 (드롭 반영됨). allTickets는 아직 이전 priority 상태 → 영역 판정에 사용.
-    const rows = [...tbody.querySelectorAll('tr.draggable-row[data-row-id]')];
+    // 잠긴 항목의 핸들 잠금(직접 이동 불가)과 시스템에 의한 순서 밀림은 별개다.
+    // 순서 밀림(재번호)은 실시순서 중복 방지를 위해 잠긴 항목(.locked-row)도 계산에 포함한다.
+    // (사용자가 잠긴 행을 직접 드래그하지 못하는 동작은 draggable-row 미부여로 그대로 유지되며,
+    //  여기서는 다른 항목 이동에 따라 순서값이 밀리는 "계산 대상"으로만 포함한다.)
+    const rows = [...tbody.querySelectorAll('tr.draggable-row[data-row-id], tr.locked-row[data-row-id]')];
     const getT = id => allTickets[group].find(tk => tk.row_id === id);
     const wasNumbered = t => t && String(t.priority) !== '';   // 드래그 전 번호 보유 여부
 
