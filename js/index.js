@@ -11,7 +11,7 @@ const ALL_VERSION = '__ALL__';
 let versions = [];                  // [{version_id, version_name, status, ...}]
 let currentVersionId = ALL_VERSION; // 현재 선택된 버전 (ALL_VERSION=전체)
 
-const LOCK_EXPIRE_MS = 30 * 60 * 1000;
+const LOCK_EXPIRE_MS = 5 * 60 * 1000;
 // 내가 방금 편집을 끝내고 돌아온 항목 — 서버가 unlock을 반영할 때까지 자물쇠 억제
 let suppressLockRowId = sessionStorage.getItem('dqa_released_row') || null;
 sessionStorage.removeItem('dqa_released_row');

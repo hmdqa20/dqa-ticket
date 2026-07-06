@@ -653,7 +653,7 @@ function uploadFile(e) {
 }
 
 // ─── lockTicket ───────────────────────────────────────────────────────────────
-// 이미 30분 이내 잠긴 경우 { success: true, locked: true }
+// 이미 5분 이내 잠긴 경우 { success: true, locked: true }
 // 잠금 성공 시            { success: true, locked: false }
 
 function lockTicket(e) {
@@ -672,7 +672,7 @@ function lockTicket(e) {
 
         if (lockedAt) {
           const elapsed = new Date() - new Date(lockedAt);
-          if (elapsed < 30 * 60 * 1000) {
+          if (elapsed < 5 * 60 * 1000) {
             return jsonResponse({ success: true, locked: true });
           }
         }
@@ -726,7 +726,7 @@ function checkLock(e) {
         const lockedAt = String(data[i][COL.LOCKED_AT] || '');
         if (!lockedAt) return jsonResponse({ success: true, locked: false });
         const elapsed = new Date() - new Date(lockedAt);
-        return jsonResponse({ success: true, locked: elapsed < 30 * 60 * 1000 });
+        return jsonResponse({ success: true, locked: elapsed < 5 * 60 * 1000 });
       }
     }
     return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
