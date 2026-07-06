@@ -216,7 +216,11 @@ function doPost(e) {
 // 문자열 전체에서 일본어 연속 구간(run)을 찾아 개별 번역 후 원위치 치환.
 // 일본어 구간이 없으면(순수 영어 등): 원문이 이미 대상 언어 문자 위주면 그대로 반환(번역 불필요,
 // 비용 절감), 그 외에는 전체 문자열을 통째로 번역해서 반환한다. 영어/일본어 혼합·슬래시 순서 무관.
-function buildTranslatedTitle(title, targetLang) {
+// throttleMs: 지정 시 LanguageApp.translate 호출 직후마다 대기(호출 간 간격 확보).
+// 제목 하나에 일본어 run이 여러 개면 이 함수 안에서 translate가 연속 호출되므로,
+// 배치 작업(backfill 등)에서 레이트리밋을 피하려면 필요. addTicket/updateTicket 같은
+// 실시간 요청 경로는 throttleMs를 넘기지 않아(undefined) 기존과 동일하게 지연 없이 동작한다.
+function buildTranslatedTitle(title, targetLang, throttleMs) {
   if (!title) return '';
   var JP_RUN_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]+/g;
   var runs = [];
@@ -233,12 +237,15 @@ function buildTranslatedTitle(title, targetLang) {
     var alreadyRe = ALREADY_TARGET_RE[targetLang];
     if (alreadyRe && alreadyRe.test(title)) return title;
     // 순수 영어 등 — 전체 문자열을 통째로 번역 (source 언어는 자동감지)
-    return LanguageApp.translate(title, '', targetLang);
+    var wholeTranslated = LanguageApp.translate(title, '', targetLang);
+    if (throttleMs) Utilities.sleep(throttleMs);
+    return wholeTranslated;
   }
   var result = title;
   for (var i = runs.length - 1; i >= 0; i--) {
     var r = runs[i];
     var translated = LanguageApp.translate(r.text, 'ja', targetLang);
+    if (throttleMs) Utilities.sleep(throttleMs);
     result = result.slice(0, r.index) + translated + result.slice(r.index + r.text.length);
   }
   return result;
@@ -860,8 +867,12 @@ function backfillTitleTranslations() {
   Logger.log('=== backfillTitleTranslations 완료: 처리=%s, 건너뜀=%s, 오류=%s ===', processed, skipped, errors);
 }
 
-// 모든 티켓의 title_ko / title_vi 를 강제 재번역 (기존 캐시 무시).
+// 모든 티켓의 title_ko / title_vi 를 강제 재번역 (기존 캐시 무시, 성공/실패 무관하게 전체 재시도).
+// 레이트리밋 방지: buildTranslatedTitle에 throttleMs를 넘겨 translate 호출 사이마다 대기시킨다
+// (제목 하나에 일본어 run이 여러 개면 그 안에서만 여러 번 연속 호출되던 것이 원인이었음 — 행
+// 사이 대기만으로는 막지 못함). 1000ms로 시작, 그래도 레이트리밋 발생 시 더 늘려서 재시도할 것.
 function backfillTitleTranslationsForce() {
+  const THROTTLE_MS = 1000;
   const sheet = getSheet();
   const data  = sheet.getDataRange().getValues();
   if (data.length <= 1) { Logger.log('데이터 없음'); return; }
@@ -869,6 +880,12 @@ function backfillTitleTranslationsForce() {
   const header = data[0];
   if (!header[COL.TITLE_KO]) sheet.getRange(1, COL.TITLE_KO + 1).setValue('title_ko');
   if (!header[COL.TITLE_VI]) sheet.getRange(1, COL.TITLE_VI + 1).setValue('title_vi');
+
+  const targetRows = data.length - 1;
+  // 대략적 사전 추정치(행당 최소 2회 translate 호출 가정) — 실제 소요는 완료 후 실측치로 남긴다.
+  Logger.log('=== backfillTitleTranslationsForce 시작: 대상 최대 %s행, 예상 소요 약 %s분(대략치) ===',
+    targetRows, Math.ceil(targetRows * 2 * THROTTLE_MS / 60000));
+  const startedAt = Date.now();
 
   let processed = 0, skipped = 0, errors = 0;
 
@@ -881,11 +898,10 @@ function backfillTitleTranslationsForce() {
     if (!title) { skipped++; continue; }
 
     try {
-      const ko = buildTranslatedTitle(title, 'ko');
-      const vi = buildTranslatedTitle(title, 'vi');
+      const ko = buildTranslatedTitle(title, 'ko', THROTTLE_MS);
+      const vi = buildTranslatedTitle(title, 'vi', THROTTLE_MS);
       sheet.getRange(i + 1, COL.TITLE_KO + 1).setValue(ko);
       sheet.getRange(i + 1, COL.TITLE_VI + 1).setValue(vi);
-      Utilities.sleep(300);
       processed++;
       Logger.log('[%s/%s] %s → ko:%s', i, data.length - 1, title.slice(0, 30), ko.slice(0, 30));
     } catch (err) {
@@ -895,5 +911,7 @@ function backfillTitleTranslationsForce() {
   }
 
   SpreadsheetApp.flush();
-  Logger.log('=== backfillTitleTranslationsForce 완료: 처리=%s, 건너뜀=%s, 오류=%s ===', processed, skipped, errors);
+  const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
+  Logger.log('=== backfillTitleTranslationsForce 완료: 처리=%s, 건너뜀=%s, 오류=%s, 실제 소요=%s초(%s분) ===',
+    processed, skipped, errors, elapsedSec, Math.round(elapsedSec / 60 * 10) / 10);
 }
