@@ -203,6 +203,7 @@ function doPost(e) {
       case 'lockTicket':   return lockTicket(e);
       case 'unlockTicket': return unlockTicket(e);
       case 'checkLock':    return checkLock(e);
+      case 'heartbeat':    return heartbeat(e);
       default: return jsonResponse({ success: false, error: 'Unknown type: ' + type });
     }
   } catch (err) {
@@ -732,6 +733,38 @@ function checkLock(e) {
     return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
   } catch (err) {
     return jsonResponse({ success: false, error: err.message });
+  }
+}
+
+// ─── heartbeat ────────────────────────────────────────────────────────────────
+// 편집 중인 세션이 주기적으로 호출 → LOCKED_AT을 현재 시각으로 갱신해 잠금을 유지.
+// 안전 가드: LOCKED_AT이 이미 비어있으면(정상 해제됐거나 타임아웃으로 다른 세션이
+// 새로 획득한 상황) 갱신하지 않고 무시 → 죽은 세션이 남의 잠금을 되살리는 사고 방지.
+// LOCKED_AT 외 다른 컬럼은 일절 건드리지 않는다.
+function heartbeat(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getSheet();
+    const data  = sheet.getDataRange().getValues();
+    const rowId = e.parameter.row_id;
+    if (!rowId) return jsonResponse({ success: false, error: 'row_id is required' });
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][COL.ROW_ID]) === rowId) {
+        const lockedAt = String(data[i][COL.LOCKED_AT] || '');
+        if (!lockedAt) {
+          // 이미 해제됨 → 되살리지 않고 그대로 둔다
+          return jsonResponse({ success: true, relocked: false });
+        }
+        sheet.getRange(i + 1, COL.LOCKED_AT + 1).setValue(getJSTISOString());
+        SpreadsheetApp.flush();
+        return jsonResponse({ success: true, relocked: true });
+      }
+    }
+    return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
+  } finally {
+    lock.releaseLock();
   }
 }
 

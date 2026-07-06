@@ -112,6 +112,11 @@ async function checkLock(rowId) {
   return callGAS('checkLock', { row_id: rowId });
 }
 
+// 편집 잠금 heartbeat — 편집 중 주기적으로 호출해 LOCKED_AT 갱신(잠금 유지)
+async function heartbeat(rowId) {
+  return callGAS('heartbeat', { row_id: rowId });
+}
+
 // 파일 업로드 — File 객체를 받아 base64로 변환 후 전송
 async function uploadFile(file) {
   return new Promise((resolve, reject) => {

@@ -12,9 +12,23 @@ let isDirty = false;
 let currentVersionId = '';  // 신규 등록 시 소속 버전 (URL 파라미터)
 let allVersions = [];       // 전체 버전 목록 (드롭다운용)
 let currentRowId = '';      // 편집 중인 티켓 row_id (잠금 관리용)
+let heartbeatTimer = null;  // 편집 잠금 heartbeat interval id
+const HEARTBEAT_MS = 2 * 60 * 1000;  // 2분 주기 (5분 타임아웃의 절반 이하 — 1회 유실돼도 다음 신호가 만료 전 도착)
 
 function markDirty() { isDirty = true; }
 function resetDirty() { isDirty = false; }
+
+// 편집 중 잠금 유지: 주기적으로 서버 LOCKED_AT 갱신. 실패는 조용히 무시(재시도 없음 — 2분 뒤 재시도됨).
+function startHeartbeat(rowId) {
+  stopHeartbeat();  // 중복 시작 방지
+  heartbeatTimer = setInterval(() => {
+    heartbeat(rowId).catch(err => console.warn('heartbeat 실패(무시):', err && err.message));
+  }, HEARTBEAT_MS);
+}
+// interval 정리 — 이미 떠난 세션이 잠금을 계속 갱신하지 않도록 모든 이탈 경로에서 호출.
+function stopHeartbeat() {
+  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+}
 
 function getPrefix() {
   const sel = document.getElementById('ticket-prefix');
@@ -28,6 +42,7 @@ function confirmLeave() {
 
 // beforeunload 시 잠금 해제 (sendBeacon = 페이지 언로드 중에도 전송 보장)
 function handleLockBeforeUnload() {
+  stopHeartbeat();
   if (currentRowId) {
     navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
   }
@@ -35,6 +50,7 @@ function handleLockBeforeUnload() {
 
 // 잠금 해제를 fire-and-forget(sendBeacon)로 처리 — 응답을 기다리지 않아 이동이 즉시 일어남
 function releaseLockNow() {
+  stopHeartbeat();
   if (!currentRowId) return;
   window.removeEventListener('beforeunload', handleLockBeforeUnload);
   navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
@@ -210,9 +226,10 @@ async function loadTicket(rowId) {
     return;
   }
   if (lockResult) {
-    // 잠금 획득 성공 — 이탈 시 해제하도록 등록
+    // 잠금 획득 성공 — 이탈 시 해제하도록 등록 + 편집 중 잠금 유지 heartbeat 시작
     currentRowId = rowId;
     window.addEventListener('beforeunload', handleLockBeforeUnload);
+    startHeartbeat(rowId);
   }
 
   try {
@@ -532,7 +549,8 @@ async function handleDelete() {
   setDeletingState(true);
   try {
     await deleteTicket(currentTicket.row_id);
-    // 삭제된 행이라 잠금도 사라짐 — 리스너만 정리하고 즉시 이동
+    // 삭제된 행이라 잠금도 사라짐 — heartbeat/리스너만 정리하고 즉시 이동
+    stopHeartbeat();
     window.removeEventListener('beforeunload', handleLockBeforeUnload);
     currentRowId = '';
     resetDirty();
