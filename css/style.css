@@ -882,13 +882,12 @@ body {
   width: 28px;
   height: 28px;
   cursor: grab;
-  color: #d1d5db;
-  font-size: 18px;
+  color: var(--text-secondary);  /* 진하게: 기존 #d1d5db(연한 회색) → #6b7280 */
   border-radius: 4px;
   user-select: none;
   transition: color 0.12s, background 0.12s;
 }
-.drag-handle:hover  { color: #6b7280; background: #f3f4f6; }
+.drag-handle:hover  { color: var(--text); background: #f3f4f6; }
 .drag-handle:active { cursor: grabbing; }
 
 /* 드래그 중인 행 */
