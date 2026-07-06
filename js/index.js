@@ -811,12 +811,16 @@ function setupDragDrop(tbody, group) {
     const draggedT = getT(draggedId);
     if (dragIdx === -1 || !draggedT) { renderAll(); return; }
 
-    // 드롭 위치의 앞/뒤 이웃으로 번호영역 vs 빈칸영역 판정
+    // 드롭 위치의 앞/뒤 이웃으로 3구간 판정
     // (번호 항목은 항상 빈칸 항목보다 위에 정렬되므로 이웃만 봐도 충분)
     const nextT = dragIdx + 1 < rows.length ? getT(rows[dragIdx + 1].dataset.rowId) : null;
     const prevT = dragIdx - 1 >= 0 ? getT(rows[dragIdx - 1].dataset.rowId) : null;
-    // 번호영역: 바로 뒤가 번호 항목 || (맨 끝인데 바로 앞이 번호 항목 = 빈칸 없이 맨 끝 재배치)
-    const inNumberedZone = wasNumbered(nextT) || (nextT === null && wasNumbered(prevT));
+    const nextIsNumbered = wasNumbered(nextT);
+    const prevIsNumbered = wasNumbered(prevT);
+    // A. 번호구역 내부/맨 앞(바로 뒤가 번호 항목) → 전체 재번호(cascade)
+    // B. 번호구역 끝 경계(바로 뒤는 번호 아님, 바로 앞은 번호 항목 — 뒤가 빈칸이든 리스트 끝(null)이든 동일 취급)
+    //    → 드래그 항목만 max+1, 원래 자리는 갭으로 유지, 나머지 불변
+    // C. 빈칸구역(양쪽 다 번호 아님) → 드래그 항목 번호 삭제
 
     const updates = [];
     const setPri = (t, id, val) => {
@@ -827,8 +831,8 @@ function setupDragDrop(tbody, group) {
       }
     };
 
-    if (inNumberedZone) {
-      // 번호영역: 드래그 항목 + 기존 번호 항목들을 DOM 순서로 1..n 재번호. 빈칸 항목은 그대로.
+    if (nextIsNumbered) {
+      // A. 번호영역: 드래그 항목 + 기존 번호 항목들을 DOM 순서로 1..n 재번호. 빈칸 항목은 그대로.
       let n = 0;
       rows.forEach(r => {
         const id = r.dataset.rowId;
@@ -839,8 +843,18 @@ function setupDragDrop(tbody, group) {
         }
         // 빈칸 항목(빈칸→빈칸 유지)은 건드리지 않음
       });
+    } else if (prevIsNumbered) {
+      // B. 번호구역 끝 경계: 드래그 항목 제외 최댓값+1 할당. 원래 자리는 갭, 나머지 항목 불변.
+      let max = 0;
+      rows.forEach(r => {
+        const id = r.dataset.rowId;
+        if (id === draggedId) return;
+        const t = getT(id);
+        if (t && wasNumbered(t)) max = Math.max(max, Number(t.priority));
+      });
+      setPri(draggedT, draggedId, max + 1);
     } else {
-      // 빈칸영역: 드래그 항목만 번호 삭제(원래 자리는 gap으로 유지), 나머지는 그대로.
+      // C. 빈칸영역: 드래그 항목만 번호 삭제(원래 자리는 gap으로 유지), 나머지는 그대로.
       setPri(draggedT, draggedId, '');
     }
 
