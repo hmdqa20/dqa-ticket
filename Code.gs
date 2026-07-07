@@ -261,7 +261,6 @@ function addTicket(e) {
     const p        = e.parameter;
     const rowId    = Utilities.getUuid();
     const now      = getJSTISOString();
-    const today    = getJSTDateString();
     const status   = p.status || '진행전';
     const isActive = ACTIVE_STATUSES.includes(status);
 
@@ -271,7 +270,7 @@ function addTicket(e) {
 
     const newRow = [
       p.ticket_id     || '',
-      today,                                      // created_date: auto-set in JST
+      now,                                        // created_date: auto-set in JST (full datetime)
       title,
       p.check_version || '',
       p.assignee      || '',
