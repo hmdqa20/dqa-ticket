@@ -1498,9 +1498,25 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
 .link-display-anchor:hover { opacity: 0.75; }
+
+.link-clear-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  color: var(--text-secondary);
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+}
+.link-clear-btn:hover { color: var(--danger); background: rgba(220,38,38,0.08); }
 
 /* ─── 드롭존 ──────────────────────────────────────────────────────────────── */
 .drop-zone {

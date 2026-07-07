@@ -403,6 +403,15 @@ function setupLinkListeners() {
   document.querySelectorAll('.link-label-input, .link-url-input').forEach(inp => {
     inp.addEventListener('input', renderLinks);
   });
+  document.getElementById('links-display').addEventListener('click', e => {
+    const btn = e.target.closest('.link-clear-btn');
+    if (!btn) return;
+    const n = btn.dataset.linkNum;
+    document.querySelector(`.link-label-input[data-link-num="${n}"]`).value = '';
+    document.querySelector(`.link-url-input[data-link-num="${n}"]`).value   = '';
+    renderLinks();
+    markDirty();
+  });
 }
 
 function setupFileUpload() {
@@ -523,6 +532,7 @@ function renderLinks() {
   const display = document.getElementById('links-display');
   if (!display) return;
   const items = [1,2,3].map(n => ({
+    num:   n,
     label: (document.querySelector(`.link-label-input[data-link-num="${n}"]`) || {}).value || '',
     url:   (document.querySelector(`.link-url-input[data-link-num="${n}"]`)   || {}).value || ''
   })).filter(item => item.url.trim());
@@ -531,6 +541,7 @@ function renderLinks() {
     const text = item.label.trim() || item.url;
     return `<div class="links-display-item">
       <a href="${escHtml(item.url)}" target="_blank" class="link-display-anchor">${escHtml(text)}</a>
+      <button type="button" class="link-clear-btn" data-link-num="${item.num}" title="링크 삭제">×</button>
     </div>`;
   }).join('');
 }
