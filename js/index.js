@@ -378,13 +378,6 @@ function handleSelectAllChange(e) {
   updateBulkActionBar(group);
 }
 
-// 대상 버전 내 해당 그룹의 현재 최대 실시순서(빈칸 제외) — getSuggestedPriority(js/detail.js)와 동일 원리
-function computeGroupMaxPriority(groupArr, targetVersionId) {
-  return groupArr
-    .filter(tk => tk.version_id === targetVersionId)
-    .reduce((m, tk) => Math.max(m, Number(tk.priority) || 0), 0);
-}
-
 async function handleBulkMove(group) {
   const targetVersionId = document.getElementById(`bulk-target-version-${group}`).value;
   if (!targetVersionId) { alert('이동할 버전을 선택하세요.'); return; }
@@ -398,11 +391,8 @@ async function handleBulkMove(group) {
   const ok = confirm(`선택한 ${selectedTickets.length}개 티켓을 "${targetVersion ? targetVersion.version_name : ''}" 버전으로 이동하시겠습니까?`);
   if (!ok) return;
 
-  // 대상 버전 내 이 그룹의 시작 max를 한 번만 계산 후, 처리하며 로컬에서 1씩 증가시켜 배정(충돌 방지)
-  let counter = computeGroupMaxPriority(allTickets[group], targetVersionId);
-
-  // 기존 실시순서/티켓번호 순으로 처리(재사용: sortByPriority) — 배정 순서를 예측 가능하게 유지
-  const ordered = sortByPriority(selectedTickets);
+  // 실시순서는 빈칸 초기화 — moveTicket(priority 미지정) → GAS가 '' 세팅
+  // 새 버전에서 사용자가 직접 순서를 지정하는 것으로 정책 변경
   const succeeded = [];
   const failed = [];
 
@@ -410,21 +400,18 @@ async function handleBulkMove(group) {
   const overlayText = overlay ? overlay.querySelector('.detail-loading-text') : null;
   if (overlay) overlay.style.display = 'flex';
 
-  for (let i = 0; i < ordered.length; i++) {
-    const ticket = ordered[i];
-    if (overlayText) overlayText.textContent = `이동 중... (${i + 1}/${ordered.length})`;
+  for (let i = 0; i < selectedTickets.length; i++) {
+    const ticket = selectedTickets[i];
+    if (overlayText) overlayText.textContent = `이동 중... (${i + 1}/${selectedTickets.length})`;
 
-    // 이미 대상 버전인 티켓은 서버가 no-op 처리 — 순서 카운터도 소모하지 않고 성공으로 간주
     if (ticket.version_id === targetVersionId) {
       succeeded.push(ticket);
       continue;
     }
 
-    const newPriority = String(++counter);
-
     // 실패해도 중단하지 않고 다음 건 계속 진행. 재시도 없음(1건당 1회만 시도).
     try {
-      await moveTicket(ticket.row_id, targetVersionId, newPriority);
+      await moveTicket(ticket.row_id, targetVersionId);
       succeeded.push(ticket);
     } catch (err) {
       console.error('[bulkMove] 이동 실패:', ticket.ticket_id, err);
