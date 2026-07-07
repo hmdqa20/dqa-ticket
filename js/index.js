@@ -3,6 +3,34 @@ let allTickets = { activeWW: [], activeMVN: [], done: [], hold: [] };
 let searchQuery = '';
 let activeFilters = { assignee: '', status: '', verdict: '', version: '', wjira: '' };
 const userCollapsed = new Set(); // 사용자가 직접 접은 섹션
+const ALL_SECTIONS = ['activeWW', 'activeMVN', 'done', 'hold'];
+const SECTION_STATE_KEY = 'dqa_section_collapsed';
+
+function saveSectionStates() {
+  const state = {};
+  for (const g of ALL_SECTIONS) state[g] = userCollapsed.has(g);
+  localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(state));
+}
+
+function loadSectionStates() {
+  try {
+    const raw = localStorage.getItem(SECTION_STATE_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    for (const [g, collapsed] of Object.entries(state)) {
+      if (collapsed) userCollapsed.add(g); else userCollapsed.delete(g);
+    }
+  } catch (_) {}
+}
+
+function applyCollapsedStates() {
+  for (const g of ALL_SECTIONS) {
+    const body = document.getElementById('section-' + g + '-body');
+    const icon = document.getElementById('toggle-' + g);
+    if (!body || !icon) continue;
+    if (userCollapsed.has(g)) { body.classList.add('collapsed'); icon.textContent = '▶'; }
+  }
+}
 
 // "전체" 가상 탭 식별자
 const ALL_VERSION = '__ALL__';
@@ -42,6 +70,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTranslations();
   SELECTABLE_GROUPS.forEach(g => syncSelectionModeButtonText(g));
   buildAllHeaders();
+  loadSectionStates();
+  applyCollapsedStates();
 
   // 언어 전환 시 API 재호출 없이 현재 데이터로 재렌더링
   onLangChange(() => {
@@ -875,6 +905,7 @@ async function handleInlineChange(e) {
       renderAll();
       if (toInactive) {
         userCollapsed.delete(newGroup);
+        saveSectionStates();
       }
       try {
         await updateTicket({ row_id: rowId, [field]: value, priority: '' });
@@ -1438,6 +1469,7 @@ function toggleSection(group) {
     updateAllStickyBars();
     updateAllScrollHints(); // [실험적 기능]
   }
+  saveSectionStates();
 }
 
 // ─── UI 상태 ──────────────────────────────────────────────────────────────────
