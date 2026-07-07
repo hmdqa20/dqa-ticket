@@ -35,6 +35,12 @@
   --info-i:        #0891b2;  /* 번역 안내 'i' 기본색 (cyan-600) */
   --info-i-hover:  #0e7490;  /* hover 진해짐 (cyan-700) */
   --info-i-bg:     rgba(8, 145, 178, 0.12);  /* 아이콘 셀 hover 배경 */
+
+  /* 목록 화면 주요 버튼 톤 구분 (티켓 등록=--ww 그대로 유지, 아래 둘만 신규) */
+  --btn-selectmode:       #0d9488;  /* 선택 모드 토글(teal-600) — "보조 모드 전환" */
+  --btn-selectmode-hover: #0f766e;  /* teal-700 */
+  --btn-bulkmove:         #4f46e5;  /* 선택한 티켓 이동(indigo-600) — "확정 실행 액션" */
+  --btn-bulkmove-hover:   #4338ca;  /* indigo-700 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -876,30 +882,55 @@ body {
   cursor: pointer;
   vertical-align: middle;
 }
-#btn-select-mode.active { background: var(--ww); color: #fff; border-color: var(--ww); }
+/* "선택 모드" 활성화 시 teal 계열로 — 티켓 등록(파랑)과 구분되는 "보조 모드 전환" 톤 */
+.btn-select-mode-group.active { background: var(--btn-selectmode); color: #fff; border-color: var(--btn-selectmode); }
+.btn-select-mode-group.active:hover { background: var(--btn-selectmode-hover); border-color: var(--btn-selectmode-hover); }
 
-/* ─── 버전 일괄이동 액션바 ───────────────────────────────────────────────── */
-.bulk-action-bar {
+/* "선택한 티켓 이동"은 indigo 계열로 — "확정 실행 액션" 톤 */
+.btn-bulk-move-group { background: var(--btn-bulkmove); color: #fff; border-color: var(--btn-bulkmove); }
+.btn-bulk-move-group:hover:not(:disabled) { background: var(--btn-bulkmove-hover); }
+
+/* ─── 버전 일괄이동: 그룹(DQA/MVN) 헤더에 내장 — 완전 독립 ──────────────────── */
+/* 헤더(.section-header)는 이미 flex 한 줄. 이 액션 영역도 같은 줄에 이어 붙어
+   높이가 절대 변하지 않는다(레이아웃 튐 없음). 클릭 시 섹션 접기로 전파되지 않도록
+   JS에서 stopPropagation 처리. */
+.section-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 24px;
-  background: #eff6ff;
-  border-bottom: 1px solid #bfdbfe;
+  gap: 8px;
+  margin-left: 8px;
+  flex-shrink: 0;
 }
+.bulk-action-bar-inline {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.bulk-action-bar-inline.open { display: flex; opacity: 1; }
 .bulk-selected-count {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
 }
 .bulk-target-select {
-  height: 33px;
-  padding: 0 8px;
+  height: 28px;
+  padding: 0 6px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 13px;
+  font-size: 12px;
   background: #fff;
+  max-width: 140px;
+}
+
+/* 좁은 화면: 헤더 한 줄에 다 안 들어가면 count-badge 뒤에서 줄바꿈 허용(높이는 그 줄에서만 늘고,
+   페이지 전체 레이아웃이 밀리는 것과는 무관 — 헤더 자체 높이만 유동적으로 커짐) */
+@media (max-width: 720px) {
+  .section-header { flex-wrap: wrap; row-gap: 6px; }
+  .section-header-actions { margin-left: 0; flex-basis: 100%; }
 }
 
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
