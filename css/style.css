@@ -866,7 +866,8 @@ body {
 }
 
 /* ─── 상태 표시 셀 (자물쇠 + 클립) ──────────────────────────────────────────── */
-.clip-cell { text-align: center; padding: 4px 1px; vertical-align: middle; }
+.clip-cell { text-align: center; vertical-align: middle; }
+.ticket-table td.clip-cell { padding: 4px 1px; overflow: visible; }
 .status-icons { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; line-height: 0; }
 
 /* ─── 선택 모드 (버전 일괄이동) — clip-cell에 체크박스 오버레이 ─────────────── */
