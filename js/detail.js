@@ -65,6 +65,15 @@ function releaseLockNow() {
   currentRowId = '';
 }
 
+// 잠금 해제 — 페이지 이동 없이 같은 페이지에서 계속 사용하므로 currentRowId는 유지
+function releaseLockKeepId() {
+  stopHeartbeat();
+  if (!isLockHeld || !currentRowId) return;
+  window.removeEventListener('beforeunload', handleLockBeforeUnload);
+  navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
+  isLockHeld = false;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   applyTranslations();
 
@@ -118,20 +127,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     titleInput.focus();
   });
 
-  // 저장 후 목록으로 / 저장 후 계속 등록
-  document.getElementById('btn-save-top').addEventListener('click',      () => handleSave(false));
-  document.getElementById('btn-save-continue').addEventListener('click', () => handleSave(true));
+  document.getElementById('btn-save-top').addEventListener('click', handleSave);
   const navigateToList = () => {
     resetDirty();
     pendingFiles = [];
-    releaseLockNow();           // 잠금 해제를 기다리지 않고 즉시 이동
+    releaseLockNow();
     location.href = 'index.html';
   };
   document.getElementById('btn-edit').addEventListener('click', enterEditMode);
-  document.getElementById('btn-cancel-top').addEventListener('click', () => { if (confirmLeave()) navigateToList(); });
-  // 표시모드에서 뒤로가기: isDirty=false이므로 confirmLeave()가 바로 true 반환 — 추가 확인 없이 이동
+  document.getElementById('btn-cancel-top').addEventListener('click', () => {
+    if (isNewMode) {
+      if (confirmLeave()) navigateToList();
+    } else {
+      if (confirmLeave()) cancelToViewMode();
+    }
+  });
   document.getElementById('btn-back').addEventListener('click', () => { if (isViewMode || confirmLeave()) navigateToList(); });
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
+  document.getElementById('btn-new-ticket').addEventListener('click', () => {
+    const vId = (currentTicket && currentTicket.version_id) || currentVersionId || '';
+    location.href = vId ? `detail.html?version_id=${encodeURIComponent(vId)}` : 'detail.html';
+  });
 
   // 폼 변경 감지
   document.getElementById('ticket-form').addEventListener('input',  markDirty);
@@ -158,10 +174,10 @@ async function initNewMode() {
   document.getElementById('ticket-id-edit-wrap').style.display = '';
   document.getElementById('ticket-id-static').style.display = 'none';
   document.getElementById('created-date').textContent = formatDate(new Date());
-  // 신규 모드: 저장/취소 버튼 표시, 수정 버튼은 없음
   document.getElementById('btn-save-top').style.display = '';
   document.getElementById('btn-cancel-top').style.display = '';
-  document.getElementById('btn-save-continue').style.display = '';
+  document.getElementById('btn-new-ticket').style.display = '';
+  document.getElementById('btn-new-ticket').disabled = true;
 
   // 신규 모드에서도 활성 티켓 수 기반으로 옵션 생성, 버전 목록도 함께 로드
   try {
@@ -407,12 +423,13 @@ function enterViewMode() {
   if (linksGrid)  linksGrid.style.display = 'none';
   document.getElementById('btn-clear-title').style.display = 'none';
 
-  // 상단 버튼 전환: 편집 버튼만 표시
+  document.getElementById('page-title').textContent = t('page_title_edit');
   document.getElementById('btn-edit').style.display = '';
   document.getElementById('btn-save-top').style.display = 'none';
   document.getElementById('btn-cancel-top').style.display = 'none';
   document.getElementById('btn-delete').style.display = 'none';
-  document.getElementById('btn-save-continue').style.display = 'none';
+  document.getElementById('btn-new-ticket').style.display = '';
+  document.getElementById('btn-new-ticket').disabled = false;
 
   // 확인결과/비고: 텍스트 뷰 표시, textarea 숨김
   renderTextView('check-content');
@@ -461,11 +478,13 @@ async function enterEditMode() {
   const titleInput = document.getElementById('title-input');
   if (titleInput.value) document.getElementById('btn-clear-title').style.display = '';
 
-  // 상단 버튼 전환: 저장/취소/삭제 표시, 편집 버튼 숨김
+  document.getElementById('page-title').textContent = t('page_title_editing');
   document.getElementById('btn-edit').style.display = 'none';
   document.getElementById('btn-save-top').style.display = '';
   document.getElementById('btn-cancel-top').style.display = '';
   document.getElementById('btn-delete').style.display = '';
+  document.getElementById('btn-new-ticket').style.display = '';
+  document.getElementById('btn-new-ticket').disabled = true;
 
   // 확인결과/비고: textarea 표시, 텍스트 뷰 숨김
   document.getElementById('check-content-view').style.display = 'none';
@@ -476,6 +495,16 @@ async function enterEditMode() {
   // 파일/링크 재렌더링 (삭제 버튼·X 버튼 있는 버전)
   renderFileList();
   renderLinks();
+}
+
+function cancelToViewMode() {
+  releaseLockKeepId();
+  fillForm(currentTicket);
+  renderVersionSelect(currentTicket.version_id || '');
+  pendingFiles = [];
+  removedFileUrls = [];
+  resetDirty();
+  enterViewMode();
 }
 
 // URL을 <a> 링크로 변환해 text-view에 렌더링
@@ -703,8 +732,7 @@ window.addEventListener('beforeunload', e => {
   }
 });
 
-// continueAfterSave: true → 폼 초기화 후 계속 등록, false → 목록으로 이동
-async function handleSave(continueAfterSave = false) {
+async function handleSave() {
   if (isSaving) return;
 
   setSavingState(true);
@@ -715,83 +743,54 @@ async function handleSave(continueAfterSave = false) {
       const text    = overlay && overlay.querySelector('.detail-loading-text');
       for (let i = 0; i < pendingFiles.length; i++) {
         if (text) text.textContent = `업로드 중... (${i + 1}/${pendingFiles.length})`;
-        const result = await uploadFile(pendingFiles[i]);
-        uploadedFiles.push({ name: pendingFiles[i].name, size: pendingFiles[i].size, url: result.fileUrl });
+        const uploaded = await uploadFile(pendingFiles[i]);
+        uploadedFiles.push({ name: pendingFiles[i].name, size: pendingFiles[i].size, url: uploaded.fileUrl });
       }
       pendingFiles = [];
       renderFileList();
     }
 
-    let savedFormData = null;
+    const formData = collectFormData();
 
     if (isNewMode) {
       const numPart = document.getElementById('ticket-id-num').value.trim();
       if (!numPart) { alert('티켓번호를 입력하세요.'); setSavingState(false); return; }
       const ticketId = getPrefix() + numPart;
-      savedFormData = collectFormData();
-      await addTicket({ ticket_id: ticketId, version_id: currentVersionId, ...savedFormData });
+
+      const addResult = await addTicket({ ticket_id: ticketId, version_id: currentVersionId, ...formData });
+      currentRowId  = addResult.row_id;
+      currentTicket = { row_id: addResult.row_id, ticket_id: ticketId, created_date: new Date().toISOString(), version_id: currentVersionId, ...formData };
+      isNewMode = false;
+
+      // 티켓번호 영역: 입력 필드 → 정적 JIRA 링크로 전환
+      document.getElementById('ticket-id-edit-wrap').style.display = 'none';
+      document.getElementById('btn-wjira-link').style.display = 'none';
+      const staticEl = document.getElementById('ticket-id-static');
+      staticEl.style.display = '';
+      staticEl.innerHTML = `<a href="https://wjira.humaxdigital.com/browse/${escHtml(ticketId)}" target="_blank">${escHtml(ticketId)}</a>`;
+
+      // URL 갱신 — 뒤로가기 시 이 티켓 상세로 진입
+      history.replaceState(null, '', 'detail.html?id=' + encodeURIComponent(addResult.row_id));
     } else {
-      await updateTicket({ row_id: currentTicket.row_id, ...collectFormData() });
+      await updateTicket({ row_id: currentTicket.row_id, ...formData });
+      // 취소 시 원복 기준값 갱신
+      Object.assign(currentTicket, formData);
     }
 
-    // 저장 성공 후 삭제 예정 Drive 파일 정리
+    // 삭제 예정 Drive 파일 정리
     if (removedFileUrls.length > 0) {
-      try { await trashDriveFiles(removedFileUrls); } catch (e) { /* 무시 */ }
+      try { await trashDriveFiles(removedFileUrls); } catch (e) {}
       removedFileUrls = [];
     }
 
     resetDirty();
     setSavingState(false);
-
-    if (continueAfterSave && isNewMode && savedFormData) {
-      // 저장 후 계속 등록: 폼 초기화 + 실시순서 +1
-      resetFormForContinue(savedFormData);
-    } else {
-      // 저장 후 목록으로 (잠금 해제를 기다리지 않고 즉시 이동)
-      releaseLockNow();
-      location.href = 'index.html';
-    }
+    releaseLockKeepId();  // 편집 잠금 해제 (신규 모드는 isLockHeld=false라 no-op)
+    enterViewMode();
   } catch (err) {
     alert(t('save_error') + '\n' + err.message);
     setSavingState(false);
   }
-}
-
-// 저장 후 계속 등록: 폼 초기화 + 실시순서 자동 +1 (추가 API 호출 없음)
-function resetFormForContinue(savedFormData) {
-  // 방금 저장한 티켓을 캐시에 추가 (같은 버전+그룹으로 max+1 계산에 포함)
-  if (cachedAllTickets && savedFormData.priority) {
-    const isMVN = savedFormData.assignee === 'MVN';
-    const arr   = isMVN ? cachedAllTickets.activeMVN : cachedAllTickets.activeWW;
-    arr.push({ priority: savedFormData.priority, assignee: savedFormData.assignee, version_id: currentVersionId, row_id: '__saved__' });
-  }
-  // 담당자 기반 같은 그룹+버전 max+1 계산 (Rule 1)
-  const assigneeEl = document.getElementById('assignee');
-  const nextPri    = getSuggestedPriority(assigneeEl.value, currentVersionId);
-
-  // 티켓번호·이슈명·확인버전·결과·확인내용·비고·파일 초기화
-  document.getElementById('ticket-id-num').value = '';
-  document.getElementById('title-input').value   = '';
-  document.getElementById('btn-clear-title').style.display = 'none';
-  document.querySelectorAll('.version-input').forEach(inp => { inp.value = ''; });
-  document.getElementById('verdict').value        = '';
-  document.getElementById('status').value         = '진행전';
-  document.getElementById('check-content').value  = '';
-  document.getElementById('note').value           = '';
-  document.getElementById('wjira-updated').checked = false;
-  uploadedFiles   = [];
-  pendingFiles    = [];
-  removedFileUrls = [];
-  renderFileList();
-  document.querySelectorAll('.link-label-input, .link-url-input').forEach(inp => { inp.value = ''; });
-  renderLinks();
-
-  // 담당자·버전은 그대로 유지, 실시순서만 +1로 갱신
-  updatePriorityState();
-  populatePriorityOptions(nextPri);
-
-  resetDirty();
-  document.getElementById('ticket-id-num').focus();
 }
 
 function collectFormData() {
