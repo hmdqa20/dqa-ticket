@@ -533,7 +533,7 @@ function sortByPriority(tickets) {
 function renderAll() {
   renderSection('activeWW',  filterTickets(sortByPriority(allTickets.activeWW)),  false);
   renderSection('activeMVN', filterTickets(sortByPriority(allTickets.activeMVN)), false);
-  renderSection('done',      filterTickets(allTickets.done),      true);
+  renderSection('done',      filterTickets(allTickets.done),      false);
   renderSection('hold',      filterTickets(allTickets.hold),      true);
 
   // 항목 수에 따라 activeMVN/done/hold 섹션 자동 펼침/접힘
