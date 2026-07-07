@@ -6,6 +6,8 @@ function escHtml(s) {
 const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
 
 let isNewMode = false;
+let isViewMode = false;    // true: 표시(읽기전용) 모드 / false: 편집 모드
+let isLockHeld = false;    // 잠금 획득 여부 (수정 버튼 클릭 시 true)
 let currentTicket = null;
 let uploadedFiles = [];    // 이미 Drive에 저장된 {name, size, url} 목록
 let pendingFiles = [];     // 아직 업로드 안 된 File 객체 목록 (저장 시 업로드)
@@ -14,7 +16,7 @@ let cachedAllTickets = null;
 let isDirty = false;
 let currentVersionId = '';  // 신규 등록 시 소속 버전 (URL 파라미터)
 let allVersions = [];       // 전체 버전 목록 (드롭다운용)
-let currentRowId = '';      // 편집 중인 티켓 row_id (잠금 관리용)
+let currentRowId = '';      // 조회/편집 중인 티켓 row_id
 let heartbeatTimer = null;  // 편집 잠금 heartbeat interval id
 const HEARTBEAT_MS = 2 * 60 * 1000;  // 2분 주기 (5분 타임아웃의 절반 이하 — 1회 유실돼도 다음 신호가 만료 전 도착)
 
@@ -46,7 +48,7 @@ function confirmLeave() {
 // beforeunload 시 잠금 해제 (sendBeacon = 페이지 언로드 중에도 전송 보장)
 function handleLockBeforeUnload() {
   stopHeartbeat();
-  if (currentRowId) {
+  if (isLockHeld && currentRowId) {
     navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
   }
 }
@@ -54,11 +56,12 @@ function handleLockBeforeUnload() {
 // 잠금 해제를 fire-and-forget(sendBeacon)로 처리 — 응답을 기다리지 않아 이동이 즉시 일어남
 function releaseLockNow() {
   stopHeartbeat();
-  if (!currentRowId) return;
+  if (!isLockHeld || !currentRowId) return;
   window.removeEventListener('beforeunload', handleLockBeforeUnload);
   navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
   // 목록에 "방금 내가 해제한 항목" 힌트 전달 → 서버 반영 전까지 자기 자물쇠 억제
   sessionStorage.setItem('dqa_released_row', currentRowId);
+  isLockHeld = false;
   currentRowId = '';
 }
 
@@ -124,8 +127,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     releaseLockNow();           // 잠금 해제를 기다리지 않고 즉시 이동
     location.href = 'index.html';
   };
+  document.getElementById('btn-edit').addEventListener('click', enterEditMode);
   document.getElementById('btn-cancel-top').addEventListener('click', () => { if (confirmLeave()) navigateToList(); });
-  document.getElementById('btn-back').addEventListener('click',       () => { if (confirmLeave()) navigateToList(); });
+  // 표시모드에서 뒤로가기: isDirty=false이므로 confirmLeave()가 바로 true 반환 — 추가 확인 없이 이동
+  document.getElementById('btn-back').addEventListener('click', () => { if (isViewMode || confirmLeave()) navigateToList(); });
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
 
   // 폼 변경 감지
@@ -153,7 +158,9 @@ async function initNewMode() {
   document.getElementById('ticket-id-edit-wrap').style.display = '';
   document.getElementById('ticket-id-static').style.display = 'none';
   document.getElementById('created-date').textContent = formatDate(new Date());
-  // 신규 모드에서만 "저장 후 계속 등록" 버튼 표시
+  // 신규 모드: 저장/취소 버튼 표시, 수정 버튼은 없음
+  document.getElementById('btn-save-top').style.display = '';
+  document.getElementById('btn-cancel-top').style.display = '';
   document.getElementById('btn-save-continue').style.display = '';
 
   // 신규 모드에서도 활성 티켓 수 기반으로 옵션 생성, 버전 목록도 함께 로드
@@ -217,33 +224,19 @@ async function loadTicket(rowId) {
   document.getElementById('page-title').textContent = t('page_title_edit');
   document.getElementById('detail-loading').style.display = 'flex';
 
-  // 잠금 시도와 티켓 조회를 동시에 시작 (왕복 1회 시간 절약)
-  const lockPromise = lockTicket(rowId).catch(() => null); // 잠금 API 오류 시 null
-  const dataPromise = getTickets();
-
-  // 잠금 결과 먼저 확인 — 다른 세션이 편집 중이면 팝업 후 목록으로 (데이터는 버림)
-  const lockResult = await lockPromise;
-  if (lockResult && lockResult.locked) {
-    alert(t('error_ticket_locked'));
-    location.href = 'index.html';
-    return;
-  }
-  if (lockResult) {
-    // 잠금 획득 성공 — 이탈 시 해제하도록 등록 + 편집 중 잠금 유지 heartbeat 시작
-    currentRowId = rowId;
-    window.addEventListener('beforeunload', handleLockBeforeUnload);
-    startHeartbeat(rowId);
-  }
+  // 표시모드로 열림 — 잠금은 "수정" 버튼 클릭 시에만 시도
+  currentRowId = rowId;
+  isViewMode = true;
 
   try {
-    cachedAllTickets = await dataPromise;
+    cachedAllTickets = await getTickets();
     allVersions = cachedAllTickets.versions || [];
     const all = [...cachedAllTickets.activeWW, ...cachedAllTickets.activeMVN, ...cachedAllTickets.done, ...cachedAllTickets.hold];
     currentTicket = all.find(tk => tk.row_id === rowId);
     if (!currentTicket) throw new Error('티켓을 찾을 수 없습니다: ' + rowId);
     fillForm(currentTicket);
     renderVersionSelect(currentTicket.version_id || '');
-    document.getElementById('btn-delete').style.display = '';
+    enterViewMode();
   } catch (err) {
     alert(err.message);
     location.href = 'index.html';
@@ -397,6 +390,116 @@ function updatePriorityState() {
   if (!isActive) document.getElementById('priority').value = '';
 }
 
+// ─── 표시/편집 모드 전환 ──────────────────────────────────────────────────────
+
+function enterViewMode() {
+  isViewMode = true;
+
+  // 모든 폼 요소 비활성화
+  document.querySelectorAll('#ticket-form input, #ticket-form select, #ticket-form textarea').forEach(el => {
+    el.disabled = true;
+  });
+
+  // 업로드/입력 영역 숨김
+  const dropZone = document.getElementById('drop-zone');
+  const linksGrid = document.querySelector('.links-grid');
+  if (dropZone)   dropZone.style.display = 'none';
+  if (linksGrid)  linksGrid.style.display = 'none';
+  document.getElementById('btn-clear-title').style.display = 'none';
+
+  // 상단 버튼 전환: 편집 버튼만 표시
+  document.getElementById('btn-edit').style.display = '';
+  document.getElementById('btn-save-top').style.display = 'none';
+  document.getElementById('btn-cancel-top').style.display = 'none';
+  document.getElementById('btn-delete').style.display = 'none';
+  document.getElementById('btn-save-continue').style.display = 'none';
+
+  // 확인결과/비고: 텍스트 뷰 표시, textarea 숨김
+  renderTextView('check-content');
+  renderTextView('note');
+
+  // 파일/링크 재렌더링 (삭제 버튼·X 버튼 없는 버전)
+  renderFileList();
+  renderLinks();
+}
+
+async function enterEditMode() {
+  const overlay = document.getElementById('detail-loading');
+  if (overlay) overlay.style.display = 'flex';
+
+  const lockResult = await lockTicket(currentRowId).catch(() => null);
+
+  if (overlay) overlay.style.display = 'none';
+
+  if (lockResult && lockResult.locked) {
+    alert(t('error_ticket_locked'));
+    return; // 표시모드 유지
+  }
+
+  if (lockResult) {
+    isLockHeld = true;
+    window.addEventListener('beforeunload', handleLockBeforeUnload);
+    startHeartbeat(currentRowId);
+  }
+
+  isViewMode = false;
+
+  // 모든 폼 요소 활성화
+  document.querySelectorAll('#ticket-form input, #ticket-form select, #ticket-form textarea').forEach(el => {
+    el.disabled = false;
+  });
+  // 실시순서는 읽기전용 유지
+  document.getElementById('priority').readOnly = true;
+
+  // 업로드/입력 영역 표시
+  const dropZone = document.getElementById('drop-zone');
+  const linksGrid = document.querySelector('.links-grid');
+  if (dropZone)  dropZone.style.display = '';
+  if (linksGrid) linksGrid.style.display = '';
+
+  // clear title 버튼 복원
+  const titleInput = document.getElementById('title-input');
+  if (titleInput.value) document.getElementById('btn-clear-title').style.display = '';
+
+  // 상단 버튼 전환: 저장/취소/삭제 표시, 편집 버튼 숨김
+  document.getElementById('btn-edit').style.display = 'none';
+  document.getElementById('btn-save-top').style.display = '';
+  document.getElementById('btn-cancel-top').style.display = '';
+  document.getElementById('btn-delete').style.display = '';
+
+  // 확인결과/비고: textarea 표시, 텍스트 뷰 숨김
+  document.getElementById('check-content-view').style.display = 'none';
+  document.getElementById('check-content').style.display = '';
+  document.getElementById('note-view').style.display = 'none';
+  document.getElementById('note').style.display = '';
+
+  // 파일/링크 재렌더링 (삭제 버튼·X 버튼 있는 버전)
+  renderFileList();
+  renderLinks();
+}
+
+// URL을 <a> 링크로 변환해 text-view에 렌더링
+function renderTextView(fieldId) {
+  const textarea = document.getElementById(fieldId);
+  const view     = document.getElementById(fieldId + '-view');
+  if (!textarea || !view) return;
+
+  const text = textarea.value;
+  const URL_RE = /https?:\/\/[^\s<>"']+/g;
+  let result = '', lastIdx = 0, m;
+  URL_RE.lastIndex = 0;
+  while ((m = URL_RE.exec(text)) !== null) {
+    result += escHtml(text.slice(lastIdx, m.index));
+    result += `<a href="${escHtml(m[0])}" target="_blank" rel="noopener">${escHtml(m[0])}</a>`;
+    lastIdx = m.index + m[0].length;
+  }
+  result += escHtml(text.slice(lastIdx));
+  view.innerHTML = result || '';
+
+  textarea.style.display = 'none';
+  view.style.display = '';
+}
+
 // ─── 파일 업로드 ──────────────────────────────────────────────────────────────
 
 function setupLinkListeners() {
@@ -489,13 +592,14 @@ function renderFileList() {
       ? `<a href="${f.url}" target="_blank" class="file-name file-name-link">${escHtml(f.name)}</a>`
       : `<span class="file-name">${escHtml(f.name)}</span>`;
     const sizeHtml = f.size ? `<span class="file-size">${formatSize(f.size)}</span>` : '';
+    const deleteBtn = isViewMode ? '' : `<button type="button" class="btn btn-file-delete btn-file-action" data-type="saved" data-idx="${idx}">삭제</button>`;
     return `<div class="file-item">
       <span class="file-clip">${CLIP_SVG}</span>
       ${nameHtml}
       ${sizeHtml}
       <div class="file-actions">
         <a href="${dlUrl}" target="_blank" class="btn btn-secondary btn-file-action">다운로드</a>
-        <button type="button" class="btn btn-file-delete btn-file-action" data-type="saved" data-idx="${idx}">삭제</button>
+        ${deleteBtn}
       </div>
     </div>`;
   }).join('');
@@ -539,9 +643,10 @@ function renderLinks() {
 
   display.innerHTML = items.map(item => {
     const text = item.label.trim() || item.url;
+    const xBtn = isViewMode ? '' : `<button type="button" class="link-clear-btn" data-link-num="${item.num}" title="링크 삭제">×</button>`;
     return `<div class="links-display-item">
       <a href="${escHtml(item.url)}" target="_blank" class="link-display-anchor">${escHtml(text)}</a>
-      <button type="button" class="link-clear-btn" data-link-num="${item.num}" title="링크 삭제">×</button>
+      ${xBtn}
     </div>`;
   }).join('');
 }

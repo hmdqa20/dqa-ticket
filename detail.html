@@ -24,10 +24,12 @@
     </div>
   </div>
   <button id="btn-delete" class="btn btn-danger" style="display:none" data-i18n="btn_delete">삭제</button>
-  <button id="btn-cancel-top" class="btn btn-secondary" data-i18n="btn_cancel">취소</button>
+  <button id="btn-cancel-top" class="btn btn-secondary" style="display:none" data-i18n="btn_cancel">취소</button>
   <!-- 저장 후 계속 등록: 신규 모드에서만 표시 -->
   <button id="btn-save-continue" class="btn btn-secondary" style="display:none" data-i18n="btn_save_continue">저장 후 계속 등록</button>
-  <button id="btn-save-top" class="btn btn-primary" data-i18n="btn_save_list">저장 후 목록으로</button>
+  <!-- 수정 버튼: 기존 티켓 표시모드에서만 표시 -->
+  <button id="btn-edit" class="btn btn-primary" style="display:none" data-i18n="btn_edit">수정</button>
+  <button id="btn-save-top" class="btn btn-primary" style="display:none" data-i18n="btn_save_list">저장 후 목록으로</button>
 </header>
 
 <!-- ─── 실시순서 충돌 확인 모달 ────────────────────────────────────────── -->
@@ -227,12 +229,14 @@
       <!-- 확인결과 -->
       <div class="form-group">
         <label data-i18n="label_check_content">확인결과</label>
+        <div id="check-content-view" class="text-view" style="display:none"></div>
         <textarea id="check-content" rows="25" data-i18n-placeholder="placeholder_check_content" placeholder="확인결과를 입력하세요"></textarea>
       </div>
 
       <!-- 비고 -->
       <div class="form-group">
         <label data-i18n="label_note">비고</label>
+        <div id="note-view" class="text-view" style="display:none"></div>
         <textarea id="note" rows="8" data-i18n-placeholder="placeholder_note" placeholder="비고를 입력하세요"></textarea>
       </div>
 

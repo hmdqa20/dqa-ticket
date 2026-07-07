@@ -1518,6 +1518,23 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 }
 .link-clear-btn:hover { color: var(--danger); background: rgba(220,38,38,0.08); }
 
+/* ─── 텍스트 뷰 (표시모드 확인결과/비고) ──────────────────────────────────── */
+.text-view {
+  min-height: 2.5em;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  background: var(--input-bg, var(--bg));
+}
+.text-view:empty { display: none !important; }
+.text-view a { color: var(--ww); text-decoration: underline; text-underline-offset: 2px; }
+.text-view a:hover { opacity: 0.75; }
+
 /* ─── 드롭존 ──────────────────────────────────────────────────────────────── */
 .drop-zone {
   border: 2px dashed var(--border);

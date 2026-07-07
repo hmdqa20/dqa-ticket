@@ -83,6 +83,7 @@ const I18N = {
     bulk_move_btn: '선택한 티켓 이동',
     bulk_target_placeholder: '이동할 버전 선택',
     unit_selected: '개 선택됨',
+    btn_edit: '수정',
   },
   jp: {
     app_title: 'DQA チケット管理',
@@ -167,6 +168,7 @@ const I18N = {
     bulk_move_btn: '選択したチケットを移動',
     bulk_target_placeholder: '移動先バージョンを選択',
     unit_selected: '件選択中',
+    btn_edit: '編集',
   },
   en: {
     app_title: 'DQA Ticket Manager',
@@ -251,6 +253,7 @@ const I18N = {
     bulk_move_btn: 'Move Selected',
     bulk_target_placeholder: 'Select target version',
     unit_selected: ' selected',
+    btn_edit: 'Edit',
   },
   vi: {
     app_title: 'Quản lý vé DQA',
@@ -335,6 +338,7 @@ const I18N = {
     bulk_move_btn: 'Di chuyển vé đã chọn',
     bulk_target_placeholder: 'Chọn phiên bản đích',
     unit_selected: ' đã chọn',
+    btn_edit: 'Chỉnh sửa',
   }
 };
 
