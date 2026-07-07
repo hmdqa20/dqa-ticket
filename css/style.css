@@ -863,6 +863,40 @@ body {
 .clip-cell { text-align: center; padding: 4px 1px; vertical-align: middle; }
 .status-icons { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; line-height: 0; }
 
+/* ─── 선택 모드 (버전 일괄이동) — clip-cell에 체크박스 오버레이 ─────────────── */
+.row-select-checkbox,
+.select-all-checkbox {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+#btn-select-mode.active { background: var(--ww); color: #fff; border-color: var(--ww); }
+
+/* ─── 버전 일괄이동 액션바 ───────────────────────────────────────────────── */
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  background: #eff6ff;
+  border-bottom: 1px solid #bfdbfe;
+}
+.bulk-selected-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.bulk-target-select {
+  height: 33px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: #fff;
+}
+
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
 .assignee-cell { white-space: nowrap; padding-left: 12px; padding-right: 8px; }
 /* min-width 제거: 컬럼(90px) 콘텐츠 영역(66px)보다 커서 셀 밖으로 삐져나가 가로 스크롤 유발 */

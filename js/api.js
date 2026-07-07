@@ -67,9 +67,11 @@ async function deleteVersion(versionId) {
   return callGAS('deleteVersion', { version_id: versionId });
 }
 
-// 티켓을 다른 버전으로 이동
-async function moveTicket(rowId, targetVersionId) {
-  return callGAS('moveTicket', { row_id: rowId, target_version_id: targetVersionId });
+// 티켓을 다른 버전으로 이동 (priority 지정 시 그 값으로 세팅 — 일괄이동용)
+async function moveTicket(rowId, targetVersionId, priority) {
+  const params = { row_id: rowId, target_version_id: targetVersionId };
+  if (priority !== undefined) params.priority = priority;
+  return callGAS('moveTicket', params);
 }
 
 // 티켓 추가

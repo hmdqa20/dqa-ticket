@@ -11,6 +11,10 @@ const ALL_VERSION = '__ALL__';
 let versions = [];                  // [{version_id, version_name, status, ...}]
 let currentVersionId = ALL_VERSION; // 현재 선택된 버전 (ALL_VERSION=전체)
 
+// 선택 모드 (버전 일괄이동) — 활성 그룹(activeWW/activeMVN)만 대상
+let selectionMode = false;
+let selectedRowIds = new Set();
+
 const LOCK_EXPIRE_MS = 5 * 60 * 1000;
 // 내가 방금 편집을 끝내고 돌아온 항목 — 서버가 unlock을 반영할 때까지 자물쇠 억제
 let suppressLockRowId = sessionStorage.getItem('dqa_released_row') || null;
@@ -79,6 +83,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     location.href = 'detail.html' + vid;
   });
 
+  document.getElementById('btn-select-mode').addEventListener('click', toggleSelectionMode);
+  document.getElementById('btn-bulk-move').addEventListener('click', handleBulkMove);
+  document.getElementById('btn-cancel-selection').addEventListener('click', () => {
+    if (selectionMode) toggleSelectionMode();
+  });
+
   setupVersionSidebar();
 
 
@@ -127,9 +137,12 @@ function setFilterIcon(wrapEl, active) {
 }
 
 function buildAllHeaders() {
-  [['ww', 'active'], ['mvn', 'active'], ['done', 'done'], ['hold', 'hold']].forEach(([id, type]) => {
+  [['ww', 'active', 'activeWW'], ['mvn', 'active', 'activeMVN'], ['done', 'done', 'done'], ['hold', 'hold', 'hold']].forEach(([id, type, groupKey]) => {
     const tr = document.getElementById('thead-' + id);
-    if (tr) tr.innerHTML = buildHeaderHtml(type);
+    if (!tr) return;
+    tr.innerHTML = buildHeaderHtml(type, groupKey);
+    const selAll = tr.querySelector('.select-all-checkbox');
+    if (selAll) selAll.addEventListener('change', handleSelectAllChange);
   });
   // colgroup에 고정 너비 주입
   document.querySelectorAll('colgroup.ticket-cols').forEach(cg => {
@@ -140,8 +153,11 @@ function buildAllHeaders() {
 const STATUS_LABEL_KEY = { '진행중':'status_active', '진행전':'status_pending', '재테스트':'status_retest', '완료':'status_done_opt', '보류':'status_hold_opt', 'N/A':'status_na' };
 function statusLabel(v) { return t(STATUS_LABEL_KEY[v] || v); }
 
-function buildHeaderHtml(sectionType = 'active') {
+function buildHeaderHtml(sectionType = 'active', groupKey = '') {
   const f = activeFilters;
+  const firstTh = (selectionMode && sectionType === 'active')
+    ? `<th class="select-all-th"><input type="checkbox" class="select-all-checkbox" data-group="${groupKey}"></th>`
+    : `<th></th>`;
   const sel = (key, val) => val === f[key] ? ' selected' : '';
 
   // 진행상태 옵션: 섹션 타입별 분리
@@ -172,7 +188,7 @@ function buildHeaderHtml(sectionType = 'active') {
   const allOpt = `<option value="">${t('filter_all')}</option>`;
 
   return `
-    <th></th>
+    ${firstTh}
     <th>${t('col_ticket_id')}</th>
     <th class="orig-icon-col"></th>
     <th>${t('col_title')}</th>
@@ -253,12 +269,131 @@ async function switchVersion(versionId) {
   if (versionId === currentVersionId) return;
   currentVersionId = versionId;
   localStorage.setItem('dqa_current_version', versionId);
+  // 버전 탭 전환 시 선택 목록은 초기화 (선택 모드 자체는 유지)
+  if (selectionMode) { selectedRowIds.clear(); updateBulkActionBar(); }
   renderSidebar();
   await loadTickets();
 }
 
 function setupVersionSidebar() {
   // 새 버전 추가 버튼은 onclick으로 versions.html 이동 처리
+}
+
+// ─── 선택 모드 / 버전 일괄이동 ────────────────────────────────────────────────
+// 완료/보류 그룹, 잠긴 행은 대상에서 제외. 담당자 그룹(WW/MVN) 자체는 바꾸지 않고
+// 같은 그룹 내에서 버전만 이동 + 대상 버전 내 max+1부터 순차 실시순서 재배정.
+
+function toggleSelectionMode() {
+  selectionMode = !selectionMode;
+  if (!selectionMode) selectedRowIds.clear();
+
+  document.getElementById('btn-select-mode').classList.toggle('active', selectionMode);
+  document.getElementById('bulk-action-bar').style.display = selectionMode ? 'flex' : 'none';
+
+  if (selectionMode) populateBulkTargetVersions();
+
+  buildAllHeaders();
+  renderAll();
+  updateBulkActionBar();
+}
+
+function populateBulkTargetVersions() {
+  const sel = document.getElementById('bulk-target-version');
+  if (!sel) return;
+  sel.innerHTML = `<option value="">${t('bulk_target_placeholder')}</option>` +
+    versions.map(v => `<option value="${escHtml(v.version_id)}">${escHtml(v.version_name)}</option>`).join('');
+}
+
+function updateBulkActionBar() {
+  const countEl = document.getElementById('bulk-selected-count');
+  const moveBtn = document.getElementById('btn-bulk-move');
+  if (countEl) countEl.textContent = `${selectedRowIds.size}${t('unit_selected')}`;
+  if (moveBtn) moveBtn.disabled = selectedRowIds.size === 0;
+}
+
+function handleSelectAllChange(e) {
+  const group = e.target.dataset.group;
+  const checked = e.target.checked;
+  document.querySelectorAll(`#tbody-${group} .row-select-checkbox`).forEach(cb => {
+    cb.checked = checked;
+    if (checked) selectedRowIds.add(cb.dataset.rowId);
+    else selectedRowIds.delete(cb.dataset.rowId);
+  });
+  updateBulkActionBar();
+}
+
+function findActiveTicket(rowId) {
+  return allTickets.activeWW.find(tk => tk.row_id === rowId) ||
+         allTickets.activeMVN.find(tk => tk.row_id === rowId);
+}
+
+// 대상 버전 내 해당 그룹의 현재 최대 실시순서(빈칸 제외) — getSuggestedPriority(js/detail.js)와 동일 원리
+function computeGroupMaxPriority(groupArr, targetVersionId) {
+  return groupArr
+    .filter(tk => tk.version_id === targetVersionId)
+    .reduce((m, tk) => Math.max(m, Number(tk.priority) || 0), 0);
+}
+
+async function handleBulkMove() {
+  const targetVersionId = document.getElementById('bulk-target-version').value;
+  if (!targetVersionId) { alert('이동할 버전을 선택하세요.'); return; }
+
+  const selectedTickets = [...selectedRowIds].map(findActiveTicket).filter(Boolean);
+  if (selectedTickets.length === 0) return;
+
+  const targetVersion = versions.find(v => v.version_id === targetVersionId);
+  const ok = confirm(`선택한 ${selectedTickets.length}개 티켓을 "${targetVersion ? targetVersion.version_name : ''}" 버전으로 이동하시겠습니까?`);
+  if (!ok) return;
+
+  // 그룹별로 대상 버전 내 시작 max를 한 번만 계산 후, 처리하며 로컬에서 1씩 증가시켜 배정(충돌 방지)
+  const counters = {
+    activeWW:  computeGroupMaxPriority(allTickets.activeWW,  targetVersionId),
+    activeMVN: computeGroupMaxPriority(allTickets.activeMVN, targetVersionId),
+  };
+
+  // 기존 실시순서/티켓번호 순으로 처리(재사용: sortByPriority) — 배정 순서를 예측 가능하게 유지
+  const ordered = sortByPriority(selectedTickets);
+  const succeeded = [];
+  const failed = [];
+
+  const overlay = document.getElementById('loading');
+  const overlayText = overlay ? overlay.querySelector('.detail-loading-text') : null;
+  if (overlay) overlay.style.display = 'flex';
+
+  for (let i = 0; i < ordered.length; i++) {
+    const ticket = ordered[i];
+    if (overlayText) overlayText.textContent = `이동 중... (${i + 1}/${ordered.length})`;
+
+    // 이미 대상 버전인 티켓은 서버가 no-op 처리 — 순서 카운터도 소모하지 않고 성공으로 간주
+    if (ticket.version_id === targetVersionId) {
+      succeeded.push(ticket);
+      continue;
+    }
+
+    const group = ticket.assignee === 'MVN' ? 'activeMVN' : 'activeWW';
+    const newPriority = String(++counters[group]);
+
+    // 실패해도 중단하지 않고 다음 건 계속 진행. 재시도 없음(1건당 1회만 시도).
+    try {
+      await moveTicket(ticket.row_id, targetVersionId, newPriority);
+      succeeded.push(ticket);
+    } catch (err) {
+      console.error('[bulkMove] 이동 실패:', ticket.ticket_id, err);
+      failed.push(ticket);
+    }
+  }
+
+  if (overlay) overlay.style.display = 'none';
+  if (overlayText) overlayText.textContent = t('loading');
+
+  toggleSelectionMode(); // 선택 모드 종료(선택 목록 초기화 포함)
+  await loadTickets();   // 최신 상태 재조회
+
+  let msg = `이동 완료: ${succeeded.length}개 성공 / ${failed.length}개 실패`;
+  if (failed.length) {
+    msg += `\n\n실패한 티켓:\n${failed.map(tk => tk.ticket_id).join(', ')}`;
+  }
+  alert(msg);
 }
 
 // ─── 동적 필터 옵션 (담당자·확인버전) ────────────────────────────────────────
@@ -410,6 +545,15 @@ function renderSection(group, tickets, dimmed) {
   tbody.querySelectorAll('.inline-select, .wjira-checkbox').forEach(el => {
     el.addEventListener('change', handleInlineChange);
   });
+
+  tbody.querySelectorAll('.row-select-checkbox').forEach(el => {
+    el.addEventListener('change', () => {
+      const rowId = el.dataset.rowId;
+      if (el.checked) selectedRowIds.add(rowId);
+      else selectedRowIds.delete(rowId);
+      updateBulkActionBar();
+    });
+  });
 }
 
 function buildRow(ticket, dimmed, group) {
@@ -481,9 +625,15 @@ function buildRow(ticket, dimmed, group) {
     ? `<td class="orig-icon-cell" tabindex="0" aria-label="원문 보기" data-orig="${escHtml(ticket.title)}">i</td>`
     : `<td class="orig-icon-cell orig-icon-empty"></td>`;
 
+  // 선택 모드: 활성 그룹(WW/MVN) + 잠기지 않은 행만 clip-cell을 체크박스로 대체(새 컬럼 추가 없음)
+  const canSelect = selectionMode && isActive && !locked && (group === 'activeWW' || group === 'activeMVN');
+  const clipContent = canSelect
+    ? `<input type="checkbox" class="row-select-checkbox" data-row-id="${escHtml(ticket.row_id)}"${selectedRowIds.has(ticket.row_id) ? ' checked' : ''}>`
+    : ((isLockedForDisplay(ticket) || hasFiles) ? `<div class="status-icons">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</div>` : '');
+
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
-      <td class="clip-cell">${(isLockedForDisplay(ticket) || hasFiles) ? `<div class="status-icons">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</div>` : ''}</td>
+      <td class="clip-cell">${clipContent}</td>
       <td class="ticket-id-cell"><a href="https://wjira.humaxdigital.com/browse/${escHtml(ticket.ticket_id)}" target="_blank" class="ticket-link">${escHtml(ticket.ticket_id)}</a></td>
       ${origIconTd}
       <td class="title-cell navigate-cell"${displayTitle ? ` data-tip="${escHtml(displayTitle)}"` : ''}>${escHtml(displayTitle)}</td>

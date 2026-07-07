@@ -570,6 +570,7 @@ function moveTicket(e) {
     const data     = sheet.getDataRange().getValues();
     const rowId    = e.parameter.row_id;
     const targetId = e.parameter.target_version_id || '';
+    const priority = e.parameter.priority; // 지정 시 그 값으로 직접 세팅(일괄이동용), 없으면 기존처럼 초기화
 
     if (!rowId) return jsonResponse({ success: false, error: 'row_id is required' });
 
@@ -582,10 +583,10 @@ function moveTicket(e) {
 
         if (oldVerId === targetId) return jsonResponse({ success: true }); // 변경 없음
 
-        // 버전 변경. 활성 티켓이면 priority 초기화 (새 버전에서 사용자가 직접 지정).
+        // 버전 변경. priority가 지정되면 그 값으로 세팅, 아니면 활성 티켓은 초기화(기존 동작 유지).
         sheet.getRange(sheetRow, COL.VERSION_ID + 1).setValue(targetId);
         if (ACTIVE_STATUSES.includes(status)) {
-          sheet.getRange(sheetRow, COL.PRIORITY + 1).setValue('');
+          sheet.getRange(sheetRow, COL.PRIORITY + 1).setValue(priority !== undefined ? priority : '');
         }
 
         return jsonResponse({ success: true });

@@ -78,6 +78,10 @@ const I18N = {
     hint_file_size_limit: '구글 드라이브 공유 용량(15GB) 한도를 고려해, 1GB 이상의 대용량 파일(펌웨어 등)은 직접 올리지 말고 아래 링크 항목을 이용해 주세요.',
     placeholder_link_label: '파일 설명',
     label_links: '링크',
+    btn_select_mode: '선택 모드',
+    bulk_move_btn: '선택한 티켓 이동',
+    bulk_target_placeholder: '이동할 버전 선택',
+    unit_selected: '개 선택됨',
   },
   jp: {
     app_title: 'DQA チケット管理',
@@ -157,6 +161,10 @@ const I18N = {
     hint_file_size_limit: 'Googleドライブの共有容量上限(15GB)にご注意ください。1GB超の大容量ファイル（ファームウェアなど）は直接アップロードせず、下のリンク欄をご利用ください。',
     placeholder_link_label: 'ファイルの説明',
     label_links: 'リンク',
+    btn_select_mode: '選択モード',
+    bulk_move_btn: '選択したチケットを移動',
+    bulk_target_placeholder: '移動先バージョンを選択',
+    unit_selected: '件選択中',
   },
   en: {
     app_title: 'DQA Ticket Manager',
@@ -236,6 +244,10 @@ const I18N = {
     hint_file_size_limit: 'Google Drive storage is limited to 15 GB. For large files over 1 GB (e.g. firmware), please use the Links section below instead of uploading here.',
     placeholder_link_label: 'File description',
     label_links: 'Links',
+    btn_select_mode: 'Select Mode',
+    bulk_move_btn: 'Move Selected',
+    bulk_target_placeholder: 'Select target version',
+    unit_selected: ' selected',
   },
   vi: {
     app_title: 'Quản lý vé DQA',
@@ -315,6 +327,10 @@ const I18N = {
     hint_file_size_limit: 'Dung lượng Google Drive giới hạn 15 GB. Với tệp lớn hơn 1 GB (firmware, v.v.), vui lòng dùng mục liên kết bên dưới thay vì tải lên trực tiếp.',
     placeholder_link_label: 'Mô tả tệp',
     label_links: 'Liên kết',
+    btn_select_mode: 'Chế độ chọn',
+    bulk_move_btn: 'Di chuyển vé đã chọn',
+    bulk_target_placeholder: 'Chọn phiên bản đích',
+    unit_selected: ' đã chọn',
   }
 };
 
