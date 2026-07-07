@@ -1,4 +1,4 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxhss5aowNfQZ-TI8Rf9cYHnhDPBWHce-Bnp6aLqWAFuZwPuY-SSc6o9_NzxCdkhj6i7A/exec';
 
 // POST 공통 함수 — URLSearchParams로 form-encoded 전송
 async function callGAS(type, params = {}) {
