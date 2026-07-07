@@ -391,8 +391,7 @@ async function handleBulkMove(group) {
   const ok = confirm(`선택한 ${selectedTickets.length}개 티켓을 "${targetVersion ? targetVersion.version_name : ''}" 버전으로 이동하시겠습니까?`);
   if (!ok) return;
 
-  // 실시순서는 빈칸 초기화 — moveTicket(priority 미지정) → GAS가 '' 세팅
-  // 새 버전에서 사용자가 직접 순서를 지정하는 것으로 정책 변경
+  // 실시순서는 GAS moveTicket에서 버전 이동 시 무조건 초기화
   const succeeded = [];
   const failed = [];
 
