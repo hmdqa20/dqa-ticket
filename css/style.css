@@ -864,10 +864,15 @@ body {
 .status-icons { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; line-height: 0; }
 
 /* ─── 선택 모드 (버전 일괄이동) — clip-cell에 체크박스 오버레이 ─────────────── */
+/* th 기본 padding(6px 14px)이 24px 고정폭 clip 컬럼엔 너무 커서 체크박스가 잘림 → clip-cell과 동일하게 좁힘 */
+.select-all-th { padding: 4px 1px; }
 .row-select-checkbox,
 .select-all-checkbox {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
+  margin: 0;           /* 브라우저 기본 checkbox 여백(예: 3px 3px 3px 4px) 제거 — 22px 내부 폭에서 잘림 방지 */
+  padding: 0;
+  box-sizing: border-box;
   cursor: pointer;
   vertical-align: middle;
 }
