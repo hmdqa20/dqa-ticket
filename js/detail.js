@@ -485,12 +485,15 @@ function renderTextView(fieldId) {
   if (!textarea || !view) return;
 
   const text = textarea.value;
-  const URL_RE = /https?:\/\/[^\s<>"']+/g;
+  // https?:// 또는 www. 로 시작하는 URL 매칭. www.은 href에 https:// 를 붙여 생성.
+  const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/g;
   let result = '', lastIdx = 0, m;
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(text)) !== null) {
+    const raw  = m[0];
+    const href = raw.startsWith('www.') ? 'https://' + raw : raw;
     result += escHtml(text.slice(lastIdx, m.index));
-    result += `<a href="${escHtml(m[0])}" target="_blank" rel="noopener">${escHtml(m[0])}</a>`;
+    result += `<a href="${escHtml(href)}" target="_blank" rel="noopener">${escHtml(raw)}</a>`;
     lastIdx = m.index + m[0].length;
   }
   result += escHtml(text.slice(lastIdx));
