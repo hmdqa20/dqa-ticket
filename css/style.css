@@ -871,8 +871,7 @@ body {
 .status-icons { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; line-height: 0; }
 
 /* ─── 선택 모드 (버전 일괄이동) — clip-cell에 체크박스 오버레이 ─────────────── */
-/* th 기본 padding(6px 14px)이 24px 고정폭 clip 컬럼엔 너무 커서 체크박스가 잘림 → clip-cell과 동일하게 좁힘 */
-.select-all-th { padding: 4px 1px; }
+.ticket-table th.select-all-th { padding: 4px 1px; overflow: visible; }
 .row-select-checkbox,
 .select-all-checkbox {
   width: 14px;
