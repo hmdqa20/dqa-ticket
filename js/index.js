@@ -40,11 +40,13 @@ const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
 
 document.addEventListener('DOMContentLoaded', async () => {
   applyTranslations();
+  SELECTABLE_GROUPS.forEach(g => syncSelectionModeButtonText(g));
   buildAllHeaders();
 
   // 언어 전환 시 API 재호출 없이 현재 데이터로 재렌더링
   onLangChange(() => {
     applyTranslations();
+    SELECTABLE_GROUPS.forEach(g => syncSelectionModeButtonText(g));
     buildAllHeaders();
     renderAll();
   });
@@ -284,6 +286,11 @@ function setupVersionSidebar() {
 // 각 그룹은 자기 헤더에 내장된 선택모드 버튼/액션바만 갖고, 상태(selectionMode/selectedRowIds)도
 // 그룹별로 독립 — 한쪽에서 선택모드를 켜도 다른 그룹은 전혀 영향받지 않는다.
 
+function syncSelectionModeButtonText(group) {
+  const btn = document.getElementById(`btn-select-mode-${group}`);
+  if (btn) btn.textContent = selectionMode[group] ? t('btn_select_mode_active') : t('btn_select_mode');
+}
+
 function setupBulkSelectionUI() {
   SELECTABLE_GROUPS.forEach(group => {
     document.getElementById(`btn-select-mode-${group}`).addEventListener('click', (e) => {
@@ -293,10 +300,6 @@ function setupBulkSelectionUI() {
     document.getElementById(`btn-bulk-move-${group}`).addEventListener('click', (e) => {
       e.stopPropagation();
       handleBulkMove(group);
-    });
-    document.getElementById(`btn-cancel-selection-${group}`).addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (selectionMode[group]) toggleSelectionMode(group);
     });
     // 헤더 영역 내 다른 조작(드롭다운 클릭 등)도 섹션 접기로 전파되지 않도록 컨테이너 단위 차단
     const actions = document.querySelector(`.section-header-actions[data-group="${group}"]`);
@@ -310,6 +313,7 @@ function toggleSelectionMode(group) {
 
   document.getElementById(`btn-select-mode-${group}`).classList.toggle('active', selectionMode[group]);
   document.getElementById(`bulk-action-bar-${group}`).classList.toggle('open', selectionMode[group]);
+  syncSelectionModeButtonText(group);
 
   if (selectionMode[group]) populateBulkTargetVersions(group);
 

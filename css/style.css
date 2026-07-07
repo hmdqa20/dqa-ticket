@@ -898,14 +898,13 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: 8px;
+  margin-left: 0;
   flex-shrink: 0;
 }
 .bulk-action-bar-inline {
   display: none;
   align-items: center;
   gap: 8px;
-  margin-left: 8px;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
@@ -926,11 +925,11 @@ body {
   max-width: 140px;
 }
 
-/* 좁은 화면: 헤더 한 줄에 다 안 들어가면 count-badge 뒤에서 줄바꿈 허용(높이는 그 줄에서만 늘고,
-   페이지 전체 레이아웃이 밀리는 것과는 무관 — 헤더 자체 높이만 유동적으로 커짐) */
+/* 좁은 화면: count-badge는 섹션명과 같은 줄 유지(order:1), actions는 다음 줄(order:2) */
 @media (max-width: 720px) {
   .section-header { flex-wrap: wrap; row-gap: 6px; }
-  .section-header-actions { margin-left: 0; flex-basis: 100%; }
+  .count-badge { order: 1; }
+  .section-header-actions { order: 2; flex-basis: 100%; }
 }
 
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
