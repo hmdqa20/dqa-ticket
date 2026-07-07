@@ -1030,17 +1030,14 @@ function setupDragDrop(tbody, group) {
     };
 
     if (nextIsNumbered) {
-      // A. 번호영역: 드래그 항목 + 기존 번호 항목들을 DOM 순서로 1..n 재번호. 빈칸 항목은 그대로.
-      let n = 0;
-      rows.forEach(r => {
-        const id = r.dataset.rowId;
-        const t = getT(id);
-        if (!t) return;
-        if (id === draggedId || wasNumbered(t)) {
-          setPri(t, id, ++n);
-        }
-        // 빈칸 항목(빈칸→빈칸 유지)은 건드리지 않음
-      });
+      // A. 번호구역 삽입: 삽입 위치 번호 할당 후 cascadeShift로 최소 밀림 (갭에서 즉시 멈춤).
+      // prevT 번호+1 위치에 드래그 항목을 꽂고, 그 번호부터 연속된 기존 항목만 뒤로 민다.
+      // 관련 없는 뒷부분(갭 너머 항목)은 건드리지 않는다.
+      const fromNum = prevT && wasNumbered(prevT) ? Number(prevT.priority) + 1 : 1;
+      setPri(draggedT, draggedId, fromNum);
+      // cascadeShift: fromNum부터 연속된 번호만 +1씩 밀고 갭 만나면 즉시 중단 (드롭다운 경로와 동일 함수)
+      const shifted = cascadeShift(allTickets[group], fromNum, draggedId);
+      shifted.forEach(tk => updates.push({ row_id: tk.row_id, priority: tk.priority }));
     } else if (prevIsNumbered) {
       // B. 번호구역 끝 경계: 드래그 항목 제외 최댓값+1 할당. 원래 자리는 갭, 나머지 항목 불변.
       let max = 0;
