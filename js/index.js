@@ -368,7 +368,7 @@ function populateBulkTargetVersions(group) {
 function updateBulkActionBar(group) {
   const countEl = document.getElementById(`bulk-selected-count-${group}`);
   const moveBtn = document.getElementById(`btn-bulk-move-${group}`);
-  if (countEl) countEl.textContent = `${selectedRowIds[group].size}${t('unit_selected')}`;
+  if (countEl) countEl.innerHTML = `<span class="bulk-count-num">${selectedRowIds[group].size}</span>${t('unit_selected')}`;
   if (moveBtn) moveBtn.disabled = selectedRowIds[group].size === 0;
 }
 

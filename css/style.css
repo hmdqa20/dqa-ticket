@@ -957,6 +957,13 @@ body {
   color: var(--text);
   white-space: nowrap;
 }
+/* 선택 개수 자릿수가 1→2자리로 바뀌어도 옆 이동 버튼이 밀리지 않도록 폭을 미리 확보 */
+.bulk-count-num {
+  display: inline-block;
+  min-width: 1.4em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 .bulk-target-select {
   height: 28px;
   padding: 0 6px;
