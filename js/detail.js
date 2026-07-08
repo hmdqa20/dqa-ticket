@@ -17,6 +17,7 @@ let isDirty = false;
 let currentVersionId = '';  // 신규 등록 시 소속 버전 (URL 파라미터)
 let allVersions = [];       // 전체 버전 목록 (드롭다운용)
 let currentRowId = '';      // 조회/편집 중인 티켓 row_id
+let returnToRowId = '';     // 신규 모드 취소 시 돌아갈 티켓 row_id (티켓 상세에서 "티켓등록"으로 진입한 경우)
 let heartbeatTimer = null;  // 편집 잠금 heartbeat interval id
 const HEARTBEAT_MS = 2 * 60 * 1000;  // 2분 주기 (5분 타임아웃의 절반 이하 — 1회 유실돼도 다음 신호가 만료 전 도착)
 let lockPollTimer = null;   // 보기모드 중 "다른 사람이 편집 시작했는지" 폴링 interval id
@@ -127,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(location.search);
   const rowId = params.get('id');
   currentVersionId = params.get('version_id') || '';
+  returnToRowId = params.get('from') || '';
 
   if (rowId) {
     isNewMode = false;
@@ -160,17 +162,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('btn-save-top').addEventListener('click', handleSave);
-  const navigateToList = () => {
+  const leavePage = (url) => {
     resetDirty();
     pendingFiles = [];
     releaseLockNow();
     stopLockPoll();
-    location.href = 'index.html';
+    location.href = url;
   };
+  const navigateToList = () => leavePage('index.html');
   document.getElementById('btn-edit').addEventListener('click', enterEditMode);
   document.getElementById('btn-cancel-top').addEventListener('click', () => {
     if (isNewMode) {
-      if (confirmLeave()) navigateToList();
+      // 티켓 상세에서 "티켓등록"으로 진입한 경우엔 보던 티켓으로 복귀, 아니면 목록으로
+      if (confirmLeave()) leavePage(returnToRowId ? 'detail.html?id=' + encodeURIComponent(returnToRowId) : 'index.html');
     } else {
       if (confirmLeave()) cancelToViewMode();
     }
@@ -179,7 +183,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
   document.getElementById('btn-new-ticket').addEventListener('click', () => {
     const vId = (currentTicket && currentTicket.version_id) || currentVersionId || '';
-    location.href = vId ? `detail.html?version_id=${encodeURIComponent(vId)}` : 'detail.html';
+    const qs = new URLSearchParams();
+    if (vId) qs.set('version_id', vId);
+    if (currentRowId) qs.set('from', currentRowId);  // 취소 시 이 티켓으로 복귀할 수 있도록 전달
+    const q = qs.toString();
+    location.href = q ? `detail.html?${q}` : 'detail.html';
   });
 
   // 폼 변경 감지
