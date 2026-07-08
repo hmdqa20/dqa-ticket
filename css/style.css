@@ -491,8 +491,8 @@ body {
   font-family: inherit;
   transition: background 0.12s;
 }
-.btn-add-version { background: #475569; color: #fff; }
-.btn-add-version:hover { background: #334155; }
+.btn-add-version { background: #64748b; color: #fff; }
+.btn-add-version:hover { background: #475569; }
 
 /* "전체 티켓" — 목록의 MVN 그룹과 동일한 녹색 계열(--mvn)로 통일 */
 .version-all-btn { background: var(--mvn-light); color: var(--mvn); }
