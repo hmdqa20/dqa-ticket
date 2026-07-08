@@ -271,28 +271,31 @@ async function initNewMode() {
     }
   });
 
-  // 최신 데이터 로드 — UI 배선이 모두 끝난 뒤 마지막에 수행.
-  // 캐시로 이미 그렸으면 백그라운드 보정, 캐시가 없었으면 이 완료 시점에 오버레이 제거.
-  try {
-    cachedAllTickets = await getTickets();
-    saveTicketsCache('', cachedAllTickets);
-    allVersions = cachedAllTickets.versions || [];
-  } catch (_) {}
-  applyVersionData();
-  document.getElementById('detail-loading').style.display = 'none';
+  // 최신 데이터 로드 — 백그라운드 fire-and-forget (await 금지).
+  // initNewMode 자체가 DOMContentLoaded에서 await되므로, 여기서 기다리면 뒤에 배선되는
+  // 버튼 리스너들이 콜드스타트 내내 죽어있게 됨. 캐시로 이미 그렸으면 조용히 보정,
+  // 캐시가 없었으면 이 완료 시점에 오버레이 제거.
+  (async () => {
+    try {
+      cachedAllTickets = await getTickets();
+      saveTicketsCache('', cachedAllTickets);
+      allVersions = cachedAllTickets.versions || [];
+    } catch (_) {}
+    applyVersionData();
+    document.getElementById('detail-loading').style.display = 'none';
+  })();
 }
 
 // ─── 수정 모드 ────────────────────────────────────────────────────────────────
 
-async function loadTicket(rowId) {
+function loadTicket(rowId) {
   document.getElementById('page-title').textContent = t('page_title_edit');
 
   // 표시모드로 열림 — 잠금은 "수정" 버튼 클릭 시에만 시도
   currentRowId = rowId;
   isViewMode = true;
 
-  // 캐시 우선 렌더링: 목록에서 이미 받아둔 데이터가 있으면 로딩 오버레이 없이 즉시 표시하고,
-  // 아래에서 최신 데이터를 백그라운드로 받아 조용히 갈아끼운다 (GAS 콜드스타트 대기 제거).
+  // 캐시 우선 렌더링: 목록에서 이미 받아둔 데이터가 있으면 로딩 오버레이 없이 즉시 표시.
   const cachedHit = findTicketInCaches(rowId);
   if (cachedHit) {
     cachedAllTickets = cachedHit.data;
@@ -306,6 +309,13 @@ async function loadTicket(rowId) {
     document.getElementById('detail-loading').style.display = 'flex';
   }
 
+  // 최신 데이터는 백그라운드로 — 절대 await 하지 않는다.
+  // (이 함수는 DOMContentLoaded에서 await되므로, 여기서 fetch를 기다리면 뒤에 배선되는
+  //  목록/수정/저장 버튼 리스너들이 콜드스타트 내내 죽어있게 됨)
+  refreshTicketFresh(rowId, !!cachedHit);
+}
+
+async function refreshTicketFresh(rowId, hadCache) {
   try {
     const fresh = await getTickets();
     saveTicketsCache('', fresh);
@@ -324,7 +334,7 @@ async function loadTicket(rowId) {
     }
   } catch (err) {
     // 캐시로 이미 표시된 상태의 일시적 네트워크 오류는 조용히 무시 (티켓 없음은 위에서 throw됨)
-    if (!cachedHit || /티켓을 찾을 수 없습니다/.test(err.message)) {
+    if (!hadCache || /티켓을 찾을 수 없습니다/.test(err.message)) {
       alert(err.message);
       location.href = 'index.html';
     }

@@ -245,8 +245,11 @@ async function loadTickets() {
   const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
 
   // 캐시 우선 렌더링(stale-while-revalidate): 직전에 받아둔 데이터가 있으면 즉시 그려서
-  // GAS 콜드스타트(수 초)를 기다리지 않게 하고, 아래에서 최신 데이터를 받아 갈아끼운다.
+  // GAS 콜드스타트(수 초)를 기다리지 않게 하고, 최신 데이터는 백그라운드로 받아 갈아끼운다.
+  // 캐시가 있을 땐 fetch를 await 하지 않고 즉시 반환 — 이 함수는 DOMContentLoaded에서
+  // await되므로, 기다리면 뒤에 배선되는 버튼/검색/드래그 리스너들이 콜드스타트 내내 죽어있게 됨.
   const cached = loadTicketsCache(vid);
+  showError(false);
   if (cached) {
     allTickets = cached;
     versions = cached.versions || [];
@@ -254,11 +257,14 @@ async function loadTickets() {
     populateDynamicFilters();
     renderAll();
     showLoading(false);
-  } else {
-    showLoading(true);
+    fetchFreshList(vid, true);   // 백그라운드 — await 금지
+    return;
   }
-  showError(false);
+  showLoading(true);
+  await fetchFreshList(vid, false);
+}
 
+async function fetchFreshList(vid, hadCache) {
   try {
     // 1차 시도 실패 시 RETRY_DELAY_MS 대기 후 1회 자동 재시도
     // 로딩 인디케이터는 재시도 동안 계속 표시 (finally에서만 숨김)
@@ -273,9 +279,13 @@ async function loadTickets() {
 
     saveTicketsCache(vid, data);
 
+    // 응답 대기 중 사용자가 다른 버전 탭으로 전환했으면 이 응답으로 화면을 덮지 않음
+    const currentVid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
+    if (vid !== currentVid) return;
+
     // 캐시로 이미 그린 상태에서 사용자가 조작 중이면 이번 갱신은 건너뜀
     // (드롭다운 닫힘/행 점프 방지 — 20초 자동 갱신이 곧 다시 동기화함)
-    if (cached && isUserBusy()) return;
+    if (hadCache && isUserBusy()) return;
 
     allTickets = data;
     versions = allTickets.versions || [];
@@ -288,7 +298,7 @@ async function loadTickets() {
     renderAll();
   } catch (err) {
     // 캐시로 이미 화면을 그렸다면 에러 배너 대신 조용히 넘어감 (다음 자동 갱신에서 재시도)
-    if (!cached) showError(true, err.message);
+    if (!hadCache) showError(true, err.message);
   } finally {
     showLoading(false);
   }
