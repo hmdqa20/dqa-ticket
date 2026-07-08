@@ -400,16 +400,30 @@ body {
   top: 56px;
   align-self: flex-start;
   max-height: calc(100vh - 56px);
-  overflow-y: auto;
   background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   padding: 0;
+  overflow: hidden; /* 스크롤은 아래 .version-list에서만 — 상단 고정 영역은 항상 보임 */
+}
+
+/* 상단 고정 영역: "버전 관리" + "전체 티켓" — 버전이 많아져도 항상 최상단 */
+.sidebar-fixed-top {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-right: 0.5px solid var(--border);
+  border-bottom: 0.5px solid var(--border);
 }
 
 .version-list {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;   /* flex 컨테이너 안에서 overflow-y가 실제로 작동하려면 필요 */
+  overflow-y: auto;
 }
 
 .version-item {
@@ -429,15 +443,6 @@ body {
   user-select: none;
 }
 .version-item:hover { background: #e4e6ea; }
-
-/* "전체 티켓" 탭: 다른 버전 탭과 구분되는 은은한 강조 배경 + 아이콘 (선택 시엔 .active가 우선 적용됨) */
-.version-item-all { background: var(--bg-accent); font-weight: 600; }
-.version-item-all:hover { background: var(--ww-mid); }
-.version-all-icon {
-  display: inline-flex;
-  flex-shrink: 0;
-  color: var(--text-accent);
-}
 
 /* 선택된 탭: 흰색 배경, 파란 왼쪽 선, 오른쪽·아래쪽 선 없애서 콘텐츠와 이어지는 느낌 */
 .version-item.active {
@@ -467,25 +472,32 @@ body {
   white-space: nowrap;
 }
 
-/* 새 버전 추가 영역 — 오른쪽 구분선 유지 */
-.version-add {
-  border-right: 0.5px solid var(--border);
-  padding: 10px;
-}
-.btn-add-version {
+/* 상단 고정 버튼 두 개("버전 관리" / "전체 티켓") — 같은 버튼 패밀리(크기·패딩·radius·폰트 통일),
+   톤만 달리해서 역할을 구분. 선택된 버전 탭(.version-item.active, 흰 배경+좌측 파란선)과는
+   확실히 다른 시각 언어(칠해진 배경)라서 서로 헷갈리지 않는다. */
+.btn-add-version,
+.version-all-btn {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 8px 10px;
   border: none;
   border-radius: var(--radius);
-  background: #475569;
-  color: #fff;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   transition: background 0.12s;
 }
+.btn-add-version { background: #475569; color: #fff; }
 .btn-add-version:hover { background: #334155; }
+
+.version-all-btn { background: var(--bg-accent); color: var(--text-accent); }
+.version-all-btn:hover { background: var(--ww-mid); }
+.version-all-btn.active { background: var(--fill-accent); color: #fff; }
+.version-all-icon { display: inline-flex; flex-shrink: 0; }
 
 .version-add-form { display: flex; flex-direction: column; gap: 6px; }
 .version-name-input {

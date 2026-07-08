@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupOrigTitlePopover(); // 번역된 이슈명 ⓘ → 원문 팝오버
 
   document.getElementById('btn-new').addEventListener('click', () => {
+    stopAutoRefresh();
     const vid = currentVersionId && currentVersionId !== ALL_VERSION ? '?version_id=' + encodeURIComponent(currentVersionId) : '';
     location.href = 'detail.html' + vid;
   });
@@ -277,14 +278,12 @@ function renderSidebar() {
   const list = document.getElementById('version-list');
   if (!list) return;
 
-  // "전체 티켓" 탭(다른 버전 탭과 구분되는 강조 배경 + 아이콘) + 각 버전 탭
-  const allActive = currentVersionId === ALL_VERSION ? ' active' : '';
-  let html = `<div class="version-item version-item-all${allActive}" data-version-id="${ALL_VERSION}">
-      <span class="version-all-icon">${LIST_SVG}</span>
-      <span class="version-name">${t('version_all')}</span>
-    </div>`;
+  // "전체 티켓"은 이제 상단 고정 버튼(정적 마크업) — active 상태만 갱신
+  const allBtn = document.getElementById('btn-all-tickets');
+  if (allBtn) allBtn.classList.toggle('active', currentVersionId === ALL_VERSION);
 
-  html += versions.map(v => {
+  // 버전 목록만 스크롤 영역에 렌더링
+  const html = versions.map(v => {
     const active = currentVersionId === v.version_id ? ' active' : '';
     const dotClass = v.status === '완료' ? 'dot-done' : 'dot-active';
     return `<div class="version-item${active}" data-version-id="${escHtml(v.version_id)}">
@@ -314,6 +313,11 @@ async function switchVersion(versionId) {
 
 function setupVersionSidebar() {
   // 새 버전 추가 버튼은 onclick으로 versions.html 이동 처리
+  // "전체 티켓"은 상단 고정 정적 버튼 — 아이콘 주입 + 클릭 리스너는 최초 1회만 연결
+  const listIcon = document.getElementById('version-all-icon');
+  if (listIcon) listIcon.innerHTML = LIST_SVG;
+  const allBtn = document.getElementById('btn-all-tickets');
+  if (allBtn) allBtn.addEventListener('click', () => switchVersion(ALL_VERSION));
 }
 
 // ─── 선택 모드 / 버전 일괄이동 (DQA/MVN 완전 독립) ────────────────────────────
@@ -564,6 +568,7 @@ function renderSection(group, tickets, dimmed) {
     td.addEventListener('click', () => {
       const rowId = td.closest('tr').dataset.rowId;
       if (!rowId) return;
+      stopAutoRefresh();
       location.href = 'detail.html?id=' + rowId;
     });
   });
@@ -1074,12 +1079,18 @@ let isDragging = false;            // 드래그 진행 중 (setupDragDrop에서 
 let lastEditAt = 0;                // 마지막 인라인 편집 시각 (저장 레이스 방지)
 
 function startAutoRefresh() {
-  if (refreshTimer) clearInterval(refreshTimer);
+  if (refreshTimer) clearInterval(refreshTimer);  // 중복 시작 방지
   refreshTimer = setInterval(refreshList, REFRESH_MS);
   // 탭이 다시 활성화되면 즉시 한 번 갱신
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refreshList();
   });
+}
+// interval 정리 — detail.html로 이동하는 등 목록 화면을 벗어날 때 호출(불필요한 API 호출 방지).
+// 이 페이지는 전체 새로고침(location.href) 방식이라 페이지 이동 자체로도 정리되지만,
+// detail.js의 lock-status 폴링과 동일하게 명시적으로도 정리한다.
+function stopAutoRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
 }
 
 // 사용자가 조작 중인지 — 이때는 갱신을 건너뜀
