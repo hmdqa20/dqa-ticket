@@ -161,6 +161,8 @@ const FUNNEL_SVG  = `<svg viewBox="0 0 24 24" width="12" height="12" fill="curre
 const GRIP_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>`;
 // 사이드바 "전체 티켓" 탭 아이콘 (목록/리스트)
 const LIST_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+// "버전 관리" 버튼 아이콘 (태그 — 버전/릴리스 관리를 연상시키는 아이콘)
+const TAG_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3H4a1 1 0 0 0-1 1v5.59a2 2 0 0 0 .59 1.41l9.58 9.59a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/></svg>`;
 // 잠긴(다른 사용자가 편집 중) 티켓 표시 아이콘 — "진입 불가"가 아니라 "편집 중이지만 열람 가능"이라는
 // 뉘앙스를 주기 위해 자물쇠 대신 연필(편집 중) 아이콘 사용. 클래스명(.lock-icon)은 그대로 유지.
 const PENCIL_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
@@ -312,7 +314,10 @@ async function switchVersion(versionId) {
 }
 
 function setupVersionSidebar() {
-  // 새 버전 추가 버튼은 onclick으로 versions.html 이동 처리
+  // 새 버전 추가 버튼은 onclick으로 versions.html 이동 처리 — 아이콘만 주입
+  const addVersionIcon = document.getElementById('btn-add-version-icon');
+  if (addVersionIcon) addVersionIcon.innerHTML = TAG_SVG;
+
   // "전체 티켓"은 상단 고정 정적 버튼 — 아이콘 주입 + 클릭 리스너는 최초 1회만 연결
   const listIcon = document.getElementById('version-all-icon');
   if (listIcon) listIcon.innerHTML = LIST_SVG;

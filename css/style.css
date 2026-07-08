@@ -494,10 +494,11 @@ body {
 .btn-add-version { background: #475569; color: #fff; }
 .btn-add-version:hover { background: #334155; }
 
-.version-all-btn { background: var(--bg-accent); color: var(--text-accent); }
-.version-all-btn:hover { background: var(--ww-mid); }
-.version-all-btn.active { background: var(--fill-accent); color: #fff; }
-.version-all-icon { display: inline-flex; flex-shrink: 0; }
+/* "전체 티켓" — 목록의 MVN 그룹과 동일한 녹색 계열(--mvn)로 통일 */
+.version-all-btn { background: var(--mvn-light); color: var(--mvn); }
+.version-all-btn:hover { background: var(--mvn-mid); }
+.version-all-btn.active { background: var(--mvn); color: #fff; }
+.sidebar-btn-icon { display: inline-flex; flex-shrink: 0; }
 
 .version-add-form { display: flex; flex-direction: column; gap: 6px; }
 .version-name-input {
