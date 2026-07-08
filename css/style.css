@@ -863,6 +863,22 @@ body {
 .locked-row .inline-select,
 .locked-row .wjira-checkbox { cursor: not-allowed; opacity: 0.55; }
 
+/* 잠긴 행 톤 다운 — opacity로 행 전체를 흐리면 텍스트·자물쇠 아이콘까지 안 보이게 되므로 금지.
+   배경을 회색(--surface-1)으로 깔고 텍스트 색만 낮춘다. 자물쇠 아이콘은 원래 명도 그대로 유지. */
+.ticket-table tr.locked-row,
+.ticket-table tr.locked-row.row-active {
+  background: var(--surface-1);
+}
+.ticket-table tr.locked-row.row-active { border-left: 3px solid transparent; }
+.ticket-table tr.locked-row td { color: var(--text-muted); }
+.ticket-table tr.locked-row .navigate-cell { cursor: not-allowed; }
+/* 클릭 불가 항목임을 명확히 — hover해도 배경이 바뀌지 않아 "안 눌리는" 느낌을 줌 */
+.ticket-table tr.locked-row:hover,
+.ticket-table tr.locked-row.row-active:hover {
+  background: var(--surface-1);
+}
+.locked-row .lock-icon { opacity: 1; }
+
 /* 드롭 위치 인디케이터 (진한 녹색 줄) */
 .ticket-table tr.drop-above td { box-shadow: inset 0 3px 0 #15803d; }
 .ticket-table tr.drop-below td { box-shadow: inset 0 -3px 0 #15803d; }
