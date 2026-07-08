@@ -414,6 +414,15 @@ body {
 }
 .version-item:hover { background: #e4e6ea; }
 
+/* "전체 티켓" 탭: 다른 버전 탭과 구분되는 은은한 강조 배경 + 아이콘 (선택 시엔 .active가 우선 적용됨) */
+.version-item-all { background: var(--bg-accent); font-weight: 600; }
+.version-item-all:hover { background: var(--ww-mid); }
+.version-all-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-accent);
+}
+
 /* 선택된 탭: 흰색 배경, 파란 왼쪽 선, 오른쪽·아래쪽 선 없애서 콘텐츠와 이어지는 느낌 */
 .version-item.active {
   background: var(--surface-2);

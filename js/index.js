@@ -158,6 +158,8 @@ const CHEVRON_SVG = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none"
 const FUNNEL_SVG  = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M4.25 5.61C6.27 8.2 10 13 10 13v5c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-5s3.73-4.8 5.75-7.39c.51-.66.04-1.61-.79-1.61H5.04c-.83 0-1.3.95-.79 1.61z"/></svg>`;
 // 드래그 핸들: 가로선 3개(hamburger/grip) — 글리프(⠿)보다 또렷하고 폰트에 무관하게 일관 렌더링
 const GRIP_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>`;
+// 사이드바 "전체 티켓" 탭 아이콘 (목록/리스트)
+const LIST_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
 
 // 필터 래퍼의 아이콘을 활성/비활성 상태에 맞게 교체
 function setFilterIcon(wrapEl, active) {
@@ -272,9 +274,10 @@ function renderSidebar() {
   const list = document.getElementById('version-list');
   if (!list) return;
 
-  // "전체" 탭 + 각 버전 탭
+  // "전체 티켓" 탭(다른 버전 탭과 구분되는 강조 배경 + 아이콘) + 각 버전 탭
   const allActive = currentVersionId === ALL_VERSION ? ' active' : '';
-  let html = `<div class="version-item${allActive}" data-version-id="${ALL_VERSION}">
+  let html = `<div class="version-item version-item-all${allActive}" data-version-id="${ALL_VERSION}">
+      <span class="version-all-icon">${LIST_SVG}</span>
       <span class="version-name">${t('version_all')}</span>
     </div>`;
 

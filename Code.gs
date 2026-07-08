@@ -473,14 +473,13 @@ function addVersion(e) {
     const now       = getJSTISOString();
     const status    = p.status || '진행중';
 
-    // 현재 마지막 sort_order + 1
-    let maxOrder = 0;
+    // 새 버전이 항상 목록 맨 위(sort_order=0)에 오도록: 기존 버전들의 sort_order를 모두 +1
     for (let i = 1; i < data.length; i++) {
-      const o = Number(data[i][VCOL.SORT_ORDER]) || 0;
-      if (o > maxOrder) maxOrder = o;
+      const curOrder = Number(data[i][VCOL.SORT_ORDER]) || 0;
+      sheet.getRange(i + 1, VCOL.SORT_ORDER + 1).setValue(curOrder + 1);
     }
 
-    sheet.appendRow([versionId, name, status, now, maxOrder + 1]);
+    sheet.appendRow([versionId, name, status, now, 0]);
     return jsonResponse({ success: true, version_id: versionId });
 
   } finally {
