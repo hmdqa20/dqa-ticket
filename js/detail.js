@@ -19,6 +19,8 @@ let allVersions = [];       // 전체 버전 목록 (드롭다운용)
 let currentRowId = '';      // 조회/편집 중인 티켓 row_id
 let heartbeatTimer = null;  // 편집 잠금 heartbeat interval id
 const HEARTBEAT_MS = 2 * 60 * 1000;  // 2분 주기 (5분 타임아웃의 절반 이하 — 1회 유실돼도 다음 신호가 만료 전 도착)
+let lockPollTimer = null;   // 보기모드 중 "다른 사람이 편집 시작했는지" 폴링 interval id
+const LOCK_POLL_MS = 10 * 1000;  // 10초 주기
 
 function markDirty() { isDirty = true; }
 function resetDirty() { isDirty = false; }
@@ -33,6 +35,36 @@ function startHeartbeat(rowId) {
 // interval 정리 — 이미 떠난 세션이 잠금을 계속 갱신하지 않도록 모든 이탈 경로에서 호출.
 function stopHeartbeat() {
   if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+}
+
+// 보기모드 진입 시 시작: 즉시 1회 확인 + 10초 주기로 "다른 사람이 편집 중인지" 재확인.
+// 편집모드로 전환하면(enterEditMode) 반드시 정지 — heartbeat와 동시에 돌면 안 됨.
+function startLockPoll(rowId) {
+  stopLockPoll();  // 중복 시작 방지
+  pollLockStatus(rowId);
+  lockPollTimer = setInterval(() => pollLockStatus(rowId), LOCK_POLL_MS);
+}
+// interval 정리 — 편집모드 전환, 페이지 이탈/목록 복귀 등 모든 경로에서 호출.
+function stopLockPoll() {
+  if (lockPollTimer) { clearInterval(lockPollTimer); lockPollTimer = null; }
+}
+async function pollLockStatus(rowId) {
+  try {
+    const result = await checkLock(rowId);
+    updateLockStatusBadge(result && result.locked);
+  } catch (err) {
+    // 조회 실패는 조용히 무시(재시도 없음 — 다음 10초 주기에 자연 재시도됨)
+  }
+}
+function updateLockStatusBadge(locked) {
+  const el = document.getElementById('lock-status');
+  if (!el) return;
+  if (locked) {
+    el.innerHTML = `<span class="lock-status-icon">🔒</span><span>${t('badge_editing_in_progress')}</span>`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 function getPrefix() {
@@ -132,6 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     resetDirty();
     pendingFiles = [];
     releaseLockNow();
+    stopLockPoll();
     location.href = 'index.html';
   };
   document.getElementById('btn-edit').addEventListener('click', enterEditMode);
@@ -411,6 +444,9 @@ function updatePriorityState() {
 function enterViewMode() {
   isViewMode = true;
 
+  // 보기모드인 동안 "다른 사람이 편집 중인지" 폴링 시작 (편집모드 전환 시 stopLockPoll로 정지)
+  if (currentRowId) startLockPoll(currentRowId);
+
   // 모든 폼 요소 비활성화
   document.querySelectorAll('#ticket-form input, #ticket-form select, #ticket-form textarea').forEach(el => {
     el.disabled = true;
@@ -458,6 +494,10 @@ async function enterEditMode() {
     window.addEventListener('beforeunload', handleLockBeforeUnload);
     startHeartbeat(currentRowId);
   }
+
+  // 편집모드로 전환 — 보기모드 잠금 폴링은 정지(heartbeat와 중복 방지)
+  stopLockPoll();
+  updateLockStatusBadge(false);
 
   isViewMode = false;
 

@@ -103,6 +103,22 @@ body {
   flex-shrink: 0;
 }
 
+/* detail.html 보기모드 — 다른 사용자가 편집 중일 때 제목 옆에 붙는 뱃지 */
+.lock-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fef3c7;  /* amber-100: 은은한 warning 배경 */
+  color: #92400e;        /* amber-800: 진한 톤 텍스트 */
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.lock-status-icon { font-size: 11px; line-height: 1; }
+
 .topbar-right {
   display: flex;
   align-items: center;
