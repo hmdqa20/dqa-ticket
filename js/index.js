@@ -242,11 +242,24 @@ function buildHeaderHtml(sectionType = 'active', groupKey = '') {
 // ─── 데이터 로드 ──────────────────────────────────────────────────────────────
 
 async function loadTickets() {
-  showLoading(true);
-  showError(false);
-  try {
-    const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
+  const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
 
+  // 캐시 우선 렌더링(stale-while-revalidate): 직전에 받아둔 데이터가 있으면 즉시 그려서
+  // GAS 콜드스타트(수 초)를 기다리지 않게 하고, 아래에서 최신 데이터를 받아 갈아끼운다.
+  const cached = loadTicketsCache(vid);
+  if (cached) {
+    allTickets = cached;
+    versions = cached.versions || [];
+    renderSidebar();
+    populateDynamicFilters();
+    renderAll();
+    showLoading(false);
+  } else {
+    showLoading(true);
+  }
+  showError(false);
+
+  try {
     // 1차 시도 실패 시 RETRY_DELAY_MS 대기 후 1회 자동 재시도
     // 로딩 인디케이터는 재시도 동안 계속 표시 (finally에서만 숨김)
     let data;
@@ -258,6 +271,12 @@ async function loadTickets() {
       data = await getTickets(vid);  // 실패 시 throw → outer catch
     }
 
+    saveTicketsCache(vid, data);
+
+    // 캐시로 이미 그린 상태에서 사용자가 조작 중이면 이번 갱신은 건너뜀
+    // (드롭다운 닫힘/행 점프 방지 — 20초 자동 갱신이 곧 다시 동기화함)
+    if (cached && isUserBusy()) return;
+
     allTickets = data;
     versions = allTickets.versions || [];
     // 저장된 선택 버전이 더 이상 존재하지 않으면 전체로 복귀
@@ -268,7 +287,8 @@ async function loadTickets() {
     populateDynamicFilters();
     renderAll();
   } catch (err) {
-    showError(true, err.message);
+    // 캐시로 이미 화면을 그렸다면 에러 배너 대신 조용히 넘어감 (다음 자동 갱신에서 재시도)
+    if (!cached) showError(true, err.message);
   } finally {
     showLoading(false);
   }
@@ -436,6 +456,7 @@ async function handleBulkMove(group) {
   if (overlay) overlay.style.display = 'none';
   if (overlayText) overlayText.textContent = t('loading');
 
+  clearTicketsCaches();       // 이동으로 소속이 바뀐 티켓이 캐시로 되살아나 보이지 않도록 무효화
   toggleSelectionMode(group); // 선택 모드 종료(선택 목록 초기화 포함)
   await loadTickets();        // 최신 상태 재조회
 
@@ -1111,12 +1132,15 @@ async function refreshList() {
   if (document.hidden) return;     // 비활성 탭에서는 GAS 호출 생략
   if (isUserBusy()) return;        // 조작 중이면 이번 주기 건너뜀
 
+  const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
   let data;
   try {
-    data = await getTickets(currentVersionId === ALL_VERSION ? '' : currentVersionId);
+    data = await getTickets(vid);
   } catch (_) {
     return;                         // 실패는 조용히 무시 (다음 주기에 재시도)
   }
+
+  saveTicketsCache(vid, data);     // 다음 페이지 진입 시 즉시 렌더용 캐시 갱신
 
   if (isUserBusy()) return;        // await 사이 조작 시작했을 수 있으니 재확인
 

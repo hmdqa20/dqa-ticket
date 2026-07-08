@@ -212,21 +212,26 @@ async function initNewMode() {
   document.getElementById('btn-new-ticket').style.display = '';
   document.getElementById('btn-new-ticket').disabled = true;
 
-  // 신규 모드에서도 활성 티켓 수 기반으로 옵션 생성, 버전 목록도 함께 로드
-  try {
-    cachedAllTickets = await getTickets();
-    allVersions = cachedAllTickets.versions || [];
-  } catch (_) {}
-  renderVersionSelect(currentVersionId);
   // 담당자 선택 시 같은 그룹+버전 기준으로 실시순서 재계산 (Rule 1)
   const assigneeEl = document.getElementById('assignee');
   const refreshPrioritySuggestion = () => {
     populatePriorityOptions(getSuggestedPriority(assigneeEl.value, currentVersionId));
   };
-  refreshPrioritySuggestion();
   assigneeEl.addEventListener('change', refreshPrioritySuggestion);
-  // 데이터 로드 완료 후 로딩 오버레이 제거
-  document.getElementById('detail-loading').style.display = 'none';
+  const applyVersionData = () => {
+    renderVersionSelect(currentVersionId);
+    refreshPrioritySuggestion();
+  };
+
+  // 캐시 우선: 목록에서 받아둔 데이터가 있으면 즉시 반영 + 오버레이 제거.
+  // 최신 데이터는 이 함수 맨 끝에서 백그라운드로 받아 갈아끼운다(실시순서 제안값도 그때 보정).
+  const cachedData = loadAnyTicketsCache(currentVersionId);
+  if (cachedData) {
+    cachedAllTickets = cachedData;
+    allVersions = cachedData.versions || [];
+    applyVersionData();
+    document.getElementById('detail-loading').style.display = 'none';
+  }
 
   // 바로가기 버튼: 신규 모드에서 항상 표시, 번호 입력에 따라 href만 업데이트
   const linkBtn = document.getElementById('btn-wjira-link');
@@ -265,30 +270,64 @@ async function initNewMode() {
       btn.textContent = t('btn_fetch');
     }
   });
+
+  // 최신 데이터 로드 — UI 배선이 모두 끝난 뒤 마지막에 수행.
+  // 캐시로 이미 그렸으면 백그라운드 보정, 캐시가 없었으면 이 완료 시점에 오버레이 제거.
+  try {
+    cachedAllTickets = await getTickets();
+    saveTicketsCache('', cachedAllTickets);
+    allVersions = cachedAllTickets.versions || [];
+  } catch (_) {}
+  applyVersionData();
+  document.getElementById('detail-loading').style.display = 'none';
 }
 
 // ─── 수정 모드 ────────────────────────────────────────────────────────────────
 
 async function loadTicket(rowId) {
   document.getElementById('page-title').textContent = t('page_title_edit');
-  document.getElementById('detail-loading').style.display = 'flex';
 
   // 표시모드로 열림 — 잠금은 "수정" 버튼 클릭 시에만 시도
   currentRowId = rowId;
   isViewMode = true;
 
-  try {
-    cachedAllTickets = await getTickets();
-    allVersions = cachedAllTickets.versions || [];
-    const all = [...cachedAllTickets.activeWW, ...cachedAllTickets.activeMVN, ...cachedAllTickets.done, ...cachedAllTickets.hold];
-    currentTicket = all.find(tk => tk.row_id === rowId);
-    if (!currentTicket) throw new Error('티켓을 찾을 수 없습니다: ' + rowId);
+  // 캐시 우선 렌더링: 목록에서 이미 받아둔 데이터가 있으면 로딩 오버레이 없이 즉시 표시하고,
+  // 아래에서 최신 데이터를 백그라운드로 받아 조용히 갈아끼운다 (GAS 콜드스타트 대기 제거).
+  const cachedHit = findTicketInCaches(rowId);
+  if (cachedHit) {
+    cachedAllTickets = cachedHit.data;
+    allVersions = cachedHit.data.versions || [];
+    currentTicket = cachedHit.ticket;
     fillForm(currentTicket);
     renderVersionSelect(currentTicket.version_id || '');
     enterViewMode();
+    document.getElementById('detail-loading').style.display = 'none';
+  } else {
+    document.getElementById('detail-loading').style.display = 'flex';
+  }
+
+  try {
+    const fresh = await getTickets();
+    saveTicketsCache('', fresh);
+    cachedAllTickets = fresh;
+    allVersions = fresh.versions || [];
+    const all = [...fresh.activeWW, ...fresh.activeMVN, ...fresh.done, ...fresh.hold];
+    const freshTicket = all.find(tk => tk.row_id === rowId);
+    // 최신 데이터에 없으면(그 사이 삭제됨) 캐시로 그렸더라도 목록으로 되돌림
+    if (!freshTicket) throw new Error('티켓을 찾을 수 없습니다: ' + rowId);
+    currentTicket = freshTicket;
+    // 사용자가 이미 "수정"으로 들어갔거나 입력을 시작했으면 폼을 덮어쓰지 않음
+    if (isViewMode && !isDirty) {
+      fillForm(currentTicket);
+      renderVersionSelect(currentTicket.version_id || '');
+      enterViewMode();
+    }
   } catch (err) {
-    alert(err.message);
-    location.href = 'index.html';
+    // 캐시로 이미 표시된 상태의 일시적 네트워크 오류는 조용히 무시 (티켓 없음은 위에서 throw됨)
+    if (!cachedHit || /티켓을 찾을 수 없습니다/.test(err.message)) {
+      alert(err.message);
+      location.href = 'index.html';
+    }
   } finally {
     document.getElementById('detail-loading').style.display = 'none';
   }
@@ -345,6 +384,7 @@ function renderVersionSelect(selectedId) {
     if (overlay) overlay.style.display = 'flex';
     try {
       await moveTicket(currentTicket.row_id, targetId);
+      clearTicketsCaches();  // 버전 소속이 바뀌었으므로 목록 캐시 무효화
       currentTicket.version_id = targetId;
       updateCurrentVersionLabel(targetId);
     } catch (err) {
@@ -740,6 +780,7 @@ async function handleDelete() {
   setDeletingState(true);
   try {
     await deleteTicket(currentTicket.row_id);
+    clearTicketsCaches();  // 삭제된 티켓이 캐시로 되살아나 보이지 않도록 무효화
     // 삭제된 행이라 잠금도 사라짐 — heartbeat/리스너만 정리하고 즉시 이동
     stopHeartbeat();
     window.removeEventListener('beforeunload', handleLockBeforeUnload);
@@ -822,6 +863,8 @@ async function handleSave() {
       try { await trashDriveFiles(removedFileUrls); } catch (e) {}
       removedFileUrls = [];
     }
+
+    clearTicketsCaches();  // 저장(신규/수정)으로 내용이 바뀌었으므로 목록 캐시 무효화
 
     resetDirty();
     setSavingState(false);

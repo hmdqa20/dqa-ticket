@@ -14,6 +14,67 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.prepend(banner);
 });
 
+// ─── 티켓 데이터 세션 캐시 (stale-while-revalidate) ──────────────────────────
+// GAS 콜드스타트(수 초)를 매 페이지 이동마다 기다리지 않도록, 마지막으로 받은 티켓 데이터를
+// sessionStorage에 저장해 두고 다음 진입 시 즉시 그린 뒤 백그라운드에서 최신 데이터로 갈아끼운다.
+// 캐시는 탭 단위(sessionStorage)라 탭을 닫으면 사라지고, 저장/삭제 등 변경 시 비워서 정합성 유지.
+const TICKETS_CACHE_PREFIX = 'dqa_cache_tickets:';
+
+function saveTicketsCache(versionId, data) {
+  try {
+    sessionStorage.setItem(TICKETS_CACHE_PREFIX + (versionId || '__ALL__'), JSON.stringify(data));
+  } catch (_) { /* 용량 초과 등은 무시 — 캐시는 없어도 동작에 지장 없음 */ }
+}
+
+function loadTicketsCache(versionId) {
+  try {
+    const raw = sessionStorage.getItem(TICKETS_CACHE_PREFIX + (versionId || '__ALL__'));
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) { return null; }
+}
+
+function clearTicketsCaches() {
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith(TICKETS_CACHE_PREFIX)) sessionStorage.removeItem(key);
+    }
+  } catch (_) {}
+}
+
+// 저장된 모든 캐시에서 row_id로 티켓 탐색 — detail 진입 시 즉시 렌더용.
+// 반환: { ticket, data } (data = 그 티켓이 들어있던 응답 전체, versions 포함) / 없으면 null
+function findTicketInCaches(rowId) {
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (!key || !key.startsWith(TICKETS_CACHE_PREFIX)) continue;
+      const data = JSON.parse(sessionStorage.getItem(key));
+      const all = [...(data.activeWW || []), ...(data.activeMVN || []), ...(data.done || []), ...(data.hold || [])];
+      const found = all.find(tk => tk.row_id === rowId);
+      if (found) return { ticket: found, data };
+    }
+  } catch (_) {}
+  return null;
+}
+
+// 신규 등록 진입용: 지정 버전 캐시 → 전체 캐시 → 아무 캐시 순으로 반환
+function loadAnyTicketsCache(preferredVersionId) {
+  const preferred = loadTicketsCache(preferredVersionId);
+  if (preferred) return preferred;
+  const all = loadTicketsCache('');
+  if (all) return all;
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith(TICKETS_CACHE_PREFIX)) {
+        return JSON.parse(sessionStorage.getItem(key));
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
 // POST 공통 함수 — URLSearchParams로 form-encoded 전송
 async function callGAS(type, params = {}) {
   const body = new URLSearchParams({ type, ...params });
@@ -66,19 +127,25 @@ async function getVersions() {
   return json.versions || [];
 }
 
-// 버전 추가
+// 버전 추가 (버전 구조가 바뀌므로 티켓 캐시 무효화)
 async function addVersion(versionName) {
-  return callGAS('addVersion', { version_name: versionName });
+  const result = await callGAS('addVersion', { version_name: versionName });
+  clearTicketsCaches();
+  return result;
 }
 
 // 버전 수정 (version_name, sort_order, status 중 변경 필드만 전달)
 async function updateVersion(data) {
-  return callGAS('updateVersion', data);
+  const result = await callGAS('updateVersion', data);
+  clearTicketsCaches();
+  return result;
 }
 
 // 버전 삭제 (소속 티켓 version_id 초기화)
 async function deleteVersion(versionId) {
-  return callGAS('deleteVersion', { version_id: versionId });
+  const result = await callGAS('deleteVersion', { version_id: versionId });
+  clearTicketsCaches();
+  return result;
 }
 
 // 티켓을 다른 버전으로 이동 (실시순서는 항상 초기화)
