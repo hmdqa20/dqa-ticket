@@ -160,6 +160,9 @@ const FUNNEL_SVG  = `<svg viewBox="0 0 24 24" width="12" height="12" fill="curre
 const GRIP_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>`;
 // 사이드바 "전체 티켓" 탭 아이콘 (목록/리스트)
 const LIST_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+// 잠긴(다른 사용자가 편집 중) 티켓 표시 아이콘 — "진입 불가"가 아니라 "편집 중이지만 열람 가능"이라는
+// 뉘앙스를 주기 위해 자물쇠 대신 연필(편집 중) 아이콘 사용. 클래스명(.lock-icon)은 그대로 유지.
+const PENCIL_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
 // 필터 래퍼의 아이콘을 활성/비활성 상태에 맞게 교체
 function setFilterIcon(wrapEl, active) {
@@ -561,11 +564,6 @@ function renderSection(group, tickets, dimmed) {
     td.addEventListener('click', () => {
       const rowId = td.closest('tr').dataset.rowId;
       if (!rowId) return;
-      const ticket = allTicketsFlat().find(tk => tk.row_id === rowId);
-      if (ticket && isLockedForDisplay(ticket)) {
-        alert('다른 사용자가 편집 중인 항목입니다.\n편집이 완료된 후 다시 시도해 주세요.');
-        return;
-      }
       location.href = 'detail.html?id=' + rowId;
     });
   });
@@ -668,7 +666,7 @@ function buildRow(ticket, dimmed, group) {
   const canSelect = SELECTABLE_GROUPS.includes(group) && selectionMode[group] && isActive && !locked;
   const clipContent = canSelect
     ? `<input type="checkbox" class="row-select-checkbox" data-row-id="${escHtml(ticket.row_id)}"${selectedRowIds[group].has(ticket.row_id) ? ' checked' : ''}>`
-    : ((isLockedForDisplay(ticket) || hasFiles) ? `<div class="status-icons">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</div>` : '');
+    : ((isLockedForDisplay(ticket) || hasFiles) ? `<div class="status-icons">${isLockedForDisplay(ticket) ? `<span class="lock-icon" data-tip="${escHtml(t('tooltip_editing_by_other'))}">${PENCIL_SVG}</span>` : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</div>` : '');
 
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
