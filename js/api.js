@@ -1,5 +1,19 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwULFEhn_BEJVoYKE8Ki4XPJ2VtBFj7q3klc2TSQT1oKGQjzPRDIueM0t46IZWIu7DCCA/exec';
 
+// CLAUDE.md에 기록된 "회사 계정 배포"(운영) URL — GAS_URL이 이 값과 다르면 테스트 모드로 간주
+const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec';
+const IS_TEST_MODE = GAS_URL !== PROD_GAS_URL;
+
+// 테스트 모드 배너 — api.js를 불러오는 모든 화면에 공통 적용.
+// 운영 URL이면 IS_TEST_MODE가 false라 DOM에 삽입하지 않음.
+document.addEventListener('DOMContentLoaded', () => {
+  if (!IS_TEST_MODE) return;
+  const banner = document.createElement('div');
+  banner.id = 'test-mode-banner';
+  banner.textContent = '⚠️ 테스트 모드 - 실제 데이터 아님';
+  document.body.prepend(banner);
+});
+
 // POST 공통 함수 — URLSearchParams로 form-encoded 전송
 async function callGAS(type, params = {}) {
   const body = new URLSearchParams({ type, ...params });

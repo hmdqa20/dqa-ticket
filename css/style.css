@@ -68,6 +68,19 @@ body {
   overflow-x: hidden; /* 페이지 가로 확장 차단 → .table-scroll 내부 가로스크롤 발동 */
 }
 
+/* ─── 테스트 모드 배너 ────────────────────────────────────────────────────── */
+/* js/api.js의 GAS_URL이 운영 URL과 다를 때만 DOM에 삽입됨(prepend) — 항상 body 맨 위,
+   일반 문서 흐름(fixed/sticky 아님)이라 다른 요소를 가리거나 겹치지 않고 그 아래로 밀어낼 뿐. */
+#test-mode-banner {
+  background: #dc2626;
+  color: #fff;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 12px;
+  letter-spacing: 0.02em;
+}
+
 /* ─── 상단 바 ─────────────────────────────────────────────────────────────── */
 .topbar {
   display: flex;
