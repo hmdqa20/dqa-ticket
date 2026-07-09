@@ -21,6 +21,7 @@ let returnToRowId = '';     // 신규 모드 취소 시 돌아갈 티켓 row_id 
 let heartbeatTimer = null;  // 편집 잠금 heartbeat interval id
 const HEARTBEAT_MS = 2 * 60 * 1000;  // 2분 주기 (5분 타임아웃의 절반 이하 — 1회 유실돼도 다음 신호가 만료 전 도착)
 let lockPollTimer = null;   // 보기모드 중 "다른 사람이 편집 시작했는지" 폴링 interval id
+let lockPollDelayTimer = null;  // 폴링 "시작"을 지연시킬 때 쓰는 setTimeout id (cancelToViewMode 등)
 const LOCK_POLL_MS = 10 * 1000;  // 10초 주기
 
 function markDirty() { isDirty = true; }
@@ -45,8 +46,9 @@ function startLockPoll(rowId) {
   pollLockStatus(rowId);
   lockPollTimer = setInterval(() => pollLockStatus(rowId), LOCK_POLL_MS);
 }
-// interval 정리 — 편집모드 전환, 페이지 이탈/목록 복귀 등 모든 경로에서 호출.
+// interval(+지연 예약) 정리 — 편집모드 전환, 페이지 이탈/목록 복귀 등 모든 경로에서 호출.
 function stopLockPoll() {
+  if (lockPollDelayTimer) { clearTimeout(lockPollDelayTimer); lockPollDelayTimer = null; }
   if (lockPollTimer) { clearInterval(lockPollTimer); lockPollTimer = null; }
 }
 async function pollLockStatus(rowId) {
@@ -503,11 +505,26 @@ function updatePriorityState() {
 
 // ─── 표시/편집 모드 전환 ──────────────────────────────────────────────────────
 
-function enterViewMode() {
+// pollDelayMs: 지정 시 화면 전환(폼 비활성화/버튼 전환 등)은 그대로 즉시 실행하되,
+// "다른 사람이 편집 중인지" 폴링의 시작만 그 시간만큼 늦춘다.
+// cancelToViewMode()에서 사용 — sendBeacon으로 쏜 unlock 요청은 완료를 기다릴 수 없는 구조라,
+// 그 직후 바로 폴링을 시작하면 서버가 아직 LOCKED_AT을 못 지운 상태를 읽어 "편집 중"으로
+// 오탐할 수 있다. 서버 처리 시간을 감안한 유예를 준 뒤 폴링을 시작해 오탐을 줄인다.
+function enterViewMode(pollDelayMs) {
   isViewMode = true;
 
   // 보기모드인 동안 "다른 사람이 편집 중인지" 폴링 시작 (편집모드 전환 시 stopLockPoll로 정지)
-  if (currentRowId) startLockPoll(currentRowId);
+  if (currentRowId) {
+    if (pollDelayMs) {
+      lockPollDelayTimer = setTimeout(() => {
+        lockPollDelayTimer = null;
+        // 유예 시간 동안 다시 편집모드로 들어갔거나 페이지를 벗어났으면 시작하지 않음
+        if (isViewMode && currentRowId) startLockPoll(currentRowId);
+      }, pollDelayMs);
+    } else {
+      startLockPoll(currentRowId);
+    }
+  }
 
   // 모든 폼 요소 비활성화
   document.querySelectorAll('#ticket-form input, #ticket-form select, #ticket-form textarea').forEach(el => {
@@ -599,6 +616,8 @@ async function enterEditMode() {
   renderLinks();
 }
 
+const CANCEL_LOCK_POLL_DELAY_MS = 800;  // releaseLockKeepId의 sendBeacon 서버 처리 유예 시간
+
 function cancelToViewMode() {
   releaseLockKeepId();
   fillForm(currentTicket);
@@ -606,7 +625,8 @@ function cancelToViewMode() {
   pendingFiles = [];
   removedFileUrls = [];
   resetDirty();
-  enterViewMode();
+  // 화면은 즉시 보기모드로 전환하되, 잠금 폴링 시작만 유예(오탐 방지 — 위 enterViewMode 주석 참고)
+  enterViewMode(CANCEL_LOCK_POLL_DELAY_MS);
 }
 
 // URL을 <a> 링크로 변환해 text-view에 렌더링
