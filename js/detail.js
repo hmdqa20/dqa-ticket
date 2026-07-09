@@ -52,6 +52,10 @@ function stopLockPoll() {
 async function pollLockStatus(rowId) {
   try {
     const result = await checkLock(rowId);
+    // 응답 대기 중 편집모드로 전환했거나(자신이 방금 잠금 획득) 다른 티켓으로 넘어갔으면
+    // 이 결과는 폐기 — clearInterval은 다음 주기만 막을 뿐 이미 날아간 요청은 못 막기 때문에,
+    // 이 가드가 없으면 편집모드 진입 직후 "편집 중" 뱃지가 잠깐 다시 뜨는 레이스가 생김.
+    if (!isViewMode || rowId !== currentRowId) return;
     updateLockStatusBadge(result && result.locked);
   } catch (err) {
     // 조회 실패는 조용히 무시(재시도 없음 — 다음 10초 주기에 자연 재시도됨)
