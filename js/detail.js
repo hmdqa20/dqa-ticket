@@ -17,8 +17,11 @@ let isDirty = false;
 let currentVersionId = '';  // 신규 등록 시 소속 버전 (URL 파라미터)
 let allVersions = [];       // 전체 버전 목록 (드롭다운용)
 let currentRowId = '';      // 조회/편집 중인 티켓 row_id
+let returnToRowId = '';     // 신규 모드 취소 시 돌아갈 티켓 row_id (티켓 상세에서 "티켓등록"으로 진입한 경우)
 let heartbeatTimer = null;  // 편집 잠금 heartbeat interval id
 const HEARTBEAT_MS = 2 * 60 * 1000;  // 2분 주기 (5분 타임아웃의 절반 이하 — 1회 유실돼도 다음 신호가 만료 전 도착)
+let lockPollTimer = null;   // 보기모드 중 "다른 사람이 편집 시작했는지" 폴링 interval id
+const LOCK_POLL_MS = 10 * 1000;  // 10초 주기
 
 function markDirty() { isDirty = true; }
 function resetDirty() { isDirty = false; }
@@ -33,6 +36,36 @@ function startHeartbeat(rowId) {
 // interval 정리 — 이미 떠난 세션이 잠금을 계속 갱신하지 않도록 모든 이탈 경로에서 호출.
 function stopHeartbeat() {
   if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+}
+
+// 보기모드 진입 시 시작: 즉시 1회 확인 + 10초 주기로 "다른 사람이 편집 중인지" 재확인.
+// 편집모드로 전환하면(enterEditMode) 반드시 정지 — heartbeat와 동시에 돌면 안 됨.
+function startLockPoll(rowId) {
+  stopLockPoll();  // 중복 시작 방지
+  pollLockStatus(rowId);
+  lockPollTimer = setInterval(() => pollLockStatus(rowId), LOCK_POLL_MS);
+}
+// interval 정리 — 편집모드 전환, 페이지 이탈/목록 복귀 등 모든 경로에서 호출.
+function stopLockPoll() {
+  if (lockPollTimer) { clearInterval(lockPollTimer); lockPollTimer = null; }
+}
+async function pollLockStatus(rowId) {
+  try {
+    const result = await checkLock(rowId);
+    updateLockStatusBadge(result && result.locked);
+  } catch (err) {
+    // 조회 실패는 조용히 무시(재시도 없음 — 다음 10초 주기에 자연 재시도됨)
+  }
+}
+function updateLockStatusBadge(locked) {
+  const el = document.getElementById('lock-status');
+  if (!el) return;
+  if (locked) {
+    el.innerHTML = `<span class="lock-status-icon">🔒</span><span>${t('badge_editing_in_progress')}</span>`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 function getPrefix() {
@@ -95,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(location.search);
   const rowId = params.get('id');
   currentVersionId = params.get('version_id') || '';
+  returnToRowId = params.get('from') || '';
 
   if (rowId) {
     isNewMode = false;
@@ -128,16 +162,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('btn-save-top').addEventListener('click', handleSave);
-  const navigateToList = () => {
+  const leavePage = (url) => {
     resetDirty();
     pendingFiles = [];
     releaseLockNow();
-    location.href = 'index.html';
+    stopLockPoll();
+    location.href = url;
   };
+  const navigateToList = () => leavePage('index.html');
   document.getElementById('btn-edit').addEventListener('click', enterEditMode);
   document.getElementById('btn-cancel-top').addEventListener('click', () => {
     if (isNewMode) {
-      if (confirmLeave()) navigateToList();
+      // 티켓 상세에서 "티켓등록"으로 진입한 경우엔 보던 티켓으로 복귀, 아니면 목록으로
+      if (confirmLeave()) leavePage(returnToRowId ? 'detail.html?id=' + encodeURIComponent(returnToRowId) : 'index.html');
     } else {
       if (confirmLeave()) cancelToViewMode();
     }
@@ -146,7 +183,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
   document.getElementById('btn-new-ticket').addEventListener('click', () => {
     const vId = (currentTicket && currentTicket.version_id) || currentVersionId || '';
-    location.href = vId ? `detail.html?version_id=${encodeURIComponent(vId)}` : 'detail.html';
+    const qs = new URLSearchParams();
+    if (vId) qs.set('version_id', vId);
+    if (currentRowId) qs.set('from', currentRowId);  // 취소 시 이 티켓으로 복귀할 수 있도록 전달
+    const q = qs.toString();
+    location.href = q ? `detail.html?${q}` : 'detail.html';
   });
 
   // 폼 변경 감지
@@ -179,21 +220,26 @@ async function initNewMode() {
   document.getElementById('btn-new-ticket').style.display = '';
   document.getElementById('btn-new-ticket').disabled = true;
 
-  // 신규 모드에서도 활성 티켓 수 기반으로 옵션 생성, 버전 목록도 함께 로드
-  try {
-    cachedAllTickets = await getTickets();
-    allVersions = cachedAllTickets.versions || [];
-  } catch (_) {}
-  renderVersionSelect(currentVersionId);
   // 담당자 선택 시 같은 그룹+버전 기준으로 실시순서 재계산 (Rule 1)
   const assigneeEl = document.getElementById('assignee');
   const refreshPrioritySuggestion = () => {
     populatePriorityOptions(getSuggestedPriority(assigneeEl.value, currentVersionId));
   };
-  refreshPrioritySuggestion();
   assigneeEl.addEventListener('change', refreshPrioritySuggestion);
-  // 데이터 로드 완료 후 로딩 오버레이 제거
-  document.getElementById('detail-loading').style.display = 'none';
+  const applyVersionData = () => {
+    renderVersionSelect(currentVersionId);
+    refreshPrioritySuggestion();
+  };
+
+  // 캐시 우선: 목록에서 받아둔 데이터가 있으면 즉시 반영 + 오버레이 제거.
+  // 최신 데이터는 이 함수 맨 끝에서 백그라운드로 받아 갈아끼운다(실시순서 제안값도 그때 보정).
+  const cachedData = loadAnyTicketsCache(currentVersionId);
+  if (cachedData) {
+    cachedAllTickets = cachedData;
+    allVersions = cachedData.versions || [];
+    applyVersionData();
+    document.getElementById('detail-loading').style.display = 'none';
+  }
 
   // 바로가기 버튼: 신규 모드에서 항상 표시, 번호 입력에 따라 href만 업데이트
   const linkBtn = document.getElementById('btn-wjira-link');
@@ -232,30 +278,74 @@ async function initNewMode() {
       btn.textContent = t('btn_fetch');
     }
   });
+
+  // 최신 데이터 로드 — 백그라운드 fire-and-forget (await 금지).
+  // initNewMode 자체가 DOMContentLoaded에서 await되므로, 여기서 기다리면 뒤에 배선되는
+  // 버튼 리스너들이 콜드스타트 내내 죽어있게 됨. 캐시로 이미 그렸으면 조용히 보정,
+  // 캐시가 없었으면 이 완료 시점에 오버레이 제거.
+  (async () => {
+    try {
+      cachedAllTickets = await getTickets();
+      saveTicketsCache('', cachedAllTickets);
+      allVersions = cachedAllTickets.versions || [];
+    } catch (_) {}
+    applyVersionData();
+    document.getElementById('detail-loading').style.display = 'none';
+  })();
 }
 
 // ─── 수정 모드 ────────────────────────────────────────────────────────────────
 
-async function loadTicket(rowId) {
+function loadTicket(rowId) {
   document.getElementById('page-title').textContent = t('page_title_edit');
-  document.getElementById('detail-loading').style.display = 'flex';
 
   // 표시모드로 열림 — 잠금은 "수정" 버튼 클릭 시에만 시도
   currentRowId = rowId;
   isViewMode = true;
 
-  try {
-    cachedAllTickets = await getTickets();
-    allVersions = cachedAllTickets.versions || [];
-    const all = [...cachedAllTickets.activeWW, ...cachedAllTickets.activeMVN, ...cachedAllTickets.done, ...cachedAllTickets.hold];
-    currentTicket = all.find(tk => tk.row_id === rowId);
-    if (!currentTicket) throw new Error('티켓을 찾을 수 없습니다: ' + rowId);
+  // 캐시 우선 렌더링: 목록에서 이미 받아둔 데이터가 있으면 로딩 오버레이 없이 즉시 표시.
+  const cachedHit = findTicketInCaches(rowId);
+  if (cachedHit) {
+    cachedAllTickets = cachedHit.data;
+    allVersions = cachedHit.data.versions || [];
+    currentTicket = cachedHit.ticket;
     fillForm(currentTicket);
     renderVersionSelect(currentTicket.version_id || '');
     enterViewMode();
+    document.getElementById('detail-loading').style.display = 'none';
+  } else {
+    document.getElementById('detail-loading').style.display = 'flex';
+  }
+
+  // 최신 데이터는 백그라운드로 — 절대 await 하지 않는다.
+  // (이 함수는 DOMContentLoaded에서 await되므로, 여기서 fetch를 기다리면 뒤에 배선되는
+  //  목록/수정/저장 버튼 리스너들이 콜드스타트 내내 죽어있게 됨)
+  refreshTicketFresh(rowId, !!cachedHit);
+}
+
+async function refreshTicketFresh(rowId, hadCache) {
+  try {
+    const fresh = await getTickets();
+    saveTicketsCache('', fresh);
+    cachedAllTickets = fresh;
+    allVersions = fresh.versions || [];
+    const all = [...fresh.activeWW, ...fresh.activeMVN, ...fresh.done, ...fresh.hold];
+    const freshTicket = all.find(tk => tk.row_id === rowId);
+    // 최신 데이터에 없으면(그 사이 삭제됨) 캐시로 그렸더라도 목록으로 되돌림
+    if (!freshTicket) throw new Error('티켓을 찾을 수 없습니다: ' + rowId);
+    currentTicket = freshTicket;
+    // 사용자가 이미 "수정"으로 들어갔거나 입력을 시작했으면 폼을 덮어쓰지 않음
+    if (isViewMode && !isDirty) {
+      fillForm(currentTicket);
+      renderVersionSelect(currentTicket.version_id || '');
+      enterViewMode();
+    }
   } catch (err) {
-    alert(err.message);
-    location.href = 'index.html';
+    // 캐시로 이미 표시된 상태의 일시적 네트워크 오류는 조용히 무시 (티켓 없음은 위에서 throw됨)
+    if (!hadCache || /티켓을 찾을 수 없습니다/.test(err.message)) {
+      alert(err.message);
+      location.href = 'index.html';
+    }
   } finally {
     document.getElementById('detail-loading').style.display = 'none';
   }
@@ -312,6 +402,7 @@ function renderVersionSelect(selectedId) {
     if (overlay) overlay.style.display = 'flex';
     try {
       await moveTicket(currentTicket.row_id, targetId);
+      clearTicketsCaches();  // 버전 소속이 바뀌었으므로 목록 캐시 무효화
       currentTicket.version_id = targetId;
       updateCurrentVersionLabel(targetId);
     } catch (err) {
@@ -411,6 +502,9 @@ function updatePriorityState() {
 function enterViewMode() {
   isViewMode = true;
 
+  // 보기모드인 동안 "다른 사람이 편집 중인지" 폴링 시작 (편집모드 전환 시 stopLockPoll로 정지)
+  if (currentRowId) startLockPoll(currentRowId);
+
   // 모든 폼 요소 비활성화
   document.querySelectorAll('#ticket-form input, #ticket-form select, #ticket-form textarea').forEach(el => {
     el.disabled = true;
@@ -458,6 +552,10 @@ async function enterEditMode() {
     window.addEventListener('beforeunload', handleLockBeforeUnload);
     startHeartbeat(currentRowId);
   }
+
+  // 편집모드로 전환 — 보기모드 잠금 폴링은 정지(heartbeat와 중복 방지)
+  stopLockPoll();
+  updateLockStatusBadge(false);
 
   isViewMode = false;
 
@@ -700,6 +798,7 @@ async function handleDelete() {
   setDeletingState(true);
   try {
     await deleteTicket(currentTicket.row_id);
+    clearTicketsCaches();  // 삭제된 티켓이 캐시로 되살아나 보이지 않도록 무효화
     // 삭제된 행이라 잠금도 사라짐 — heartbeat/리스너만 정리하고 즉시 이동
     stopHeartbeat();
     window.removeEventListener('beforeunload', handleLockBeforeUnload);
@@ -782,6 +881,8 @@ async function handleSave() {
       try { await trashDriveFiles(removedFileUrls); } catch (e) {}
       removedFileUrls = [];
     }
+
+    clearTicketsCaches();  // 저장(신규/수정)으로 내용이 바뀌었으므로 목록 캐시 무효화
 
     resetDirty();
     setSavingState(false);

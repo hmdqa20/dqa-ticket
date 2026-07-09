@@ -60,10 +60,18 @@
 
 <!-- 왼쪽: 버전 사이드탭 -->
 <aside class="version-sidebar">
-  <div class="version-list" id="version-list"></div>
-  <div class="version-add">
-    <button type="button" class="btn-add-version" onclick="location.href='versions.html'">버전 관리</button>
+  <!-- 상단 고정 영역: 버전이 아무리 늘어나도 이 두 버튼은 항상 최상단에 고정, 아래 버전 목록만 스크롤 -->
+  <div class="sidebar-fixed-top">
+    <button type="button" class="btn-add-version" onclick="location.href='versions.html'">
+      <span class="sidebar-btn-icon" id="btn-add-version-icon"></span>
+      <span>버전 관리</span>
+    </button>
+    <button type="button" class="version-all-btn" id="btn-all-tickets">
+      <span class="sidebar-btn-icon" id="version-all-icon"></span>
+      <span data-i18n="version_all">전체 티켓</span>
+    </button>
   </div>
+  <div class="version-list" id="version-list"></div>
 </aside>
 
 <!-- 오른쪽: 메인 콘텐츠 -->

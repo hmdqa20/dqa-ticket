@@ -103,6 +103,22 @@ body {
   flex-shrink: 0;
 }
 
+/* detail.html 보기모드 — 다른 사용자가 편집 중일 때 제목 옆에 붙는 뱃지 */
+.lock-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fef3c7;  /* amber-100: 은은한 warning 배경 */
+  color: #92400e;        /* amber-800: 진한 톤 텍스트 */
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.lock-status-icon { font-size: 11px; line-height: 1; }
+
 .topbar-right {
   display: flex;
   align-items: center;
@@ -384,16 +400,30 @@ body {
   top: 56px;
   align-self: flex-start;
   max-height: calc(100vh - 56px);
-  overflow-y: auto;
   background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   padding: 0;
+  overflow: hidden; /* 스크롤은 아래 .version-list에서만 — 상단 고정 영역은 항상 보임 */
+}
+
+/* 상단 고정 영역: "버전 관리" + "전체 티켓" — 버전이 많아져도 항상 최상단 */
+.sidebar-fixed-top {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-right: 0.5px solid var(--border);
+  border-bottom: 0.5px solid var(--border);
 }
 
 .version-list {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;   /* flex 컨테이너 안에서 overflow-y가 실제로 작동하려면 필요 */
+  overflow-y: auto;
 }
 
 .version-item {
@@ -442,25 +472,33 @@ body {
   white-space: nowrap;
 }
 
-/* 새 버전 추가 영역 — 오른쪽 구분선 유지 */
-.version-add {
-  border-right: 0.5px solid var(--border);
-  padding: 10px;
-}
-.btn-add-version {
+/* 상단 고정 버튼 두 개("버전 관리" / "전체 티켓") — 같은 버튼 패밀리(크기·패딩·radius·폰트 통일),
+   톤만 달리해서 역할을 구분. 선택된 버전 탭(.version-item.active, 흰 배경+좌측 파란선)과는
+   확실히 다른 시각 언어(칠해진 배경)라서 서로 헷갈리지 않는다. */
+.btn-add-version,
+.version-all-btn {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 8px 10px;
   border: none;
   border-radius: var(--radius);
-  background: #475569;
-  color: #fff;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   transition: background 0.12s;
 }
-.btn-add-version:hover { background: #334155; }
+.btn-add-version { background: #64748b; color: #fff; }
+.btn-add-version:hover { background: #475569; }
+
+/* "전체 티켓" — 목록의 MVN 그룹과 동일한 녹색 계열(--mvn)로 통일 */
+.version-all-btn { background: var(--mvn-light); color: var(--mvn); }
+.version-all-btn:hover { background: var(--mvn-mid); }
+.version-all-btn.active { background: var(--mvn); color: #fff; }
+.sidebar-btn-icon { display: inline-flex; flex-shrink: 0; }
 
 .version-add-form { display: flex; flex-direction: column; gap: 6px; }
 .version-name-input {
@@ -854,6 +892,10 @@ body {
 .locked-row .inline-select,
 .locked-row .wjira-checkbox { cursor: not-allowed; opacity: 0.55; }
 
+/* 편집 중인 티켓도 열람은 가능(진입 차단 아님) — 행 배경/hover/cursor는 일반 행과 동일하게 둔다.
+   연필 아이콘만 눈에 잘 띄도록 명도를 그대로 유지. */
+.locked-row .lock-icon { opacity: 1; }
+
 /* 드롭 위치 인디케이터 (진한 녹색 줄) */
 .ticket-table tr.drop-above td { box-shadow: inset 0 3px 0 #15803d; }
 .ticket-table tr.drop-below td { box-shadow: inset 0 -3px 0 #15803d; }
@@ -927,6 +969,13 @@ body {
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
+}
+/* 선택 개수 자릿수가 1→2자리로 바뀌어도 옆 이동 버튼이 밀리지 않도록 폭을 미리 확보 */
+.bulk-count-num {
+  display: inline-block;
+  min-width: 1.4em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .bulk-target-select {
   height: 28px;

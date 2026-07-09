@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupOrigTitlePopover(); // 번역된 이슈명 ⓘ → 원문 팝오버
 
   document.getElementById('btn-new').addEventListener('click', () => {
+    stopAutoRefresh();
     const vid = currentVersionId && currentVersionId !== ALL_VERSION ? '?version_id=' + encodeURIComponent(currentVersionId) : '';
     location.href = 'detail.html' + vid;
   });
@@ -158,6 +159,13 @@ const CHEVRON_SVG = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none"
 const FUNNEL_SVG  = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M4.25 5.61C6.27 8.2 10 13 10 13v5c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-5s3.73-4.8 5.75-7.39c.51-.66.04-1.61-.79-1.61H5.04c-.83 0-1.3.95-.79 1.61z"/></svg>`;
 // 드래그 핸들: 가로선 3개(hamburger/grip) — 글리프(⠿)보다 또렷하고 폰트에 무관하게 일관 렌더링
 const GRIP_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>`;
+// 사이드바 "전체 티켓" 탭 아이콘 (목록/리스트)
+const LIST_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+// "버전 관리" 버튼 아이콘 (태그 — 버전/릴리스 관리를 연상시키는 아이콘)
+const TAG_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3H4a1 1 0 0 0-1 1v5.59a2 2 0 0 0 .59 1.41l9.58 9.59a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/></svg>`;
+// 잠긴(다른 사용자가 편집 중) 티켓 표시 아이콘 — "진입 불가"가 아니라 "편집 중이지만 열람 가능"이라는
+// 뉘앙스를 주기 위해 자물쇠 대신 연필(편집 중) 아이콘 사용. 클래스명(.lock-icon)은 그대로 유지.
+const PENCIL_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#b45309" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
 // 필터 래퍼의 아이콘을 활성/비활성 상태에 맞게 교체
 function setFilterIcon(wrapEl, active) {
@@ -234,11 +242,30 @@ function buildHeaderHtml(sectionType = 'active', groupKey = '') {
 // ─── 데이터 로드 ──────────────────────────────────────────────────────────────
 
 async function loadTickets() {
-  showLoading(true);
-  showError(false);
-  try {
-    const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
+  const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
 
+  // 캐시 우선 렌더링(stale-while-revalidate): 직전에 받아둔 데이터가 있으면 즉시 그려서
+  // GAS 콜드스타트(수 초)를 기다리지 않게 하고, 최신 데이터는 백그라운드로 받아 갈아끼운다.
+  // 캐시가 있을 땐 fetch를 await 하지 않고 즉시 반환 — 이 함수는 DOMContentLoaded에서
+  // await되므로, 기다리면 뒤에 배선되는 버튼/검색/드래그 리스너들이 콜드스타트 내내 죽어있게 됨.
+  const cached = loadTicketsCache(vid);
+  showError(false);
+  if (cached) {
+    allTickets = cached;
+    versions = cached.versions || [];
+    renderSidebar();
+    populateDynamicFilters();
+    renderAll();
+    showLoading(false);
+    fetchFreshList(vid, true);   // 백그라운드 — await 금지
+    return;
+  }
+  showLoading(true);
+  await fetchFreshList(vid, false);
+}
+
+async function fetchFreshList(vid, hadCache) {
+  try {
     // 1차 시도 실패 시 RETRY_DELAY_MS 대기 후 1회 자동 재시도
     // 로딩 인디케이터는 재시도 동안 계속 표시 (finally에서만 숨김)
     let data;
@@ -250,6 +277,16 @@ async function loadTickets() {
       data = await getTickets(vid);  // 실패 시 throw → outer catch
     }
 
+    saveTicketsCache(vid, data);
+
+    // 응답 대기 중 사용자가 다른 버전 탭으로 전환했으면 이 응답으로 화면을 덮지 않음
+    const currentVid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
+    if (vid !== currentVid) return;
+
+    // 캐시로 이미 그린 상태에서 사용자가 조작 중이면 이번 갱신은 건너뜀
+    // (드롭다운 닫힘/행 점프 방지 — 20초 자동 갱신이 곧 다시 동기화함)
+    if (hadCache && isUserBusy()) return;
+
     allTickets = data;
     versions = allTickets.versions || [];
     // 저장된 선택 버전이 더 이상 존재하지 않으면 전체로 복귀
@@ -260,7 +297,8 @@ async function loadTickets() {
     populateDynamicFilters();
     renderAll();
   } catch (err) {
-    showError(true, err.message);
+    // 캐시로 이미 화면을 그렸다면 에러 배너 대신 조용히 넘어감 (다음 자동 갱신에서 재시도)
+    if (!hadCache) showError(true, err.message);
   } finally {
     showLoading(false);
   }
@@ -272,13 +310,12 @@ function renderSidebar() {
   const list = document.getElementById('version-list');
   if (!list) return;
 
-  // "전체" 탭 + 각 버전 탭
-  const allActive = currentVersionId === ALL_VERSION ? ' active' : '';
-  let html = `<div class="version-item${allActive}" data-version-id="${ALL_VERSION}">
-      <span class="version-name">${t('version_all')}</span>
-    </div>`;
+  // "전체 티켓"은 이제 상단 고정 버튼(정적 마크업) — active 상태만 갱신
+  const allBtn = document.getElementById('btn-all-tickets');
+  if (allBtn) allBtn.classList.toggle('active', currentVersionId === ALL_VERSION);
 
-  html += versions.map(v => {
+  // 버전 목록만 스크롤 영역에 렌더링
+  const html = versions.map(v => {
     const active = currentVersionId === v.version_id ? ' active' : '';
     const dotClass = v.status === '완료' ? 'dot-done' : 'dot-active';
     return `<div class="version-item${active}" data-version-id="${escHtml(v.version_id)}">
@@ -307,7 +344,15 @@ async function switchVersion(versionId) {
 }
 
 function setupVersionSidebar() {
-  // 새 버전 추가 버튼은 onclick으로 versions.html 이동 처리
+  // 새 버전 추가 버튼은 onclick으로 versions.html 이동 처리 — 아이콘만 주입
+  const addVersionIcon = document.getElementById('btn-add-version-icon');
+  if (addVersionIcon) addVersionIcon.innerHTML = TAG_SVG;
+
+  // "전체 티켓"은 상단 고정 정적 버튼 — 아이콘 주입 + 클릭 리스너는 최초 1회만 연결
+  const listIcon = document.getElementById('version-all-icon');
+  if (listIcon) listIcon.innerHTML = LIST_SVG;
+  const allBtn = document.getElementById('btn-all-tickets');
+  if (allBtn) allBtn.addEventListener('click', () => switchVersion(ALL_VERSION));
 }
 
 // ─── 선택 모드 / 버전 일괄이동 (DQA/MVN 완전 독립) ────────────────────────────
@@ -362,7 +407,7 @@ function populateBulkTargetVersions(group) {
 function updateBulkActionBar(group) {
   const countEl = document.getElementById(`bulk-selected-count-${group}`);
   const moveBtn = document.getElementById(`btn-bulk-move-${group}`);
-  if (countEl) countEl.textContent = `${selectedRowIds[group].size}${t('unit_selected')}`;
+  if (countEl) countEl.innerHTML = `<span class="bulk-count-num">${selectedRowIds[group].size}</span>${t('unit_selected')}`;
   if (moveBtn) moveBtn.disabled = selectedRowIds[group].size === 0;
 }
 
@@ -421,6 +466,7 @@ async function handleBulkMove(group) {
   if (overlay) overlay.style.display = 'none';
   if (overlayText) overlayText.textContent = t('loading');
 
+  clearTicketsCaches();       // 이동으로 소속이 바뀐 티켓이 캐시로 되살아나 보이지 않도록 무효화
   toggleSelectionMode(group); // 선택 모드 종료(선택 목록 초기화 포함)
   await loadTickets();        // 최신 상태 재조회
 
@@ -558,11 +604,7 @@ function renderSection(group, tickets, dimmed) {
     td.addEventListener('click', () => {
       const rowId = td.closest('tr').dataset.rowId;
       if (!rowId) return;
-      const ticket = allTicketsFlat().find(tk => tk.row_id === rowId);
-      if (ticket && isLockedForDisplay(ticket)) {
-        alert('다른 사용자가 편집 중인 항목입니다.\n편집이 완료된 후 다시 시도해 주세요.');
-        return;
-      }
+      stopAutoRefresh();
       location.href = 'detail.html?id=' + rowId;
     });
   });
@@ -665,7 +707,7 @@ function buildRow(ticket, dimmed, group) {
   const canSelect = SELECTABLE_GROUPS.includes(group) && selectionMode[group] && isActive && !locked;
   const clipContent = canSelect
     ? `<input type="checkbox" class="row-select-checkbox" data-row-id="${escHtml(ticket.row_id)}"${selectedRowIds[group].has(ticket.row_id) ? ' checked' : ''}>`
-    : ((isLockedForDisplay(ticket) || hasFiles) ? `<div class="status-icons">${isLockedForDisplay(ticket) ? '<span class="lock-icon" data-tip="다른 사용자가 편집중입니다.">🔒</span>' : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</div>` : '');
+    : ((isLockedForDisplay(ticket) || hasFiles) ? `<div class="status-icons">${isLockedForDisplay(ticket) ? `<span class="lock-icon" data-tip="${escHtml(t('tooltip_editing_by_other'))}">${PENCIL_SVG}</span>` : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</div>` : '');
 
   return `
     <tr data-row-id="${escHtml(ticket.row_id)}" data-group="${escHtml(group || '')}" class="${rowClass}">
@@ -1073,12 +1115,18 @@ let isDragging = false;            // 드래그 진행 중 (setupDragDrop에서 
 let lastEditAt = 0;                // 마지막 인라인 편집 시각 (저장 레이스 방지)
 
 function startAutoRefresh() {
-  if (refreshTimer) clearInterval(refreshTimer);
+  if (refreshTimer) clearInterval(refreshTimer);  // 중복 시작 방지
   refreshTimer = setInterval(refreshList, REFRESH_MS);
   // 탭이 다시 활성화되면 즉시 한 번 갱신
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refreshList();
   });
+}
+// interval 정리 — detail.html로 이동하는 등 목록 화면을 벗어날 때 호출(불필요한 API 호출 방지).
+// 이 페이지는 전체 새로고침(location.href) 방식이라 페이지 이동 자체로도 정리되지만,
+// detail.js의 lock-status 폴링과 동일하게 명시적으로도 정리한다.
+function stopAutoRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
 }
 
 // 사용자가 조작 중인지 — 이때는 갱신을 건너뜀
@@ -1094,12 +1142,15 @@ async function refreshList() {
   if (document.hidden) return;     // 비활성 탭에서는 GAS 호출 생략
   if (isUserBusy()) return;        // 조작 중이면 이번 주기 건너뜀
 
+  const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
   let data;
   try {
-    data = await getTickets(currentVersionId === ALL_VERSION ? '' : currentVersionId);
+    data = await getTickets(vid);
   } catch (_) {
     return;                         // 실패는 조용히 무시 (다음 주기에 재시도)
   }
+
+  saveTicketsCache(vid, data);     // 다음 페이지 진입 시 즉시 렌더용 캐시 갱신
 
   if (isUserBusy()) return;        // await 사이 조작 시작했을 수 있으니 재확인
 
