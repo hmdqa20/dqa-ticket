@@ -103,6 +103,26 @@ body {
   flex-shrink: 0;
 }
 
+/* 사이드바 접기/펼치기 토글 — 원형 배경 + 꺾쇠. 펼침=좌측 꺾쇠, 접힘=180° 회전(우측 꺾쇠) */
+.sidebar-toggle {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.sidebar-toggle:hover { background: #e2e8f0; color: var(--text); }
+.sidebar-toggle svg { transition: transform 0.25s ease; }
+body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+
 /* detail.html 보기모드 — 다른 사용자가 편집 중일 때 제목 옆에 붙는 뱃지 */
 .lock-status {
   display: inline-flex;
@@ -405,7 +425,12 @@ body {
   flex-direction: column;
   padding: 0;
   overflow: hidden; /* 스크롤은 아래 .version-list에서만 — 상단 고정 영역은 항상 보임 */
+  transition: width 0.25s ease;
 }
+/* 접힘: width 0 + overflow:hidden으로 통째로 숨김. 본문(.main-content flex:1)이 전체 폭을 채움 */
+body.sidebar-collapsed .version-sidebar { width: 0; }
+/* 접히는 동안 내부 요소가 좁아진 폭에 맞춰 줄바꿈되며 우글거리지 않도록 원래 폭으로 고정(클리핑만 됨) */
+.sidebar-fixed-top, .version-list { width: 130px; }
 
 /* 상단 고정 영역: "버전 관리" + "전체 티켓" — 버전이 많아져도 항상 최상단 */
 .sidebar-fixed-top {

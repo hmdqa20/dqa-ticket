@@ -67,6 +67,7 @@ const LEGACY_ASSIGNEES = ['박수원', '홍경두'];
 const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  setupSidebarToggle();  // 첫 페인트 전에 접힘 상태부터 적용 (펼쳐진 사이드바가 깜빡이지 않도록 최우선)
   applyTranslations();
   SELECTABLE_GROUPS.forEach(g => syncSelectionModeButtonText(g));
   buildAllHeaders();
@@ -353,6 +354,27 @@ function setupVersionSidebar() {
   if (listIcon) listIcon.innerHTML = LIST_SVG;
   const allBtn = document.getElementById('btn-all-tickets');
   if (allBtn) allBtn.addEventListener('click', () => switchVersion(ALL_VERSION));
+}
+
+// ─── 사이드바 접기/펼치기 ────────────────────────────────────────────────────
+// body.sidebar-collapsed 클래스로 제어 (CSS: .version-sidebar width 0 + 토글 꺾쇠 회전).
+// 화면 폭 제한 없이 항상 토글 가능. 상태는 localStorage에 저장해 새로고침에도 유지되고,
+// 저장값이 없는 첫 진입 때만 뷰포트 폭(768px 이하=접힘)으로 초기 상태를 정한다.
+
+const SIDEBAR_COLLAPSED_KEY = 'dqa_sidebar_collapsed';
+
+function setupSidebarToggle() {
+  const btn = document.getElementById('btn-sidebar-toggle');
+  if (!btn) return;
+
+  const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+  const collapsed = saved !== null ? saved === '1' : window.innerWidth <= 768;
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+
+  btn.addEventListener('click', () => {
+    const nowCollapsed = document.body.classList.toggle('sidebar-collapsed');
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, nowCollapsed ? '1' : '0');
+  });
 }
 
 // ─── 선택 모드 / 버전 일괄이동 (DQA/MVN 완전 독립) ────────────────────────────
