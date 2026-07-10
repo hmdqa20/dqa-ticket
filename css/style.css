@@ -1012,11 +1012,16 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   max-width: 140px;
 }
 
-/* 좁은 화면: count-badge는 섹션명과 같은 줄 유지(order:1), actions는 다음 줄(order:2) */
-@media (max-width: 720px) {
-  .section-header { flex-wrap: wrap; row-gap: 6px; }
-  .count-badge { order: 1; }
-  .section-header-actions { order: 2; flex-basis: 100%; }
+/* 모바일: "티켓이동" 버튼도 그룹명+개수뱃지와 항상 같은 줄 유지 — 줄바꿈 대신 버튼/텍스트만 축소 */
+@media (max-width: 768px) {
+  .section-header { flex-wrap: nowrap; overflow-x: auto; }
+  .section-header-actions { gap: 4px; }
+  .count-badge { flex-shrink: 0; }
+  .section-header-actions .btn-select-mode-group { padding: 3px 6px; font-size: 10px; }
+  .bulk-action-bar-inline { gap: 4px; }
+  .bulk-target-select { max-width: 78px; height: 22px; padding: 0 3px; font-size: 10px; }
+  .bulk-selected-count { font-size: 10px; }
+  .bulk-action-bar-inline .btn-bulk-move-group { padding: 3px 6px; font-size: 10px; }
 }
 
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
