@@ -644,8 +644,14 @@ function buildRow(ticket, dimmed, group) {
   const dis = locked ? ' disabled' : '';
 
   // 활성 행: 실시순서 드롭다운(+ 핸들 드래그로도 변경 가능), 완료/보류: — 표시
+  // 상한은 활성 개수뿐 아니라 "같은 그룹+버전 내 현재 최대 실시순서 + 1"까지 보장 —
+  // 앞 번호 티켓들이 완료로 빠지면 활성 개수 < 최대 번호가 되는데(갭 재사용 안 함 규칙),
+  // 그 상태에서도 빈칸 티켓에 max+1(예: 4,5,6만 남았을 때 7)을 배정할 수 있어야 함.
   const activeCount = allTickets.activeWW.length + allTickets.activeMVN.length;
-  const maxOrder = Math.max(5, activeCount);
+  const sameScopeMax = (allTickets[group] || [])
+    .filter(tk => (tk.version_id || '') === (ticket.version_id || ''))
+    .reduce((m, tk) => Math.max(m, Number(tk.priority) || 0), 0);
+  const maxOrder = Math.max(5, activeCount, sameScopeMax + 1);
   const orderCell = isActive
     ? (() => {
         const opts = ['', ...Array.from({length: maxOrder}, (_, i) => String(i + 1))].map(v =>
