@@ -228,6 +228,50 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
 }
 .search-input:focus { border-color: var(--ww); }
 
+/* 모바일 전용 파비콘 로고 + 돋보기/닫기 버튼 — 데스크톱에선 숨김 */
+.app-logo { display: none; }
+.search-toggle {
+  display: none;
+  position: relative;
+  width: 37px;
+  height: 37px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+/* 접힘 상태에서 검색 필터가 걸려 있음을 알리는 배지 점 */
+.search-toggle.has-filter::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #dc2626;
+}
+.search-close {
+  display: none;
+  width: 37px;
+  height: 37px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.search-close:hover { color: var(--text); }
+
 /* ─── 버튼 ────────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
@@ -1707,8 +1751,35 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 
 @media (max-width: 768px) {
   .topbar { padding: 0 14px; gap: 8px; }
+
+  /* 목록 페이지 타이틀 텍스트 → 파비콘 로고로 대체 (detail/versions 타이틀은 유지) */
   .app-title { font-size: 15px; }
-  .search-input { width: 130px; }
+  .app-title-home { display: none; }
+  .app-logo { display: block; width: 24px; height: 24px; flex-shrink: 0; }
+
+  /* 검색: 기본 접힘(돋보기 아이콘만), 펼치면 상단바를 덮는 인라인 확장 */
+  .search-input { display: none; }
+  .search-toggle { display: inline-flex; }
+
+  /* 펼침 상태 — 사이드바 토글은 z-index로 위에 남기고, 나머지를 input이 덮음 */
+  body.search-open .sidebar-toggle { position: relative; z-index: 2; }
+  body.search-open .topbar-right {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: inherit;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* 왼쪽 패딩 50px = 사이드바 토글(패딩14+폭28) + 여유 — input이 토글과 겹치지 않음 */
+    padding: 0 14px 0 50px;
+    margin-left: 0;
+  }
+  body.search-open .search-toggle,
+  body.search-open .lang-dropdown,
+  body.search-open #btn-new { display: none; }
+  body.search-open .search-input { display: block; flex: 1; min-width: 0; width: auto; }
+  body.search-open .search-close { display: inline-flex; }
 
   .ticket-table { font-size: 12px; }
   .ticket-table th, .ticket-table td { padding: 7px 8px; }
@@ -1999,7 +2070,6 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 
 @media (max-width: 480px) {
   .topbar-right { gap: 6px; }
-  .search-input { width: 90px; font-size: 13px; }
   .lang-btn { padding: 3px 6px; font-size: 11px; }
   .btn { padding: 6px 12px; font-size: 13px; }
 

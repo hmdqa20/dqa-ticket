@@ -128,6 +128,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAll();
   });
 
+  setupMobileSearch();
+
   document.getElementById('section-ww-header').addEventListener('click', () => toggleSection('activeWW'));
   document.getElementById('section-mvn-header').addEventListener('click', () => toggleSection('activeMVN'));
   document.getElementById('section-done-header').addEventListener('click', () => toggleSection('done'));
@@ -538,6 +540,32 @@ function syncFilterWrap(sel, label, cur) {
 
 function allTicketsFlat() {
   return [...allTickets.activeWW, ...allTickets.activeMVN, ...allTickets.done, ...allTickets.hold];
+}
+
+// ─── 모바일 검색 펼침/접힘 (≤768px 전용 — 버튼은 데스크톱에서 CSS로 숨김) ─────
+
+function setupMobileSearch() {
+  const toggle = document.getElementById('btn-search-toggle');
+  const close  = document.getElementById('btn-search-close');
+  const input  = document.getElementById('search-input');
+  if (!toggle || !close || !input) return;
+
+  // 접힘 상태에서 검색어가 남아 있으면 돋보기에 배지 점 표시
+  const updateBadge = () => toggle.classList.toggle('has-filter', !!searchQuery);
+  const closeSearch = () => {
+    document.body.classList.remove('search-open');
+    updateBadge();
+  };
+
+  toggle.addEventListener('click', () => {
+    document.body.classList.add('search-open');
+    input.focus();
+  });
+  close.addEventListener('click', closeSearch);
+  // 검색창을 비우고 포커스 아웃하면 자동 접힘 (검색어가 있으면 펼침 유지)
+  input.addEventListener('blur', () => {
+    if (!input.value.trim()) closeSearch();
+  });
 }
 
 // ─── 필터링 ───────────────────────────────────────────────────────────────────

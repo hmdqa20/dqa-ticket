@@ -15,9 +15,14 @@
   <button type="button" id="btn-sidebar-toggle" class="sidebar-toggle" aria-label="사이드바 접기/펼치기">
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
-  <h1 class="app-title" data-i18n="app_title">DQA Ticket Manager</h1>
+  <h1 class="app-title app-title-home" data-i18n="app_title">DQA Ticket Manager</h1>
+  <img src="favicon_32x32.png" class="app-logo" alt="DQA">
   <div class="topbar-right">
+    <button type="button" id="btn-search-toggle" class="search-toggle" aria-label="검색">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+    </button>
     <input id="search-input" type="text" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="검색...">
+    <button type="button" id="btn-search-close" class="search-close" aria-label="검색 닫기">×</button>
     <div class="lang-dropdown">
       <button type="button" class="lang-dropdown-btn" id="lang-dropdown-btn"></button>
       <div class="lang-dropdown-menu" id="lang-dropdown-menu">
