@@ -33,6 +33,15 @@ https://script.google.com/macros/s/AKfycbxhss5aowNfQZ-TI8Rf9cYHnhDPBWHce-Bnp6aLq
 
 ---
 
+## dev용 GAS 프로젝트 생성 규칙 (재발 방지)
+
+- 새로운 dev/테스트용 GAS가 필요하면, 반드시 **테스트용 사본 시트를 먼저 만들고**, 그 사본 시트를 연 상태에서 "확장 프로그램 → Apps Script"로 GAS 프로젝트를 생성할 것. **독립적으로 새 Apps Script 프로젝트를 만든 뒤 나중에 시트를 연결하는 방식은 금지.**
+- 이렇게 컨테이너 바인딩으로 만든 dev GAS는 스크립트 속성에 **SPREADSHEET_ID를 절대 추가하지 말 것**. `getSheet()`의 fallback(`getActiveSpreadsheet`)이 자동으로 자신이 속한 사본 시트를 보게 되며, 이게 원본 오염을 막는 핵심 안전장치임.
+- `js/api.js`의 `GAS_URL`은 브랜치별로 값이 다름(dev=테스트용, master=운영용). dev→master 머지 시 `GAS_URL` 줄은 반드시 master(운영) 값을 유지해야 하며, 병합 전 `git diff`로 최종 값을 확인할 것.
+- Code.gs가 포함된 push 이후에는 해당 브랜치가 가리키는 GAS(운영 또는 dev)를 재배포해야 실제로 반영됨 — push만으로는 GAS 코드가 갱신되지 않는다는 점 항상 안내할 것.
+
+---
+
 ## GAS 규칙
 
 - `.gs` 파일 수정 후에는 반드시 **재배포** 필요: 배포 → 배포 관리 → 새 버전
