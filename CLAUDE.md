@@ -22,11 +22,11 @@
 
 ## 프로젝트 정보
 
-- **GAS URL** (회사 계정 배포): https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec
-- **주의**: dev 브랜치 작업 시 api.js의 GAS_URL은 "dev 문서 계정 배포" URL을 사용할 것.
-  main(master) 브랜치 병합 전 반드시 "회사 계정 배포" URL로 되돌릴 것.
-- **GAS URL** (dev 문서 계정 배포): 
-https://script.google.com/macros/s/AKfycbxhss5aowNfQZ-TI8Rf9cYHnhDPBWHce-Bnp6aLqWAFuZwPuY-SSc6o9_NzxCdkhj6i7A/exec
+- **GAS URL** (회사 계정 배포 = PROD_GAS_URL): https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec
+- **GAS URL** (dev 문서 계정 배포 = DEV_GAS_URL): https://script.google.com/macros/s/AKfycbwULFEhn_BEJVoYKE8Ki4XPJ2VtBFj7q3klc2TSQT1oKGQjzPRDIueM0t46IZWIu7DCCA/exec
+- **GAS_URL 자동 선택**: `js/api.js`가 접속 hostname으로 런타임에 결정. **운영 GAS는 `hmdqa20.github.io`에서 열었을 때만 사용되고, 그 외 모든 환경(로컬 127.0.0.1, file:// 등)은 dev GAS**(안전 기본값). 브랜치별로 값을 바꾸지 않으므로 master/dev의 api.js는 항상 동일 — 머지 시 GAS_URL 확인 불필요.
+  - dev 테스트: 로컬(예: `127.0.0.1:5500`)로 열기 → 자동으로 dev GAS + 빨간 테스트 배너 표시
+  - 운영 확인: `hmdqa20.github.io`로 열기
 - **GitHub Pages URL**: https://hmdqa20.github.io/dqa-ticket
 - **Google Sheets**: tickets 시트 + versions 시트
 - **GAS 수정 시**: Code.gs 복붙 → 저장 → 배포 관리 → **기존 배포 편집 → 새 버전**으로 재배포 (액세스: 모든 사용자). ⚠️ "새 배포"를 누르면 URL이 새로 생기므로 반드시 **기존 배포를 편집**할 것
@@ -37,7 +37,7 @@ https://script.google.com/macros/s/AKfycbxhss5aowNfQZ-TI8Rf9cYHnhDPBWHce-Bnp6aLq
 
 - 새로운 dev/테스트용 GAS가 필요하면, 반드시 **테스트용 사본 시트를 먼저 만들고**, 그 사본 시트를 연 상태에서 "확장 프로그램 → Apps Script"로 GAS 프로젝트를 생성할 것. **독립적으로 새 Apps Script 프로젝트를 만든 뒤 나중에 시트를 연결하는 방식은 금지.**
 - 이렇게 컨테이너 바인딩으로 만든 dev GAS는 스크립트 속성에 **SPREADSHEET_ID를 절대 추가하지 말 것**. `getSheet()`의 fallback(`getActiveSpreadsheet`)이 자동으로 자신이 속한 사본 시트를 보게 되며, 이게 원본 오염을 막는 핵심 안전장치임.
-- `js/api.js`의 `GAS_URL`은 브랜치별로 값이 다름(dev=테스트용, master=운영용). dev→master 머지 시 `GAS_URL` 줄은 반드시 master(운영) 값을 유지해야 하며, 병합 전 `git diff`로 최종 값을 확인할 것.
+- ~~`GAS_URL`은 브랜치별로 값이 다름 — 머지 시 `git diff`로 확인~~ → **hostname 자동 선택 방식으로 대체됨 (2026-07-10)**. `js/api.js`에 PROD/DEV URL을 둘 다 상수로 두고 `location.hostname === 'hmdqa20.github.io'`일 때만 운영 GAS를 사용. master/dev의 api.js는 동일 내용을 유지하며, 머지 시 GAS_URL 관련 확인 절차 불필요.
 - Code.gs가 포함된 push 이후에는 해당 브랜치가 가리키는 GAS(운영 또는 dev)를 재배포해야 실제로 반영됨 — push만으로는 GAS 코드가 갱신되지 않는다는 점 항상 안내할 것.
 
 ---
@@ -115,7 +115,7 @@ https://script.google.com/macros/s/AKfycbxhss5aowNfQZ-TI8Rf9cYHnhDPBWHce-Bnp6aLq
 3. 기존 시트가 있으면 `setupVersionHeaders()` 1회 실행 → versions 시트 생성 + tickets 시트에 retest_ref(O) / version_id(P) 헤더 추가
 4. Script Properties 모두 설정
 5. 웹앱으로 배포: 실행 계정=나 / 액세스=모든 사용자
-6. 웹앱 URL을 프론트엔드 `js/api.js` 의 `GAS_URL` 에 설정
+6. 웹앱 URL을 프론트엔드 `js/api.js` 의 `PROD_GAS_URL`(운영) 또는 `DEV_GAS_URL`(dev)에 설정 — `GAS_URL`은 hostname으로 자동 선택되므로 직접 수정하지 않음
 
 ---
 

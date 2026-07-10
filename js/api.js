@@ -1,7 +1,10 @@
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwULFEhn_BEJVoYKE8Ki4XPJ2VtBFj7q3klc2TSQT1oKGQjzPRDIueM0t46IZWIu7DCCA/exec';
-
-// CLAUDE.md에 기록된 "회사 계정 배포"(운영) URL — GAS_URL이 이 값과 다르면 테스트 모드로 간주
+// GAS_URL은 접속 hostname으로 자동 선택 — master/dev의 api.js 내용이 완전히 동일해져 머지 사고 원천 차단.
+// 운영 GAS는 hmdqa20.github.io에서 열었을 때만 사용. 그 외 모든 환경(로컬, file:// 등)은 dev GAS(안전 기본값).
 const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec';
+const DEV_GAS_URL  = 'https://script.google.com/macros/s/AKfycbwULFEhn_BEJVoYKE8Ki4XPJ2VtBFj7q3klc2TSQT1oKGQjzPRDIueM0t46IZWIu7DCCA/exec';
+const GAS_URL = (location.hostname === 'hmdqa20.github.io')
+  ? PROD_GAS_URL
+  : DEV_GAS_URL;
 const IS_TEST_MODE = GAS_URL !== PROD_GAS_URL;
 
 // 테스트 모드 배너 — index.html/detail.html/versions.html 등 api.js를 불러오는 모든 화면에 공통 적용.
