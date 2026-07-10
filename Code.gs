@@ -912,3 +912,106 @@ function backfillTitleTranslationsForce() {
   Logger.log('=== backfillTitleTranslationsForce 완료: 처리=%s, 건너뜀=%s, 오류=%s, 실제 소요=%s초(%s분) ===',
     processed, skipped, errors, elapsedSec, Math.round(elapsedSec / 60 * 10) / 10);
 }
+
+
+// ─── 자동 백업 (매일 새벽 4시 JST) ─────────────────────────────────────────────
+// 스프레드시트 전체를 구글시트 사본으로 복제해 BACKUP_FOLDER_ID 폴더(dqa-backup)에 저장.
+// 파일명: {원본 스프레드시트 파일명}_{YYYYMMDD}_{HHMMSS} (JST) — 접두사를 하드코딩하지 않아
+// 이 코드를 운영 GAS로 그대로 옮겨도 운영 시트 이름 기준으로 자동으로 붙는다.
+// 사용법: Script Properties에 BACKUP_FOLDER_ID 설정 → setupBackupTrigger() 1회 수동 실행.
+// 즉시 테스트: testBackupNow() 수동 실행.
+
+const BACKUP_KEEP_COUNT = 180;  // 원본 파일당 백업 최대 보관 개수 (초과 시 오래된 것부터 삭제)
+
+function runDailyBackup() {
+  try {
+    const props    = PropertiesService.getScriptProperties();
+    const folderId = props.getProperty('BACKUP_FOLDER_ID');
+    if (!folderId) {
+      Logger.log('runDailyBackup 실패: BACKUP_FOLDER_ID가 Script Properties에 설정되어 있지 않음');
+      return;
+    }
+
+    let folder;
+    try {
+      folder = DriveApp.getFolderById(folderId);
+    } catch (err) {
+      Logger.log('runDailyBackup 실패: 백업 폴더 접근 불가 (id=%s) — %s', folderId, err.message);
+      return;
+    }
+
+    // 백업 대상: SPREADSHEET_ID(없으면 컨테이너 바인딩 시트)
+    const ssId = props.getProperty('SPREADSHEET_ID') ||
+                 (SpreadsheetApp.getActiveSpreadsheet() && SpreadsheetApp.getActiveSpreadsheet().getId());
+    if (!ssId) {
+      Logger.log('runDailyBackup 실패: 백업할 스프레드시트 ID를 찾을 수 없음');
+      return;
+    }
+
+    const srcFile  = DriveApp.getFileById(ssId);
+    const srcName  = srcFile.getName();
+    const stamp    = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd_HHmmss');
+    const fileName = srcName + '_' + stamp;  // 예: dqa-ticket-dev-개발용_20260709_040000
+    const copy = srcFile.makeCopy(fileName, folder);
+    Logger.log('백업 완료: %s (id=%s)', fileName, copy.getId());
+
+    cleanupOldBackups(folder, srcName + '_');
+  } catch (err) {
+    Logger.log('runDailyBackup 오류: %s\n%s', err.message, err.stack);
+  }
+}
+
+// prefix(원본 파일명 + '_')로 시작하는 백업 파일이 BACKUP_KEEP_COUNT 초과 시
+// 생성일 오래된 순으로 삭제(휴지통 이동).
+// 폴더 전체가 아닌 prefix 매칭인 이유: 폴더에 실수로 섞여 들어온 무관한 파일을 지우지 않고,
+// 나중에 운영/개발 백업이 한 폴더를 공유하더라도 원본 파일별로 각각 180개씩 보관되도록.
+function cleanupOldBackups(folder, prefix) {
+  try {
+    const files = [];
+    const it = folder.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      if (f.getName().indexOf(prefix) === 0) files.push(f);
+    }
+    if (files.length <= BACKUP_KEEP_COUNT) {
+      Logger.log('백업 보관 개수 확인: %s개 (한도 %s개 이내, 삭제 없음)', files.length, BACKUP_KEEP_COUNT);
+      return;
+    }
+
+    files.sort((a, b) => a.getDateCreated() - b.getDateCreated());  // 오래된 것 먼저
+    const toDelete = files.length - BACKUP_KEEP_COUNT;
+    for (let i = 0; i < toDelete; i++) {
+      try {
+        files[i].setTrashed(true);
+        Logger.log('오래된 백업 삭제: %s', files[i].getName());
+      } catch (err) {
+        Logger.log('백업 삭제 실패: %s — %s', files[i].getName(), err.message);
+      }
+    }
+    Logger.log('백업 정리 완료: %s개 삭제, %s개 보관', toDelete, BACKUP_KEEP_COUNT);
+  } catch (err) {
+    Logger.log('cleanupOldBackups 오류: %s', err.message);
+  }
+}
+
+// GAS 에디터에서 1회 수동 실행 → 매일 새벽 4시(JST) runDailyBackup 트리거 등록.
+// 이미 등록된 runDailyBackup 트리거가 있으면 먼저 제거해 중복 등록 방지.
+function setupBackupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(tr => {
+    if (tr.getHandlerFunction() === 'runDailyBackup') ScriptApp.deleteTrigger(tr);
+  });
+  ScriptApp.newTrigger('runDailyBackup')
+    .timeBased()
+    .atHour(4)
+    .everyDays(1)
+    .inTimezone('Asia/Tokyo')
+    .create();
+  Logger.log('백업 트리거 등록 완료: 매일 04시(JST)에 runDailyBackup 실행');
+}
+
+// 테스트용: 트리거를 기다리지 않고 지금 즉시 백업 1회 실행 (결과는 실행 로그에서 확인)
+function testBackupNow() {
+  Logger.log('=== testBackupNow: 수동 백업 시작 ===');
+  runDailyBackup();
+  Logger.log('=== testBackupNow: 완료 ===');
+}

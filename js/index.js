@@ -67,6 +67,7 @@ const LEGACY_ASSIGNEES = ['박수원', '홍경두'];
 const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  setupSidebarToggle();  // 첫 페인트 전에 접힘 상태부터 적용 (펼쳐진 사이드바가 깜빡이지 않도록 최우선)
   applyTranslations();
   SELECTABLE_GROUPS.forEach(g => syncSelectionModeButtonText(g));
   buildAllHeaders();
@@ -353,6 +354,27 @@ function setupVersionSidebar() {
   if (listIcon) listIcon.innerHTML = LIST_SVG;
   const allBtn = document.getElementById('btn-all-tickets');
   if (allBtn) allBtn.addEventListener('click', () => switchVersion(ALL_VERSION));
+}
+
+// ─── 사이드바 접기/펼치기 ────────────────────────────────────────────────────
+// body.sidebar-collapsed 클래스로 제어 (CSS: .version-sidebar width 0 + 토글 꺾쇠 회전).
+// 화면 폭 제한 없이 항상 토글 가능. 상태는 localStorage에 저장해 새로고침에도 유지되고,
+// 저장값이 없는 첫 진입 때만 뷰포트 폭(768px 이하=접힘)으로 초기 상태를 정한다.
+
+const SIDEBAR_COLLAPSED_KEY = 'dqa_sidebar_collapsed';
+
+function setupSidebarToggle() {
+  const btn = document.getElementById('btn-sidebar-toggle');
+  if (!btn) return;
+
+  const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+  const collapsed = saved !== null ? saved === '1' : window.innerWidth <= 768;
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+
+  btn.addEventListener('click', () => {
+    const nowCollapsed = document.body.classList.toggle('sidebar-collapsed');
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, nowCollapsed ? '1' : '0');
+  });
 }
 
 // ─── 선택 모드 / 버전 일괄이동 (DQA/MVN 완전 독립) ────────────────────────────
@@ -644,8 +666,14 @@ function buildRow(ticket, dimmed, group) {
   const dis = locked ? ' disabled' : '';
 
   // 활성 행: 실시순서 드롭다운(+ 핸들 드래그로도 변경 가능), 완료/보류: — 표시
+  // 상한은 활성 개수뿐 아니라 "같은 그룹+버전 내 현재 최대 실시순서 + 1"까지 보장 —
+  // 앞 번호 티켓들이 완료로 빠지면 활성 개수 < 최대 번호가 되는데(갭 재사용 안 함 규칙),
+  // 그 상태에서도 빈칸 티켓에 max+1(예: 4,5,6만 남았을 때 7)을 배정할 수 있어야 함.
   const activeCount = allTickets.activeWW.length + allTickets.activeMVN.length;
-  const maxOrder = Math.max(5, activeCount);
+  const sameScopeMax = (allTickets[group] || [])
+    .filter(tk => (tk.version_id || '') === (ticket.version_id || ''))
+    .reduce((m, tk) => Math.max(m, Number(tk.priority) || 0), 0);
+  const maxOrder = Math.max(5, activeCount, sameScopeMax + 1);
   const orderCell = isActive
     ? (() => {
         const opts = ['', ...Array.from({length: maxOrder}, (_, i) => String(i + 1))].map(v =>
