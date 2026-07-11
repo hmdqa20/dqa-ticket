@@ -1838,13 +1838,6 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   .links-grid   { grid-template-columns: 1fr; }
   .form-section { gap: 12px; }
   .detail-main { padding: 12px 14px; }
-
-  /* versions.html: 생성일 컬럼 숨김 + "티켓 수"→"수" 축약 + 셀 패딩 축소 (버튼/핸들 크기는 그대로) */
-  .ver-th-date, .ver-date-cell { display: none; }
-  .ver-th-full  { display: none; }
-  .ver-th-short { display: inline; }
-  .ver-th-count, .ver-th-action { width: auto; }
-  .ver-table th, .ver-table td { padding: 10px 8px; }
 }
 
 /* ─── 실시순서 충돌 확인 모달 ────────────────────────────────────────────── */
@@ -2027,13 +2020,12 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 /* 가운데 정렬 (헤더 th + 데이터 td 공용) */
 .ver-col-center { text-align: center; }
 
-/* max-width:0 — auto 테이블에서 남는 폭을 전부 받되, 넘치면 말줄임(…) 처리 */
+/* 버전명 뒷자리 숫자(예: 09.05.02)가 핵심 정보라 말줄임 대신 필요 시 자연스럽게 줄바꿈 —
+   행 높이가 늘어나도 .ver-table td { vertical-align:middle }가 다른 컬럼을 자동으로 세로 중앙 정렬함 */
 .ver-name-cell {
   font-weight: 500;
-  max-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
 /* 이름 편집 모드 input이 셀 폭을 따라가도록 */
 .ver-name-cell .ver-edit-input { width: 100%; box-sizing: border-box; }
@@ -2138,6 +2130,18 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   padding: 0 20px 16px;
 }
 .ver-add-form .ver-name-input { flex: 1; }
+
+/* versions.html 모바일: 생성일 컬럼 숨김 + "티켓 수"→"수" 축약 + 셀 패딩 축소 (버튼/핸들 크기는 그대로).
+   위쪽 공용 768px 블록이 아니라 여기(.ver-table 기본 규칙 뒤)에 둬야 함 — 같은 우선순위 규칙은
+   소스에서 나중에 오는 쪽이 이기므로, 공용 블록에 두면 아래 .ver-th-short{display:none} 기본값에
+   덮여 모바일에서도 "수" 텍스트가 사라지는 버그가 났었음. */
+@media (max-width: 768px) {
+  .ver-th-date, .ver-date-cell { display: none; }
+  .ver-th-full  { display: none; }
+  .ver-th-short { display: inline; }
+  .ver-th-count, .ver-th-action { width: auto; }
+  .ver-table th, .ver-table td { padding: 10px 8px; }
+}
 
 @media (max-width: 480px) {
   .topbar-right { gap: 6px; }
