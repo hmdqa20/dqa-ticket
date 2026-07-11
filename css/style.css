@@ -2012,7 +2012,16 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 /* 가운데 정렬 (헤더 th + 데이터 td 공용) */
 .ver-col-center { text-align: center; }
 
-.ver-name-cell   { font-weight: 500; }
+/* max-width:0 — auto 테이블에서 남는 폭을 전부 받되, 넘치면 말줄임(…) 처리 */
+.ver-name-cell {
+  font-weight: 500;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 이름 편집 모드 input이 셀 폭을 따라가도록 */
+.ver-name-cell .ver-edit-input { width: 100%; box-sizing: border-box; }
 .ver-count-cell  { color: var(--muted); }
 .ver-date-cell   { color: var(--muted); font-size: 13px; }
 .ver-action-cell { white-space: nowrap; }
