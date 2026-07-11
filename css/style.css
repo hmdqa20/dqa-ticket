@@ -1937,11 +1937,13 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   gap: 10px;
 }
 
-/* 헤더 오른쪽 버튼 그룹 */
-.ver-header-actions {
-  margin-left: auto;
-  display: flex;
-  gap: 6px;
+/* 버전 목록 섹션 헤더: 버전목록·순서변경됨·원래대로·순서저장 4개를 4단 균등 배치.
+   grid의 4개 컬럼은 배지 visibility와 무관하게 항상 자리를 확보 → 배지 유무로 레이아웃이 밀리지 않음. */
+.ver-list-header {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  justify-items: center;
+  align-items: center;
 }
 
 /* "순서 변경됨" 노란 뱃지 */
@@ -1955,11 +1957,12 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   padding: 2px 8px;
 }
 
-/* 배지·원래대로·순서저장: 2줄(스팬 2개) + 상하좌우 중앙 + 공통 높이로 가지런히 정렬.
+/* 버전목록·배지·원래대로·순서저장: 2줄(스팬 2개) + 상하좌우 중앙 + 공통 높이로 가지런히 정렬.
    box-sizing:border-box 환경이라 세로 패딩을 2px로 낮춰 min-height:36px가 실제 높이를 결정하게 함
-   (btn-sm 기본 세로패딩 5px면 2줄+보더가 36px를 넘겨 배지와 높이가 어긋남 → 세 요소 모두 36px로 통일) */
+   (btn-sm 기본 세로패딩 5px면 2줄+보더가 36px를 넘겨 배지와 높이가 어긋남 → 네 요소 모두 36px로 통일) */
+.ver-list-header .ver-section-title,
 .ver-changed-badge,
-.ver-header-actions .btn-sm {
+.ver-list-header .btn-sm {
   display: inline-flex;
   flex-direction: column;
   align-items: center;

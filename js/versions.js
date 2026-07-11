@@ -370,7 +370,8 @@ function setOrderDirty(dirty) {
   const badge    = document.getElementById('ver-changed-badge');
   const btnReset = document.getElementById('btn-reset-order');
   const btnSave  = document.getElementById('btn-save-order');
-  if (badge)    badge.style.display = dirty ? '' : 'none';
+  // visibility 토글(display 아님) — 4단 grid에서 배지 칸을 항상 확보해 유무에 따른 레이아웃 밀림 방지
+  if (badge)    badge.style.visibility = dirty ? 'visible' : 'hidden';
   if (btnReset) btnReset.disabled   = !dirty;
   if (btnSave)  btnSave.disabled    = !dirty;
   if (btnSave)  btnSave.classList.toggle('ver-btn-save-active', dirty);

@@ -36,13 +36,11 @@
 
   <!-- 버전 목록 테이블 -->
   <section class="ver-section">
-    <div class="ver-section-header">
-      <span>버전 목록</span>
-      <span id="ver-changed-badge" class="ver-changed-badge" style="display:none"><span>순서</span><span>변경됨</span></span>
-      <div class="ver-header-actions">
-        <button id="btn-reset-order" class="btn btn-secondary btn-sm" disabled><span>↺ 원래</span><span>대로</span></button>
-        <button id="btn-save-order" class="btn btn-sm ver-btn-save-order" disabled><span>💾 순서</span><span>저장</span></button>
-      </div>
+    <div class="ver-section-header ver-list-header">
+      <span class="ver-section-title"><span>버전</span><span>목록</span></span>
+      <span id="ver-changed-badge" class="ver-changed-badge" style="visibility:hidden"><span>순서</span><span>변경됨</span></span>
+      <button id="btn-reset-order" class="btn btn-secondary btn-sm" disabled><span>↺ 원래</span><span>대로</span></button>
+      <button id="btn-save-order" class="btn btn-sm ver-btn-save-order" disabled><span>💾 순서</span><span>저장</span></button>
     </div>
     <div class="table-scroll">
       <table class="ver-table" id="ver-table">
