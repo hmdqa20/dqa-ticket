@@ -38,10 +38,10 @@
   <section class="ver-section">
     <div class="ver-section-header">
       <span>버전 목록</span>
-      <span id="ver-changed-badge" class="ver-changed-badge" style="display:none">순서 변경됨</span>
+      <span id="ver-changed-badge" class="ver-changed-badge" style="display:none"><span>순서</span><span>변경됨</span></span>
       <div class="ver-header-actions">
-        <button id="btn-reset-order" class="btn btn-secondary btn-sm" disabled>↺ 원래대로</button>
-        <button id="btn-save-order" class="btn btn-sm ver-btn-save-order" disabled>💾 순서 저장</button>
+        <button id="btn-reset-order" class="btn btn-secondary btn-sm" disabled><span>↺ 원래</span><span>대로</span></button>
+        <button id="btn-save-order" class="btn btn-sm ver-btn-save-order" disabled><span>💾 순서</span><span>저장</span></button>
       </div>
     </div>
     <div class="table-scroll">
@@ -49,7 +49,7 @@
         <thead>
           <tr>
             <th class="ver-th-sortable ver-th-name" data-col="name">버전명<span class="ver-sort-icon"></span></th>
-            <th class="ver-th-sortable ver-col-center ver-th-count" data-col="count"><span class="ver-th-full">티켓 수</span><span class="ver-th-short" data-i18n="col_count_short">수</span><span class="ver-sort-icon"></span></th>
+            <th class="ver-th-sortable ver-col-center ver-th-count" data-col="count">티켓수<span class="ver-sort-icon"></span></th>
             <th class="ver-th-sortable ver-col-center ver-th-date" data-col="date">생성일<span class="ver-sort-icon"></span></th>
             <th class="ver-col-center ver-th-action">작업</th>
             <th class="ver-th-handle"></th>
