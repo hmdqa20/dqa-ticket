@@ -1184,6 +1184,21 @@ function setupDragDrop(tbody, group) {
   // 네이티브 dragstart/dragover/drop을 쓰지 않고 touchmove에서 직접 DOM 위치를 옮긴다.
   let touchMoved = false;
 
+  // 손가락 Y좌표 기준으로 삽입 대상 행과 위치를 계산 — elementFromPoint(픽셀 히트테스트) 불필요.
+  // 손 뗀 지점 아래가 여백/버튼/셀 내부여도 좌표만 보므로 "맨 위로/맨 아래로" 이동이 확실히 잡힘.
+  // 사용자가 직접 놓을 수 있는 대상은 draggable-row만 (locked-row는 드롭 타깃에서 제외 —
+  // locked-row의 순서 밀림은 finalizeDrag의 cascadeShift가 별도 계산하므로 여기선 무관).
+  function resolveTouchDrop(clientY) {
+    const rows = [...tbody.querySelectorAll('tr.draggable-row[data-row-id]')].filter(r => r !== dragRow);
+    if (rows.length === 0) return null;                       // 이동할 다른 행 없음 → 제자리
+    for (const row of rows) {
+      const rect = row.getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2)               // 이 행의 중점보다 위 → 그 앞에 삽입
+        return { targetRow: row, isBefore: true };
+    }
+    return { targetRow: rows[rows.length - 1], isBefore: false }; // 모든 중점보다 아래 → 맨 뒤
+  }
+
   tbody.addEventListener('touchstart', e => {
     const handle = e.target.closest('.drag-handle');
     const row = e.target.closest('tr.draggable-row');
@@ -1198,14 +1213,10 @@ function setupDragDrop(tbody, group) {
     touchMoved = true;
     isDragging = true;
     e.preventDefault(); // 페이지 스크롤/브라우저 기본 제스처 차단 (.drag-handle의 touch-action:none과 함께 동작)
-    const touch = e.touches[0];
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    const row = el && el.closest('tr.draggable-row');
     clearIndicators();
-    if (!row || row === dragRow) return;
-    const rect = row.getBoundingClientRect();
-    const isBefore = touch.clientY < rect.top + rect.height / 2;
-    row.classList.add(isBefore ? 'drop-above' : 'drop-below');
+    const drop = resolveTouchDrop(e.touches[0].clientY);
+    if (!drop) return;
+    drop.targetRow.classList.add(drop.isBefore ? 'drop-above' : 'drop-below');
   }, { passive: false });
 
   tbody.addEventListener('touchend', e => {
@@ -1215,13 +1226,10 @@ function setupDragDrop(tbody, group) {
     // 이 패턴 때문에 실제 버그가 났었음 — 나중에 유사한 헤더가 생겨도 재발하지 않도록 선제 차단.
     e.preventDefault();
     if (touchMoved) {
-      const touch = e.changedTouches[0];
-      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-      const row = el && el.closest('tr.draggable-row');
-      if (row && row !== dragRow) {
-        const rect = row.getBoundingClientRect();
-        if (touch.clientY < rect.top + rect.height / 2) row.before(dragRow);
-        else row.after(dragRow);
+      const drop = resolveTouchDrop(e.changedTouches[0].clientY);
+      if (drop) {
+        if (drop.isBefore) drop.targetRow.before(dragRow);
+        else               drop.targetRow.after(dragRow);
       }
     }
     finalizeDrag();
