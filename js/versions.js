@@ -200,14 +200,28 @@ function updateHint() {
 
 // ─── 드래그 앤 드롭 ───────────────────────────────────────────────────────────
 
+let touchMoved = false; // 터치 드래그 중 실제로 손가락이 움직였는지 (탭과 구분)
+
 function setupDragDrop(tbody) {
   tbody.querySelectorAll('tr[draggable]').forEach(row => {
     row.addEventListener('dragstart', onDragStart);
     row.addEventListener('dragend',   onDragEnd);
   });
+
+  // tbody 엘리먼트 자체는 매 렌더마다 재사용(innerHTML만 교체)되므로,
+  // 레벨(tbody) 리스너는 최초 1회만 부착 — 재렌더마다 중복 부착 방지
+  if (tbody.dataset.dndBound) return;
+  tbody.dataset.dndBound = '1';
+
   tbody.addEventListener('dragover',  onDragOver);
   tbody.addEventListener('dragleave', onDragLeave);
   tbody.addEventListener('drop',      onDrop);
+
+  // 터치 드래그 (안드로이드 등 — HTML5 DnD는 touch 이벤트를 발생시키지 않음)
+  tbody.addEventListener('touchstart', onTouchStart, { passive: true });
+  tbody.addEventListener('touchmove',  onTouchMove,  { passive: false });
+  tbody.addEventListener('touchend',   onTouchEnd);
+  tbody.addEventListener('touchcancel', onTouchCancel);
 }
 
 function onDragStart(e) {
@@ -249,13 +263,16 @@ function onDrop(e) {
     return;
   }
 
-  const tbody    = document.getElementById('ver-tbody');
   const rect     = targetRow.getBoundingClientRect();
   const isBefore = e.clientY < rect.top + rect.height / 2;
 
   clearDropIndicator();
+  commitMove(targetRow, isBefore);
+}
 
-  // DOM 행 이동
+// DOM 행 이동 + 하이라이트 + dirty 표시 — 마우스(onDrop)/터치(onTouchEnd) 공용
+function commitMove(targetRow, isBefore) {
+  const tbody = document.getElementById('ver-tbody');
   if (isBefore) {
     tbody.insertBefore(dragSrcRow, targetRow);
   } else {
@@ -268,6 +285,55 @@ function onDrop(e) {
   setTimeout(() => movedRow.classList.remove('ver-row-moved'), 1500);
 
   setOrderDirty(true);
+}
+
+// ─── 터치 드래그 (안드로이드 등 터치스크린) ─────────────────────────────────────
+
+function onTouchStart(e) {
+  const handle = e.target.closest('.ver-drag-handle');
+  const row    = e.target.closest('tr[draggable]');
+  if (!handle || !row || handle.classList.contains('ver-drag-disabled')) return;
+  dragSrcRow = row;
+  touchMoved = false;
+  dragSrcRow.classList.add('ver-row-dragging');
+}
+
+function onTouchMove(e) {
+  if (!dragSrcRow) return;
+  touchMoved = true;
+  e.preventDefault(); // 페이지 스크롤/브라우저 기본 제스처 차단 (.ver-drag-handle의 touch-action:none과 함께 동작)
+  const touch     = e.touches[0];
+  const el        = document.elementFromPoint(touch.clientX, touch.clientY);
+  const targetRow = el && el.closest('tr[draggable]');
+  clearDropIndicator();
+  if (!targetRow || targetRow === dragSrcRow) return;
+  const rect     = targetRow.getBoundingClientRect();
+  const isBefore = touch.clientY < rect.top + rect.height / 2;
+  targetRow.classList.add(isBefore ? 'ver-drop-above' : 'ver-drop-below');
+}
+
+function onTouchEnd(e) {
+  if (!dragSrcRow) return;
+  if (touchMoved) {
+    const touch     = e.changedTouches[0];
+    const el        = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetRow = el && el.closest('tr[draggable]');
+    if (targetRow && targetRow !== dragSrcRow) {
+      const rect     = targetRow.getBoundingClientRect();
+      const isBefore = touch.clientY < rect.top + rect.height / 2;
+      commitMove(targetRow, isBefore);
+    }
+  }
+  dragSrcRow.classList.remove('ver-row-dragging');
+  clearDropIndicator();
+  dragSrcRow = null;
+}
+
+function onTouchCancel() {
+  if (!dragSrcRow) return;
+  dragSrcRow.classList.remove('ver-row-dragging');
+  clearDropIndicator();
+  dragSrcRow = null;
 }
 
 function clearDropIndicator() {

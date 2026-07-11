@@ -981,6 +981,8 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   line-height: 1;
   border-radius: 4px;
   transition: color 0.12s;
+  /* 터치 스크린에서 브라우저 기본 스크롤/롱프레스(진동) 제스처 차단 — JS touchmove가 직접 제어 */
+  touch-action: none;
 }
 .drag-handle:hover { color: var(--text-primary); }
 .draggable-row.dragging { opacity: 0.4; background: var(--ww-light) !important; }
@@ -2052,6 +2054,8 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   color: #94a3b8;
   cursor: grab;
   user-select: none;
+  /* 터치 스크린에서 브라우저 기본 스크롤/롱프레스(진동) 제스처 차단 — JS touchmove가 직접 제어 */
+  touch-action: none;
 }
 .ver-drag-handle:active { cursor: grabbing; }
 .ver-drag-disabled {

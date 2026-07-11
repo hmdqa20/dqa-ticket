@@ -1101,7 +1101,8 @@ function setupDragDrop(tbody, group) {
     clearIndicators();
   });
 
-  tbody.addEventListener('dragend', async () => {
+  // 드래그 종료 후 실시순서 재계산 + 저장 — 마우스(dragend)/터치(touchend) 공용
+  async function finalizeDrag() {
     clearIndicators();
     isDragging = false;          // 자동 갱신 가드 해제
     lastEditAt = Date.now();     // 저장 레이스 방지 (재정렬 직후 갱신 지연)
@@ -1175,6 +1176,59 @@ function setupDragDrop(tbody, group) {
     if (updates.length) {
       await Promise.all(updates.map(u => updateTicket(u).catch(console.error)));
     }
+  }
+
+  tbody.addEventListener('dragend', finalizeDrag);
+
+  // ─── 터치 드래그 (안드로이드 등 터치스크린 — HTML5 DnD는 touch 이벤트를 발생시키지 않음) ───
+  // 네이티브 dragstart/dragover/drop을 쓰지 않고 touchmove에서 직접 DOM 위치를 옮긴다.
+  let touchMoved = false;
+
+  tbody.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.drag-handle');
+    const row = e.target.closest('tr.draggable-row');
+    if (!handle || !row) return;
+    dragRow = row;
+    touchMoved = false;
+    requestAnimationFrame(() => { if (dragRow) dragRow.classList.add('dragging'); });
+  }, { passive: true });
+
+  tbody.addEventListener('touchmove', e => {
+    if (!dragRow) return;
+    touchMoved = true;
+    isDragging = true;
+    e.preventDefault(); // 페이지 스크롤/브라우저 기본 제스처 차단 (.drag-handle의 touch-action:none과 함께 동작)
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const row = el && el.closest('tr.draggable-row');
+    clearIndicators();
+    if (!row || row === dragRow) return;
+    const rect = row.getBoundingClientRect();
+    const isBefore = touch.clientY < rect.top + rect.height / 2;
+    row.classList.add(isBefore ? 'drop-above' : 'drop-below');
+  }, { passive: false });
+
+  tbody.addEventListener('touchend', e => {
+    if (!dragRow) return;
+    if (touchMoved) {
+      const touch = e.changedTouches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const row = el && el.closest('tr.draggable-row');
+      if (row && row !== dragRow) {
+        const rect = row.getBoundingClientRect();
+        if (touch.clientY < rect.top + rect.height / 2) row.before(dragRow);
+        else row.after(dragRow);
+      }
+    }
+    finalizeDrag();
+  });
+
+  tbody.addEventListener('touchcancel', () => {
+    if (!dragRow) return;
+    clearIndicators();
+    dragRow.classList.remove('dragging');
+    dragRow = null;
+    isDragging = false;
   });
 }
 
