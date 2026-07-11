@@ -169,7 +169,7 @@ function buildRow(v, isSorted) {
   const dateStr = v.created_at ? v.created_at.substring(0, 10) : '—';
 
   return `
-    <tr data-id="${escHtml(v.version_id)}" ${isSorted ? '' : 'draggable="true"'}>
+    <tr data-id="${escHtml(v.version_id)}"${isSorted ? '' : ' class="ver-draggable-row"'}>
       <td class="ver-name-cell">
         <span class="ver-name-text">${escHtml(v.version_name)}</span>
       </td>
@@ -203,16 +203,22 @@ function updateHint() {
 let touchMoved = false; // 터치 드래그 중 실제로 손가락이 움직였는지 (탭과 구분)
 
 function setupDragDrop(tbody) {
-  tbody.querySelectorAll('tr[draggable]').forEach(row => {
-    row.addEventListener('dragstart', onDragStart);
-    row.addEventListener('dragend',   onDragEnd);
-  });
-
-  // tbody 엘리먼트 자체는 매 렌더마다 재사용(innerHTML만 교체)되므로,
-  // 레벨(tbody) 리스너는 최초 1회만 부착 — 재렌더마다 중복 부착 방지
+  // 모든 리스너를 tbody에 위임(delegation)으로 최초 1회만 부착 — 재렌더는 innerHTML만 교체하고
+  // tbody 엘리먼트 자체는 유지되므로 위임 리스너가 살아있음 (재렌더마다 중복 부착 방지).
   if (tbody.dataset.dndBound) return;
   tbody.dataset.dndBound = '1';
 
+  // 핸들에 mousedown 했을 때만 해당 행을 draggable로 설정 (index.js와 동일 패턴).
+  // 터치엔 mousedown이 없으므로 터치 기기에선 네이티브 HTML5 DnD가 발동하지 않고 커스텀 터치
+  // 핸들러가 단독 제어 → 네이티브 드래그와의 경합(첫 시도만 되고 이후 안 되던 버그) 원천 제거.
+  tbody.addEventListener('mousedown', e => {
+    const row = e.target.closest('tr.ver-draggable-row');
+    if (!row) return;
+    row.draggable = !!e.target.closest('.ver-drag-handle');
+  });
+
+  tbody.addEventListener('dragstart', onDragStart);
+  tbody.addEventListener('dragend',   onDragEnd);
   tbody.addEventListener('dragover',  onDragOver);
   tbody.addEventListener('dragleave', onDragLeave);
   tbody.addEventListener('drop',      onDrop);
@@ -225,14 +231,20 @@ function setupDragDrop(tbody) {
 }
 
 function onDragStart(e) {
-  dragSrcRow = e.currentTarget;
+  // tbody 위임이므로 실제 드래그 대상 행을 찾고, mousedown에서 켜둔 draggable일 때만 진행
+  const row = e.target.closest('tr.ver-draggable-row');
+  if (!row || !row.draggable) { e.preventDefault(); return; }
+  dragSrcRow = row;
   dragSrcRow.classList.add('ver-row-dragging');
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', dragSrcRow.dataset.id);
 }
 
 function onDragEnd() {
-  if (dragSrcRow) dragSrcRow.classList.remove('ver-row-dragging');
+  if (dragSrcRow) {
+    dragSrcRow.classList.remove('ver-row-dragging');
+    dragSrcRow.draggable = false; // 드래그 종료 후 draggable 해제 (다음 mousedown에서 재설정)
+  }
   clearDropIndicator();
   dragSrcRow = null;
 }
@@ -240,7 +252,7 @@ function onDragEnd() {
 function onDragOver(e) {
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  const targetRow = e.target.closest('tr[draggable]');
+  const targetRow = e.target.closest('tr.ver-draggable-row');
   if (!targetRow || targetRow === dragSrcRow) return;
 
   clearDropIndicator();
@@ -257,7 +269,7 @@ function onDragLeave(e) {
 
 function onDrop(e) {
   e.preventDefault();
-  const targetRow = e.target.closest('tr[draggable]');
+  const targetRow = e.target.closest('tr.ver-draggable-row');
   if (!targetRow || !dragSrcRow || targetRow === dragSrcRow) {
     clearDropIndicator();
     return;
@@ -291,7 +303,7 @@ function commitMove(targetRow, isBefore) {
 
 function onTouchStart(e) {
   const handle = e.target.closest('.ver-drag-handle');
-  const row    = e.target.closest('tr[draggable]');
+  const row    = e.target.closest('tr.ver-draggable-row');
   if (!handle || !row || handle.classList.contains('ver-drag-disabled')) return;
   dragSrcRow = row;
   touchMoved = false;
@@ -302,7 +314,7 @@ function onTouchStart(e) {
 // 손 뗀 지점 아래가 th/여백/버튼이어도 좌표만 보므로, "맨 위로/맨 아래로" 이동이 확실히 잡힘.
 function resolveTouchDrop(clientY) {
   const tbody = document.getElementById('ver-tbody');
-  const rows  = [...tbody.querySelectorAll('tr[draggable]')].filter(r => r !== dragSrcRow);
+  const rows  = [...tbody.querySelectorAll('tr.ver-draggable-row')].filter(r => r !== dragSrcRow);
   if (rows.length === 0) return null;                       // 이동할 다른 행 없음 → 제자리
   for (const row of rows) {
     const rect = row.getBoundingClientRect();
@@ -333,6 +345,7 @@ function onTouchEnd(e) {
     if (drop) commitMove(drop.targetRow, drop.isBefore);
   }
   dragSrcRow.classList.remove('ver-row-dragging');
+  dragSrcRow.draggable = false; // 방어적 해제: 터치 경로에선 보통 false지만 혹시 켜져 있으면 정리
   clearDropIndicator();
   dragSrcRow = null;
 }
