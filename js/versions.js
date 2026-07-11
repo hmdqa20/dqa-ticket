@@ -10,7 +10,16 @@ let sortState = { col: null, dir: 'asc' }; // col: 'name'|'count'|'date'|null
 
 // ─── 초기화 ──────────────────────────────────────────────────────────────────
 
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  applyTranslations();
+  onLangChange(applyTranslations);
+
   document.getElementById('btn-back').addEventListener('click', () => {
     location.href = 'index.html';
   });
