@@ -1,3 +1,6 @@
+// 드래그 핸들: index.js와 동일한 삼선(hamburger/grip) SVG로 통일
+const GRIP_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>`;
+
 // 버전 목록과 티켓 수를 담는 상태
 let versionList = [];      // sort_order 기준 정렬 유지
 let ticketCounts = {};     // { version_id: count }
@@ -177,7 +180,7 @@ function buildRow(v, isSorted) {
         <button class="btn btn-danger btn-sm btn-ver-delete" data-id="${escHtml(v.version_id)}">삭제</button>
       </td>
       <td class="ver-handle-cell">
-        <span class="ver-drag-handle ${isSorted ? 'ver-drag-disabled' : ''}">⠿</span>
+        <span class="ver-drag-handle ${isSorted ? 'ver-drag-disabled' : ''}">${GRIP_SVG}</span>
       </td>
     </tr>`;
 }
@@ -190,7 +193,7 @@ function updateHint() {
     hint.textContent = '⚠ 정렬 상태에서는 드래그 비활성 — 컬럼 헤더를 다시 클릭해 정렬 해제 후 드래그 가능';
     hint.classList.add('ver-hint-warn');
   } else {
-    hint.textContent = '⠿ 핸들을 드래그해서 순서 변경 · 헤더 클릭으로 임시 정렬 (정렬 중 드래그 비활성)';
+    hint.textContent = '핸들을 드래그해서 순서 변경 · 헤더 클릭으로 임시 정렬 (정렬 중 드래그 비활성)';
     hint.classList.remove('ver-hint-warn');
   }
 }

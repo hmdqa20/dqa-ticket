@@ -2046,12 +2046,12 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   padding: 10px 8px;
 }
 .ver-drag-handle {
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: #94a3b8;
   cursor: grab;
   user-select: none;
-  display: inline-block;
-  line-height: 1;
 }
 .ver-drag-handle:active { cursor: grabbing; }
 .ver-drag-disabled {
