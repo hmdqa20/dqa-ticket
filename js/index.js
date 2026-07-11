@@ -1210,6 +1210,10 @@ function setupDragDrop(tbody, group) {
 
   tbody.addEventListener('touchend', e => {
     if (!dragRow) return;
+    // 유령 클릭(터치 종료 후 브라우저가 같은 좌표에 합성 click을 발생시키는 것) 차단.
+    // 지금은 tbody 위에 클릭 핸들러가 붙은 정렬 헤더가 없어 증상이 안 보이지만, versions.html에서
+    // 이 패턴 때문에 실제 버그가 났었음 — 나중에 유사한 헤더가 생겨도 재발하지 않도록 선제 차단.
+    e.preventDefault();
     if (touchMoved) {
       const touch = e.changedTouches[0];
       const el = document.elementFromPoint(touch.clientX, touch.clientY);

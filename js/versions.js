@@ -314,6 +314,10 @@ function onTouchMove(e) {
 
 function onTouchEnd(e) {
   if (!dragSrcRow) return;
+  // 유령 클릭(터치 종료 후 브라우저가 같은 좌표에 합성 click을 발생시키는 것) 차단.
+  // 안 막으면 손을 뗀 지점이 정렬 가능한 헤더(th.ver-th-sortable) 위일 때 그 클릭이 그대로
+  // 실행되어 renderTable()이 재호출되고, 드래그로 바뀐 DOM 순서가 정렬 기준으로 덮어써짐.
+  e.preventDefault();
   if (touchMoved) {
     const touch     = e.changedTouches[0];
     const el        = document.elementFromPoint(touch.clientX, touch.clientY);
