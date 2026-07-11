@@ -298,18 +298,28 @@ function onTouchStart(e) {
   dragSrcRow.classList.add('ver-row-dragging');
 }
 
+// 손가락 Y좌표 기준으로 삽입 대상 행과 위치를 계산 — elementFromPoint(픽셀 히트테스트) 불필요.
+// 손 뗀 지점 아래가 th/여백/버튼이어도 좌표만 보므로, "맨 위로/맨 아래로" 이동이 확실히 잡힘.
+function resolveTouchDrop(clientY) {
+  const tbody = document.getElementById('ver-tbody');
+  const rows  = [...tbody.querySelectorAll('tr[draggable]')].filter(r => r !== dragSrcRow);
+  if (rows.length === 0) return null;                       // 이동할 다른 행 없음 → 제자리
+  for (const row of rows) {
+    const rect = row.getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2)               // 이 행의 중점보다 위 → 그 앞에 삽입
+      return { targetRow: row, isBefore: true };
+  }
+  return { targetRow: rows[rows.length - 1], isBefore: false }; // 모든 중점보다 아래 → 맨 뒤
+}
+
 function onTouchMove(e) {
   if (!dragSrcRow) return;
   touchMoved = true;
   e.preventDefault(); // 페이지 스크롤/브라우저 기본 제스처 차단 (.ver-drag-handle의 touch-action:none과 함께 동작)
-  const touch     = e.touches[0];
-  const el        = document.elementFromPoint(touch.clientX, touch.clientY);
-  const targetRow = el && el.closest('tr[draggable]');
   clearDropIndicator();
-  if (!targetRow || targetRow === dragSrcRow) return;
-  const rect     = targetRow.getBoundingClientRect();
-  const isBefore = touch.clientY < rect.top + rect.height / 2;
-  targetRow.classList.add(isBefore ? 'ver-drop-above' : 'ver-drop-below');
+  const drop = resolveTouchDrop(e.touches[0].clientY);
+  if (!drop) return;
+  drop.targetRow.classList.add(drop.isBefore ? 'ver-drop-above' : 'ver-drop-below');
 }
 
 function onTouchEnd(e) {
@@ -319,14 +329,8 @@ function onTouchEnd(e) {
   // 실행되어 renderTable()이 재호출되고, 드래그로 바뀐 DOM 순서가 정렬 기준으로 덮어써짐.
   e.preventDefault();
   if (touchMoved) {
-    const touch     = e.changedTouches[0];
-    const el        = document.elementFromPoint(touch.clientX, touch.clientY);
-    const targetRow = el && el.closest('tr[draggable]');
-    if (targetRow && targetRow !== dragSrcRow) {
-      const rect     = targetRow.getBoundingClientRect();
-      const isBefore = touch.clientY < rect.top + rect.height / 2;
-      commitMove(targetRow, isBefore);
-    }
+    const drop = resolveTouchDrop(e.changedTouches[0].clientY);
+    if (drop) commitMove(drop.targetRow, drop.isBefore);
   }
   dragSrcRow.classList.remove('ver-row-dragging');
   clearDropIndicator();
