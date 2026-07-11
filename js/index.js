@@ -547,11 +547,15 @@ function allTicketsFlat() {
 function setupMobileSearch() {
   const toggle = document.getElementById('btn-search-toggle');
   const close  = document.getElementById('btn-search-close');
+  const clear  = document.getElementById('btn-search-clear');
+  const wrap   = document.querySelector('.search-wrap');
   const input  = document.getElementById('search-input');
-  if (!toggle || !close || !input) return;
+  if (!toggle || !close || !clear || !wrap || !input) return;
 
   // 접힘 상태에서 검색어가 남아 있으면 돋보기에 배지 점 표시
-  const updateBadge = () => toggle.classList.toggle('has-filter', !!searchQuery);
+  const updateBadge   = () => toggle.classList.toggle('has-filter', !!searchQuery);
+  // input 안쪽 지우기 ×는 텍스트가 있을 때만 표시
+  const updateHasText = () => wrap.classList.toggle('has-text', !!input.value);
   const closeSearch = () => {
     document.body.classList.remove('search-open');
     updateBadge();
@@ -559,9 +563,23 @@ function setupMobileSearch() {
 
   toggle.addEventListener('click', () => {
     document.body.classList.add('search-open');
+    updateHasText();
     input.focus();
   });
   close.addEventListener('click', closeSearch);
+  input.addEventListener('input', updateHasText);
+
+  // 지우기 ×: 검색어만 초기화(필터 해제), 검색창은 열린 채 포커스 유지.
+  // mousedown preventDefault로 input blur를 막아 "빈 값 blur→자동 접힘"과 충돌하지 않음
+  clear.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    input.value = '';
+    searchQuery = '';
+    updateHasText();
+    renderAll();
+    input.focus();
+  });
+
   // 검색창을 비우고 포커스 아웃하면 자동 접힘 (검색어가 있으면 펼침 유지)
   input.addEventListener('blur', () => {
     if (!input.value.trim()) closeSearch();

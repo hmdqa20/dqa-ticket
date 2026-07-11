@@ -88,6 +88,8 @@ const I18N = {
     unit_selected: '개 선택됨',
     btn_edit: '수정',
     btn_new_ticket: '티켓등록',
+    btn_close: '닫기',
+    btn_back_label: '목록',
   },
   jp: {
     app_title: 'DQA チケット管理',
@@ -177,6 +179,8 @@ const I18N = {
     unit_selected: '件選択中',
     btn_edit: '編集',
     btn_new_ticket: 'チケット登録',
+    btn_close: '閉じる',
+    btn_back_label: '一覧',
   },
   en: {
     app_title: 'DQA Ticket Manager',
@@ -266,6 +270,8 @@ const I18N = {
     unit_selected: ' selected',
     btn_edit: 'Edit',
     btn_new_ticket: 'New Ticket',
+    btn_close: 'Close',
+    btn_back_label: 'List',
   },
   vi: {
     app_title: 'Quản lý vé DQA',
@@ -355,6 +361,8 @@ const I18N = {
     unit_selected: ' đã chọn',
     btn_edit: 'Chỉnh sửa',
     btn_new_ticket: 'Tạo vé',
+    btn_close: 'Đóng',
+    btn_back_label: 'Danh sách',
   }
 };
 
