@@ -1003,7 +1003,11 @@ async function handleInlineChange(e) {
 
       const toInactive = newGroup === 'done' || newGroup === 'hold';
       allTickets[currentGroup] = allTickets[currentGroup].filter(tk => tk.row_id !== rowId);
-      allTickets[newGroup].push(ticket);
+      // 완료/보류 섹션은 서버가 상태변경일시 내림차순(최신이 위)으로 내려주므로
+      // 로컬에서도 맨 앞에 삽입해 새로고침 전후 위치를 일치시킨다.
+      // 활성 그룹(DQA/MVN)은 renderAll의 sortByPriority가 재정렬하므로 삽입 위치 무관.
+      if (toInactive) allTickets[newGroup].unshift(ticket);
+      else allTickets[newGroup].push(ticket);
       renderAll();
       if (toInactive) {
         userCollapsed.delete(newGroup);
