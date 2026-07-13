@@ -9,12 +9,21 @@ const IS_TEST_MODE = GAS_URL !== PROD_GAS_URL;
 
 // 테스트 모드 배너 — index.html/detail.html/versions.html 등 api.js를 불러오는 모든 화면에 공통 적용.
 // 운영 URL이면 IS_TEST_MODE가 false라 아예 DOM에 삽입하지 않음(레이아웃 영향 0).
+// 배너는 position:fixed로 화면 최상단 고정 — 높이만큼 --test-banner-h로 흘려보내
+// body/topbar/version-sidebar가 그 아래로 밀려나도록 한다(css/style.css).
 document.addEventListener('DOMContentLoaded', () => {
   if (!IS_TEST_MODE) return;
   const banner = document.createElement('div');
   banner.id = 'test-mode-banner';
   banner.textContent = '⚠️ 테스트 모드 - 실제 데이터 아님';
   document.body.prepend(banner);
+
+  const syncBannerHeight = () => {
+    document.documentElement.style.setProperty('--test-banner-h', banner.offsetHeight + 'px');
+  };
+  syncBannerHeight();
+  // ResizeObserver: 회전/줄바꿈/폰트 로딩 등 원인과 무관하게 배너 실제 높이 변화를 직접 감지
+  new ResizeObserver(syncBannerHeight).observe(banner);
 });
 
 // ─── 티켓 데이터 세션 캐시 (stale-while-revalidate) ──────────────────────────

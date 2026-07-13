@@ -41,6 +41,8 @@
   --btn-selectmode-hover: #0f766e;  /* teal-700 */
   --btn-bulkmove:         #4f46e5;  /* 선택한 티켓 이동(indigo-600) — "확정 실행 액션" */
   --btn-bulkmove-hover:   #4338ca;  /* indigo-700 */
+
+  --test-banner-h: 0px;  /* 테스트 모드 배너 실측 높이(js/api.js가 설정) — 운영에선 배너 없어 0 유지, 아래 규칙 전부 무해 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -66,12 +68,18 @@ body {
   font-size: 14px;
   line-height: 1.5;
   overflow-x: hidden; /* 페이지 가로 확장 차단 → .table-scroll 내부 가로스크롤 발동 */
+  padding-top: var(--test-banner-h); /* 테스트 배너(fixed) 높이만큼 본문 밀어내기 — 운영은 0이라 무영향 */
 }
 
 /* ─── 테스트 모드 배너 ────────────────────────────────────────────────────── */
-/* js/api.js의 GAS_URL이 운영 URL과 다를 때만 DOM에 삽입됨(prepend) — 항상 body 맨 위,
-   일반 문서 흐름(fixed/sticky 아님)이라 다른 요소를 가리거나 겹치지 않고 그 아래로 밀어낼 뿐. */
+/* js/api.js의 GAS_URL이 운영 URL과 다를 때만 DOM에 삽입됨(prepend). position:fixed로 화면
+   최상단에 고정되어 스크롤해도 항상 보임 — 실제 높이는 js/api.js가 측정해 --test-banner-h로 흘려보냄. */
 #test-mode-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200; /* .topbar(100)보다 위 */
   background: #dc2626;
   color: #fff;
   text-align: center;
@@ -91,7 +99,7 @@ body {
   background: #fff;
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 0;
+  top: var(--test-banner-h); /* 배너 높이만큼 아래에서 스틱 — fixed 배너에 안 가려짐 */
   z-index: 100;
   box-shadow: var(--shadow);
 }
@@ -490,9 +498,9 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   width: 130px;
   flex-shrink: 0;
   position: sticky;
-  top: 56px;
+  top: calc(56px + var(--test-banner-h));
   align-self: flex-start;
-  max-height: calc(100vh - 56px);
+  max-height: calc(100vh - 56px - var(--test-banner-h));
   background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
