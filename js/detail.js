@@ -606,8 +606,7 @@ async function enterEditMode() {
   document.getElementById('btn-save-top').style.display = '';
   document.getElementById('btn-cancel-top').style.display = '';
   document.getElementById('btn-delete').style.display = '';
-  document.getElementById('btn-new-ticket').style.display = '';
-  document.getElementById('btn-new-ticket').disabled = true;
+  document.getElementById('btn-new-ticket').style.display = 'none'; // 편집 중에는 다른 신규 등록으로 이탈 방지
 
   // 확인결과/비고: textarea 표시, 텍스트 뷰 숨김
   document.getElementById('check-content-view').style.display = 'none';
