@@ -226,7 +226,7 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
 /* ─── 검색 ────────────────────────────────────────────────────────────────── */
 .search-input {
   height: 37px;
-  padding: 0 12px;
+  padding: 0 32px 0 12px; /* 오른쪽은 지우기 × 자리 항상 확보 — 텍스트 입력/삭제 시 폭 흔들림 방지 */
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 13px;
@@ -268,7 +268,7 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   position: relative;
   display: flex;
 }
-/* input 안쪽 오른쪽 지우기 × — 모바일 펼침 + 텍스트 있을 때만 표시(JS가 has-text 토글) */
+/* input 안쪽 오른쪽 지우기 × — 텍스트 있을 때만 표시(JS가 has-text 토글, 데스크톱/모바일 공통) */
 .search-clear {
   display: none;
   position: absolute;
@@ -288,6 +288,8 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   cursor: pointer;
 }
 .search-clear:hover { color: var(--text); }
+/* 데스크톱/모바일 공통 — 텍스트가 있을 때만 표시(JS가 has-text 토글) */
+.search-wrap.has-text .search-clear { display: inline-flex; }
 /* 검색창 접기(닫기) 텍스트 버튼 — 모바일 펼침 상태에서만 표시 */
 .search-close {
   display: none;
@@ -1818,9 +1820,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   body.search-open .lang-dropdown,
   body.search-open #btn-new { display: none; }
   body.search-open .search-wrap { display: flex; flex: 1; min-width: 0; }
-  body.search-open .search-input { width: 100%; padding-right: 32px; }
-  /* 지우기 ×는 텍스트가 있을 때만 (JS가 has-text 토글) */
-  body.search-open .search-wrap.has-text .search-clear { display: inline-flex; }
+  body.search-open .search-input { width: 100%; }
   body.search-open .search-close { display: inline-flex; }
 
   /* detail.html 상단바: 티켓등록 숨김 + ←목록을 화살표 아이콘만으로 (초록 배경 유지, 40px 터치영역).
