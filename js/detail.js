@@ -223,8 +223,12 @@ async function initNewMode() {
   document.getElementById('created-date').textContent = formatDate(new Date());
   document.getElementById('btn-save-top').style.display = '';
   document.getElementById('btn-cancel-top').style.display = '';
-  document.getElementById('btn-new-ticket').style.display = '';
-  document.getElementById('btn-new-ticket').disabled = true;
+  document.getElementById('btn-new-ticket').style.display = 'none'; // 이미 신규 등록 화면이라 재진입 불필요
+
+  // 신규 등록 화면에서는 "저장" 대신 "등록"으로 표시
+  const saveBtn = document.getElementById('btn-save-top');
+  saveBtn.dataset.i18n = 'btn_register';
+  saveBtn.textContent = t('btn_register');
 
   // 담당자 선택 시 같은 그룹+버전 기준으로 실시순서 재계산 (Rule 1)
   const assigneeEl = document.getElementById('assignee');
@@ -884,6 +888,11 @@ async function handleSave() {
       currentRowId  = addResult.row_id;
       currentTicket = { row_id: addResult.row_id, ticket_id: ticketId, created_date: new Date().toISOString(), version_id: currentVersionId, ...formData };
       isNewMode = false;
+
+      // "등록"으로 바꿔뒀던 저장 버튼 라벨을 원래(저장)대로 복원
+      const saveBtn = document.getElementById('btn-save-top');
+      saveBtn.dataset.i18n = 'btn_save';
+      saveBtn.textContent = t('btn_save');
 
       // 티켓번호 영역: 입력 필드 → 정적 JIRA 링크로 전환
       document.getElementById('ticket-id-edit-wrap').style.display = 'none';
