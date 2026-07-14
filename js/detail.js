@@ -214,6 +214,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 });
 
+// 저장 버튼 라벨(등록/저장)은 항상 isNewMode에서 그때그때 유도 —
+// 특정 시점에 라벨을 심어두고 나중에 손으로 되돌리는 방식은 예외 경로에서 누락 위험이 있어 금지.
+// data-i18n도 함께 갱신하므로 언어 전환(applyTranslations) 시에도 올바른 키로 재번역된다.
+function refreshSaveBtnLabel() {
+  const btn = document.getElementById('btn-save-top');
+  btn.dataset.i18n = isNewMode ? 'btn_register' : 'btn_save';
+  btn.textContent = t(btn.dataset.i18n);
+}
+
 // ─── 신규 모드 ────────────────────────────────────────────────────────────────
 
 async function initNewMode() {
@@ -224,11 +233,7 @@ async function initNewMode() {
   document.getElementById('btn-save-top').style.display = '';
   document.getElementById('btn-cancel-top').style.display = '';
   document.getElementById('btn-new-ticket').style.display = 'none'; // 이미 신규 등록 화면이라 재진입 불필요
-
-  // 신규 등록 화면에서는 "저장" 대신 "등록"으로 표시
-  const saveBtn = document.getElementById('btn-save-top');
-  saveBtn.dataset.i18n = 'btn_register';
-  saveBtn.textContent = t('btn_register');
+  refreshSaveBtnLabel();
 
   // 담당자 선택 시 같은 그룹+버전 기준으로 실시순서 재계산 (Rule 1)
   const assigneeEl = document.getElementById('assignee');
@@ -604,6 +609,7 @@ async function enterEditMode() {
   document.getElementById('page-title').textContent = t('page_title_editing');
   document.getElementById('btn-edit').style.display = 'none';
   document.getElementById('btn-save-top').style.display = '';
+  refreshSaveBtnLabel();
   document.getElementById('btn-cancel-top').style.display = '';
   document.getElementById('btn-delete').style.display = '';
   document.getElementById('btn-new-ticket').style.display = 'none'; // 편집 중에는 다른 신규 등록으로 이탈 방지
@@ -887,11 +893,7 @@ async function handleSave() {
       currentRowId  = addResult.row_id;
       currentTicket = { row_id: addResult.row_id, ticket_id: ticketId, created_date: new Date().toISOString(), version_id: currentVersionId, ...formData };
       isNewMode = false;
-
-      // "등록"으로 바꿔뒀던 저장 버튼 라벨을 원래(저장)대로 복원
-      const saveBtn = document.getElementById('btn-save-top');
-      saveBtn.dataset.i18n = 'btn_save';
-      saveBtn.textContent = t('btn_save');
+      refreshSaveBtnLabel();
 
       // 티켓번호 영역: 입력 필드 → 정적 JIRA 링크로 전환
       document.getElementById('ticket-id-edit-wrap').style.display = 'none';
