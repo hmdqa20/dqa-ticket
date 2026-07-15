@@ -753,13 +753,15 @@ function buildRow(ticket, dimmed, group) {
     return pipe > 0 ? first.slice(0, pipe) : first;
   })() : '';
 
-  // 버전명 끝의 CU/CD 접미사만 색상 강조 (escHtml 이후 치환 — CU/CD는 이스케이프와 무관해 안전)
+  // 버전명 끝이 CU/CD면 앞에 색상 점(dot)으로만 구분 표시 — 텍스트는 전부 기본색 유지
+  // (escHtml 이후 치환 — CU/CD는 이스케이프와 무관해 안전)
   const versionHtml = (ticket.check_version || '').split('\n')
     .map(v => v.trim()).filter(Boolean)
     .map(v => {
-      const html = escHtml(v).replace(/(CU|CD)$/i, (m) =>
-        `<span class="ver-suffix-${m.toUpperCase() === 'CU' ? 'cu' : 'cd'}">${m}</span>`);
-      return `<div class="version-line">${html}</div>`;
+      const m = v.match(/(CU|CD)$/i);
+      const dot = m ? `<span class="ver-dot ver-dot-${m[1].toUpperCase() === 'CU' ? 'cu' : 'cd'}"></span>` : '';
+      const html = escHtml(v).replace(/(CU|CD)$/i, s => `<span class="ver-suffix">${s}</span>`);
+      return `<div class="version-line">${dot}${html}</div>`;
     }).join('');
 
   // 언어 모드에 따라 번역된 이슈명 선택; 번역이 있으면 ⓘ 아이콘 추가

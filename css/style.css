@@ -1618,9 +1618,18 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   font-size: 12px;
   line-height: 1.6;
 }
-/* 버전명 끝 CU/CD 접미사 색상 강조 */
-.ver-suffix-cu { color: #2563eb; font-weight: 700; }
-.ver-suffix-cd { color: #dc2626; font-weight: 700; }
+/* 버전명 끝 CU/CD 구분 — 색상은 앞의 점(dot)에만, 텍스트는 기본색 */
+.ver-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.ver-dot-cu { background: #378ADD; }
+.ver-dot-cd { background: #E24B4A; }
+.ver-suffix { margin-left: 1px; }
 
 /* ─── 용량 안내 힌트 ──────────────────────────────────────────────────────── */
 .hint-text {
