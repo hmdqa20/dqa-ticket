@@ -1618,6 +1618,9 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   font-size: 12px;
   line-height: 1.6;
 }
+/* 버전명 끝 CU/CD 접미사 색상 강조 */
+.ver-suffix-cu { color: #2563eb; font-weight: 700; }
+.ver-suffix-cd { color: #dc2626; font-weight: 700; }
 
 /* ─── 용량 안내 힌트 ──────────────────────────────────────────────────────── */
 .hint-text {
