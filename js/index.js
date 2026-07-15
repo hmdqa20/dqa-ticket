@@ -1301,7 +1301,12 @@ async function refreshList() {
     return;                         // 실패는 조용히 무시 (다음 주기에 재시도)
   }
 
-  saveTicketsCache(vid, data);     // 다음 페이지 진입 시 즉시 렌더용 캐시 갱신
+  saveTicketsCache(vid, data);     // 다음 페이지 진입 시 즉시 렌더용 캐시 갱신 (vid 키와 짝이 맞아 항상 안전)
+
+  // 응답 대기 중 사용자가 다른 버전 탭으로 전환했으면 이 응답으로 화면을 덮지 않음
+  // (fetchFreshList와 동일 가드 — 늦게 도착한 이전 탭 응답이 현재 탭 목록을 덮어쓰는 레이스 방지)
+  const currentVid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
+  if (vid !== currentVid) return;
 
   if (isUserBusy()) return;        // await 사이 조작 시작했을 수 있으니 재확인
 
