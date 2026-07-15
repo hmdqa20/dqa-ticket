@@ -1994,6 +1994,17 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   text-align: center;
 }
 
+/* 데스크톱: 공간이 충분하므로 두 스팬을 한 줄로 (2줄 적층은 모바일에서만 유지) */
+@media (min-width: 769px) {
+  .ver-list-header .ver-section-title,
+  .ver-changed-badge,
+  .ver-list-header .btn-sm {
+    flex-direction: row;
+    gap: 4px;
+    min-height: 0;
+  }
+}
+
 /* 순서 저장 버튼 — 기본: 회색(비활성), 활성: 주황색 */
 .ver-btn-save-order {
   background: #e2e8f0;
