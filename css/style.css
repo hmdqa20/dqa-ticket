@@ -552,10 +552,14 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
 }
 .version-item:hover { background: #e4e6ea; }
 
-/* 선택된 탭: 흰색 배경, 파란 왼쪽 선, 오른쪽·아래쪽 선 없애서 콘텐츠와 이어지는 느낌 */
+/* 선택된 탭: 흰색 배경, 파란 왼쪽 선, 오른쪽·아래쪽 선 없애서 콘텐츠와 이어지는 느낌.
+   왼쪽 선을 굵게(2.5→5px) 강조하되, 굵어진 만큼 padding-left를 줄여
+   (기본 2.5+14 = 활성 5+11.5 = 16.5px) 버전명 시작 위치가 다른 탭과 어긋나지 않게 유지 */
 .version-item.active {
   background: var(--surface-2);
+  border-left-width: 5px;
   border-left-color: var(--fill-accent);
+  padding-left: 11.5px;
   border-right-color: var(--surface-2);
   border-bottom-color: transparent;
   font-weight: 600;
