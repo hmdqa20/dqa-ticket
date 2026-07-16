@@ -43,6 +43,10 @@
   --btn-bulkmove-hover:   #4338ca;  /* indigo-700 */
 
   --test-banner-h: 0px;  /* 테스트 모드 배너 실측 높이(js/api.js가 설정) — 운영에선 배너 없어 0 유지, 아래 규칙 전부 무해 */
+
+  /* 버전 관리(versions.html) 고유색 — index 그룹 헤더의 --ww/--mvn 포지션 (purple-600/100) */
+  --verman:     #9333ea;
+  --verman-mid: #f3e8ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1949,14 +1953,16 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   box-shadow: var(--shadow);
 }
 
-/* 섹션 헤더(툴바 줄): 흰 배경 + 굵은 제목 + 컬러 컨트롤 = "화면 제목/조작부"
+/* 섹션 헤더(툴바 줄): index 그룹 헤더 문법(왼쪽 굵은 세로바 + 옅은 색 배경) — 버전 관리 고유색 보라.
+   두 섹션(버전 목록/새 버전 추가) 모두 동일 적용 = "이 화면 전체가 버전 관리"라는 정체성.
    테이블 헤더(th)는 옅은 회색 띠 + 작은 글씨 = "표의 일부" — 두 줄의 역할 위계 구분 */
 .ver-section-header {
   padding: 12px 20px;
   font-weight: 700;
   font-size: 14px;
   border-bottom: 1px solid var(--border);
-  background: #fff;
+  border-left: 4px solid var(--verman);
+  background: var(--verman-mid);
   color: var(--text);
   display: flex;
   align-items: center;
@@ -2011,9 +2017,9 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 .ver-list-header .btn-sm span { display: inline-flex; align-items: center; gap: 4px; }
 .ver-list-header .btn-sm svg { flex-shrink: 0; }
 
-/* "원래대로": 아웃라인형(투명 배경+테두리) = 차분한 보조 액션 */
+/* "원래대로": 흰 배경+테두리 = 차분한 보조 액션 (색 배경 위에서 떠 보이도록 — 투명이면 보라가 비침) */
 .ver-list-header .btn-secondary {
-  background: transparent;
+  background: #fff;
   color: var(--muted);
   border: 1px solid var(--border);
 }
