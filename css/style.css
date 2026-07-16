@@ -1949,12 +1949,14 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   box-shadow: var(--shadow);
 }
 
+/* 섹션 헤더(툴바 줄): 흰 배경 + 굵은 제목 + 컬러 컨트롤 = "화면 제목/조작부"
+   테이블 헤더(th)는 옅은 회색 띠 + 작은 글씨 = "표의 일부" — 두 줄의 역할 위계 구분 */
 .ver-section-header {
   padding: 12px 20px;
   font-weight: 700;
   font-size: 14px;
   border-bottom: 1px solid var(--border);
-  background: #f8fafc;
+  background: #fff;
   color: var(--text);
   display: flex;
   align-items: center;
@@ -1970,15 +1972,16 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   align-items: center;
 }
 
-/* "순서 변경됨" 노란 뱃지 */
+/* "순서 변경됨" 상태 배지 — 완전 알약형(999px)+테두리 없음 = 클릭 안 되는 상태 표시.
+   버튼(각진 6px)과 형태부터 구분. 팔레트는 detail.html "편집 중" 뱃지(.lock-status)와 통일 */
 .ver-changed-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  background: #fef9c3;
-  color: #713f12;
-  border: 1px solid #fde68a;
-  border-radius: 12px;
-  padding: 2px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  border: none;
+  border-radius: 999px;
+  padding: 2px 12px;
 }
 
 /* 버전목록·배지·원래대로·순서저장: 2줄(스팬 2개) + 상하좌우 중앙 + 공통 높이로 가지런히 정렬.
@@ -1998,18 +2001,38 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   text-align: center;
 }
 
-/* 데스크톱: 공간이 충분하므로 두 스팬을 한 줄로 (2줄 적층은 모바일에서만 유지) */
+/* 툴바 컨트롤(배지·버튼) 공통: 폰트 12px + 가로 패딩 12px 통일 (타이틀은 14px/700 유지 — 제목) */
+.ver-list-header .btn-sm {
+  font-size: 12px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+/* 버튼 내부 스팬: 아이콘(SVG)+텍스트 가로 정렬 (모바일 2줄 적층 시에도 첫 줄 안에서 나란히) */
+.ver-list-header .btn-sm span { display: inline-flex; align-items: center; gap: 4px; }
+.ver-list-header .btn-sm svg { flex-shrink: 0; }
+
+/* "원래대로": 아웃라인형(투명 배경+테두리) = 차분한 보조 액션 */
+.ver-list-header .btn-secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.ver-list-header .btn-secondary:hover:not(:disabled) { background: #f8fafc; color: var(--text); }
+
+/* 데스크톱: 두 스팬을 한 줄로 + 배지·버튼 높이 30px 통일 (2줄 적층·36px은 모바일 유지) */
 @media (min-width: 769px) {
   .ver-list-header .ver-section-title,
   .ver-changed-badge,
   .ver-list-header .btn-sm {
     flex-direction: row;
     gap: 4px;
-    min-height: 0;
   }
+  .ver-list-header .ver-section-title { min-height: 0; }
+  .ver-changed-badge,
+  .ver-list-header .btn-sm { min-height: 30px; }
 }
 
-/* 순서 저장 버튼 — 기본: 회색(비활성), 활성: 주황색 */
+/* 순서 저장 버튼 — 기본: 회색(비활성), 활성: 파란색(앱 주요 액션 색과 통일) */
 .ver-btn-save-order {
   background: #e2e8f0;
   color: #94a3b8;
@@ -2018,12 +2041,12 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   cursor: not-allowed;
 }
 .ver-btn-save-order.ver-btn-save-active {
-  background: #E65C00;
+  background: var(--ww);
   color: #fff;
-  border-color: #c04e00;
+  border-color: var(--ww);
   cursor: pointer;
 }
-.ver-btn-save-order.ver-btn-save-active:hover { background: #c04e00; }
+.ver-btn-save-order.ver-btn-save-active:hover { background: #1d4ed8; border-color: #1d4ed8; }
 
 /* 버전 목록 테이블 */
 .ver-table {
@@ -2031,13 +2054,15 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   border-collapse: collapse;
   font-size: 14px;
 }
+/* 테이블 헤더: 옅은 회색 띠 + 작은 글씨 = "표의 일부" (index.html 티켓 목록 th와 동일 문법) */
 .ver-table th {
-  padding: 10px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
   text-align: center;
-  background: #f8fafc;
+  background: var(--surface-1);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -2060,7 +2085,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 }
 .ver-th-sortable:hover {
   color: var(--text);
-  background: #f0f4f8;
+  background: #e2e8f0; /* 새 th 배경(--surface-1 #f1f5f9)보다 한 단계 진하게 — hover 피드백 확보 */
 }
 .ver-th-sortable.ver-th-active {
   color: var(--fill-accent);
