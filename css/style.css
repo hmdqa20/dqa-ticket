@@ -1620,9 +1620,8 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 /* ─── 리스트 확인버전 세로 표시 ───────────────────────────────────────────── */
 .version-cell { vertical-align: middle; text-align: left; max-width: 110px; }
 .version-line {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;       /* nowrap → normal로 변경 */
+  word-break: break-word;    /* 추가 */
   font-size: 12px;
   line-height: 1.6;
 }
@@ -2107,6 +2106,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 /* 버전명 뒷자리 숫자(예: 09.05.02)가 핵심 정보라 말줄임 대신 필요 시 자연스럽게 줄바꿈 —
    행 높이가 늘어나도 .ver-table td { vertical-align:middle }가 다른 컬럼을 자동으로 세로 중앙 정렬함 */
 .ver-name-cell {
+  color: rgb(255, 30, 0);
   font-weight: 500;
   white-space: normal;
   word-break: break-word;
@@ -2212,6 +2212,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   align-items: center;
   gap: 10px;
   padding: 0 20px 16px;
+  margin-top: 12px;  /* 헤더와의 간격 */
 }
 .ver-add-form .ver-name-input { flex: 1; }
 
