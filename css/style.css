@@ -904,6 +904,11 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   overflow: hidden; /* 셀 내용(긴 select/input 등)이 컬럼을 넘어 가로 스크롤 유발하는 것 방지 */
 }
 
+/* 4번째 컬럼 이슈명의 본문 내용만 강제로 왼쪽 정렬 */
+.ticket-table td:nth-child(4) {
+  text-align: left;
+}
+
 .ticket-table tr:last-child td { border-bottom: none; }
 
 .ticket-table tr[data-row-id] {
