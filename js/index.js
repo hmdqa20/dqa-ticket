@@ -242,9 +242,11 @@ function buildHeaderHtml(sectionType = 'active', groupKey = '') {
     <th>${wrap('wjira', 'WJIRA', `${allOpt}<option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`, f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : '', '<span class="th-help-icon" data-tip="WJIRA 결과 기재">?</span>')}</th>
     -->
 
-    <!-- ChatGPT가 알려 준 코드 WJIRA 영역에 툴팁 표시 -->
+    <!-- ChatGPT가 알려 준 코드 WJIRA 영역에 툴팁 표시 
+    툴팁 각 언어별로 전환 가능하도록 변경
+    -->
     <th>
-    <span class="wjira-tooltip" data-tip="WJIRA 결과 기재">
+    <span class="wjira-tooltip" data-tip="${t('tip_wjira_result')}">
     ${wrap(
     'wjira',
     'WJIRA',
