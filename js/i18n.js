@@ -91,6 +91,7 @@ const I18N = {
     btn_new_ticket: '티켓등록',
     btn_close: '닫기',
     btn_back_label: '목록',
+    tip_wjira_result: 'WJIRA 결과 기재',
   },
   jp: {
     app_title: 'DQA チケット管理',
@@ -183,6 +184,7 @@ const I18N = {
     btn_new_ticket: 'チケット登録',
     btn_close: '閉じる',
     btn_back_label: '一覧',
+    tip_wjira_result: 'WJIRA結果記載',
   },
   en: {
     app_title: 'DQA Ticket Manager',
@@ -275,6 +277,7 @@ const I18N = {
     btn_new_ticket: 'New Ticket',
     btn_close: 'Close',
     btn_back_label: 'List',
+    tip_wjira_result: 'WJIRA Result Entry',
   },
   vi: {
     app_title: 'Quản lý vé DQA',
@@ -367,6 +370,7 @@ const I18N = {
     btn_new_ticket: 'Tạo vé',
     btn_close: 'Đóng',
     btn_back_label: 'Danh sách',
+    tip_wjira_result: 'Ghi kết quả WJIRA',
   }
 };
 
