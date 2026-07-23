@@ -94,20 +94,17 @@
       </div>
 
       <!-- 구분선 -->
-      <div class="form-divider"></div>
+      <!-- <div class="form-divider"></div> -->
 
       <!-- 이슈명 -->
       <div class="form-group">
         <label data-i18n="label_title">이슈명</label>
         <div class="input-clearable">
-          <textarea id="title-input" rows="8" data-i18n-placeholder="label_title" placeholder="이슈명"></textarea>
+          <textarea id="title-input" rows="3" data-i18n-placeholder="label_title" placeholder="이슈명"></textarea>
           <button type="button" id="btn-clear-title" class="btn-clear-input" style="display:none">×</button>
         </div>
         <div id="title-translation-hint" class="title-translation-hint" style="display:none"></div>
       </div>
-
-      <!-- 구분선 -->
-      <div class="form-divider"></div>
 
       <!-- 3단 그리드: 확인버전 | 진행 정보 | 버전 이동 -->
       <div class="detail-3col">
@@ -186,9 +183,20 @@
 
       </div>
 
-      <!-- 구분선 -->
-      <div class="form-divider"></div>
+      <!-- 확인결과 -->
+      <div class="form-group">
+        <label data-i18n="label_check_content">확인결과</label>
+        <div id="check-content-view" class="text-view" style="display:none"></div>
+        <textarea id="check-content" rows="25" data-i18n-placeholder="placeholder_check_content" placeholder="확인결과를 입력하세요"></textarea>
+      </div>
 
+      <!-- 비고 -->
+      <div class="form-group">
+        <label data-i18n="label_note">비고</label>
+        <div id="note-view" class="text-view" style="display:none"></div>
+        <textarea id="note" rows="8" data-i18n-placeholder="placeholder_note" placeholder="비고를 입력하세요"></textarea>
+      </div>
+      
       <!-- 파일 첨부 -->
       <div class="form-group">
         <label data-i18n="label_files">파일 첨부</label>
@@ -197,9 +205,6 @@
         <input type="file" id="file-input" style="display:none" multiple>
         <div id="file-list" class="file-list"></div>
       </div>
-
-      <!-- 구분선 -->
-      <div class="form-divider"></div>
 
       <!-- 링크 -->
       <div class="form-group">
@@ -222,23 +227,6 @@
             <input type="url" class="link-url-input" data-link-num="3" placeholder="https://...">
           </div>
         </div>
-      </div>
-
-      <!-- 구분선 -->
-      <div class="form-divider"></div>
-
-      <!-- 확인결과 -->
-      <div class="form-group">
-        <label data-i18n="label_check_content">확인결과</label>
-        <div id="check-content-view" class="text-view" style="display:none"></div>
-        <textarea id="check-content" rows="25" data-i18n-placeholder="placeholder_check_content" placeholder="확인결과를 입력하세요"></textarea>
-      </div>
-
-      <!-- 비고 -->
-      <div class="form-group">
-        <label data-i18n="label_note">비고</label>
-        <div id="note-view" class="text-view" style="display:none"></div>
-        <textarea id="note" rows="8" data-i18n-placeholder="placeholder_note" placeholder="비고를 입력하세요"></textarea>
       </div>
 
     </form>
