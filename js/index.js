@@ -237,7 +237,23 @@ function buildHeaderHtml(sectionType = 'active', groupKey = '') {
     <th>${wrap('assignee', t('col_assignee'), allOpt)}</th>
     <th>${wrap('status', t('col_status'), `${allOpt}${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
     <th>${wrap('verdict', t('col_verdict'), `${allOpt}<option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
+
+    <!-- 물음표 아이콘 삭제
     <th>${wrap('wjira', 'WJIRA', `${allOpt}<option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`, f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : '', '<span class="th-help-icon" data-tip="WJIRA 결과 기재">?</span>')}</th>
+    -->
+
+    <!-- ChatGPT가 알려 준 코드 WJIRA 영역에 툴팁 표시 -->
+    <th>
+    <span class="wjira-tooltip" data-tip="WJIRA 결과 기재">
+    ${wrap(
+    'wjira',
+    'WJIRA',
+    `${allOpt}<option value="OK"${sel('wjira','OK')}>기재완료</option><option value="none"${sel('wjira','none')}>미기재</option>`,
+    f.wjira === 'OK' ? '기재완료' : f.wjira === 'none' ? '미기재' : ''
+    )}
+    </span>
+    </th>
+
     <th></th>
   `;
 }
