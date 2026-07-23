@@ -887,7 +887,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   vertical-align: middle;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  overflow: hidden; /* th-filter-wrap inline-flex 오버플로우가 테이블 밖으로 나가 스크롤 유발하는 것 방지 */
+  overflow: visible; /* th-filter-wrap inline-flex 오버플로우가 테이블 밖으로 나가 스크롤 유발하는 것 방지 */
 }
 
 /* 섹션별 티켓 헤더(th): 그룹과 동일 계열, light 배경으로 살짝 연하게 */
@@ -2236,5 +2236,3 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 
   /* 좁은 화면에서도 가로스크롤로 모든 컬럼 표시 — 컬럼 숨김 없음 */
 }
-
-
