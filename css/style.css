@@ -1345,7 +1345,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 /* ─── detail 페이지 ───────────────────────────────────────────────────────── */
 
 .detail-main {
-  max-width: 900px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 24px;
 }
