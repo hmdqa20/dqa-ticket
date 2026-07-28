@@ -527,9 +527,9 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   gap: 6px;
   border-right: 0.5px solid var(--border);
   border-bottom: 0.5px solid var(--border);
-  background: color-mix(in srgb, var(--sidebar-bg), black 10%);
+  background: color-mix(in srgb, var(--sidebar-bg), black 15%);
   box-shadow: inset 0 -1px 3px rgba(0,0,0,0.08);
-  padding: 12px 10px;   /* 위아래 여백도 살짝 늘려서 버튼과 경계 사이 공간 확보 */
+  padding: 12px 16px;   /* 위아래 여백도 살짝 늘려서 버튼과 경계 사이 공간 확보 */
 }
 
 .version-list {
@@ -610,13 +610,29 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   font-family: inherit;
   transition: background 0.12s;
 }
-.btn-add-version { background: #64748b; color: #fff; }
-.btn-add-version:hover { background: #475569; }
 
-/* "전체 티켓" — 목록의 MVN 그룹과 동일한 녹색 계열(--mvn)로 통일 */
-.version-all-btn { background: var(--mvn-light); color: var(--mvn); }
-.version-all-btn:hover { background: var(--mvn-mid); }
-.version-all-btn.active { background: var(--mvn); color: #fff; }
+/* 버전 관리 — 앱의 기존 강조색(파랑) 사용 */
+.btn-add-version {
+  background: color-mix(in srgb, var(--fill-accent), white 85%);
+  color: var(--fill-accent);
+}
+.btn-add-version:hover {
+  background: color-mix(in srgb, var(--fill-accent), white 72%);
+}
+
+/* 전체 티켓 — MVN 초록, 동일한 공식(white 85%)으로 파생 */
+.version-all-btn {
+  background: color-mix(in srgb, var(--mvn), white 85%);
+  color: var(--mvn);
+}
+.version-all-btn:hover {
+  background: color-mix(in srgb, var(--mvn), white 72%);
+}
+.version-all-btn.active {
+  background: var(--mvn);
+  color: #fff;
+}
+
 .sidebar-btn-icon { display: inline-flex; flex-shrink: 0; }
 
 .version-add-form { display: flex; flex-direction: column; gap: 6px; }
@@ -897,7 +913,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
 .section-ww  .ticket-table th { background: var(--ww-light);   color: var(--ww); }
 .section-mvn .ticket-table th { background: var(--mvn-light);  color: var(--mvn); }
 .section-done .ticket-table th { background: var(--done-light); color: var(--done-color); }
-.section-hold .ticket-table th { background: var(--hold-light); color: var(--muted); }
+.section-hold .ticket-table th { background: var(--hold-light); color: var(--text); }
 
 .ticket-table td {
   padding: 9px 12px;
@@ -928,7 +944,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
 .navigate-cell {
   cursor: pointer;
 }
-.ticket-table tr.dimmed { opacity: 0.65; }
+.ticket-table tr.dimmed { /* opacity: 0.65; */ }
 
 .title-cell {
   max-width: 280px;
