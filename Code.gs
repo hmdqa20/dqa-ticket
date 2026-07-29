@@ -198,6 +198,7 @@ function doPost(e) {
       case 'updateVersion':return updateVersion(e);
       case 'deleteVersion':return deleteVersion(e);
       case 'moveTicket':   return moveTicket(e);
+      case 'copyTicketToVersion': return copyTicketToVersion(e);
       case 'fetchJira':    return fetchJira(e);
       case 'uploadFile':   return uploadFile(e);
       case 'lockTicket':   return lockTicket(e);
@@ -586,6 +587,64 @@ function moveTicket(e) {
         }
 
         return jsonResponse({ success: true });
+      }
+    }
+    return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ─── copyTicketToVersion ─────────────────────────────────────────────────────
+// 완료 티켓을 다른 버전으로 "이동"할 때 사용. 원본(완료 상태)은 그대로 두고, 티켓번호·이슈명·
+// 담당자만 승계한 사본을 새 버전에 '진행전' 상태로 생성한다. (완료 이력 보존 목적)
+// - 유지: ticket_id, title, title_ko, title_vi, assignee (WW/MVN 섹션 배정 기준이라 유지)
+// - 초기화: check_version, priority, verdict, check_content, note, wjira_updated,
+//           file_urls, retest_ref, locked_at, link1~3
+// - 신규: row_id(새 UUID), created_date/status_changed_at(사본 생성 시각), status='진행전'
+
+function copyTicketToVersion(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet    = getSheet();
+    const data     = sheet.getDataRange().getValues();
+    const rowId    = e.parameter.row_id;
+    const targetId = e.parameter.target_version_id || '';
+
+    if (!rowId) return jsonResponse({ success: false, error: 'row_id is required' });
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][COL.ROW_ID]) === rowId) {
+        const src      = data[i];
+        const newRowId = Utilities.getUuid();
+        const now      = getJSTISOString();
+
+        const newRow = [
+          src[COL.TICKET_ID] || '',   // 티켓번호 유지
+          now,                         // created_date: 사본 생성 시각
+          src[COL.TITLE]     || '',   // 이슈명 승계
+          '',                          // check_version 초기화
+          src[COL.ASSIGNEE]  || '',   // 담당자 유지 (WW/MVN 섹션 배정 위해)
+          '',                          // priority 초기화
+          '진행전',                    // status: 진행전으로 명시적 세팅 (빈칸 아님)
+          '',                          // verdict
+          '',                          // check_content
+          '',                          // note
+          '',                          // wjira_updated
+          now,                         // status_changed_at
+          '',                          // file_urls
+          newRowId,                   // row_id (신규 UUID)
+          '',                          // retest_ref
+          targetId,                   // version_id: 새 버전
+          '',                          // locked_at
+          src[COL.TITLE_KO]  || '',   // title_ko 유지 (이슈명 번역 그대로 승계)
+          src[COL.TITLE_VI]  || '',   // title_vi 유지
+          '', '', '', '', '', ''      // link1~3 label/url 전부 초기화
+        ];
+
+        sheet.appendRow(newRow);
+        return jsonResponse({ success: true, row_id: newRowId });
       }
     }
     return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });

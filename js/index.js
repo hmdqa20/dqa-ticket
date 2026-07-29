@@ -39,10 +39,12 @@ const ALL_VERSION = '__ALL__';
 let versions = [];                  // [{version_id, version_name, status, ...}]
 let currentVersionId = ALL_VERSION; // 현재 선택된 버전 (ALL_VERSION=전체)
 
-// 선택 모드 (버전 일괄이동) — 활성 그룹(activeWW/activeMVN) 각각 완전 독립 운영
-const SELECTABLE_GROUPS = ['activeWW', 'activeMVN'];
-let selectionMode = { activeWW: false, activeMVN: false };
-let selectedRowIds = { activeWW: new Set(), activeMVN: new Set() };
+// 선택 모드 (버전 일괄이동) — 헤더의 전역 버튼 하나로 4개 섹션(WW/MVN/완료/보류) 전체를
+// 동시에 선택모드로 전환. 그룹별 Set 자체는 그대로 유지(체크박스 change 핸들러가 그룹 키로
+// 접근하는 기존 구조를 재사용하기 위함)하되, on/off 스위치는 selectionModeGlobal 하나뿐.
+const SELECTABLE_GROUPS = ['activeWW', 'activeMVN', 'done', 'hold'];
+let selectionModeGlobal = false;
+let selectedRowIds = { activeWW: new Set(), activeMVN: new Set(), done: new Set(), hold: new Set() };
 
 const LOCK_EXPIRE_MS = 5 * 60 * 1000;
 // 내가 방금 편집을 끝내고 돌아온 항목 — 서버가 unlock을 반영할 때까지 자물쇠 억제
@@ -69,7 +71,7 @@ const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
 document.addEventListener('DOMContentLoaded', async () => {
   setupSidebarToggle();  // 첫 페인트 전에 접힘 상태부터 적용 (펼쳐진 사이드바가 깜빡이지 않도록 최우선)
   applyTranslations();
-  SELECTABLE_GROUPS.forEach(g => syncSelectionModeButtonText(g));
+  syncSelectionModeButtonTextGlobal();
   buildAllHeaders();
   loadSectionStates();
   applyCollapsedStates();
@@ -77,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 언어 전환 시 API 재호출 없이 현재 데이터로 재렌더링
   onLangChange(() => {
     applyTranslations();
-    SELECTABLE_GROUPS.forEach(g => syncSelectionModeButtonText(g));
+    syncSelectionModeButtonTextGlobal();
     buildAllHeaders();
     renderAll();
   });
@@ -118,7 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     location.href = 'detail.html' + vid;
   });
 
-  setupBulkSelectionUI();
+  setupBulkSelectionUIGlobal();
 
   setupVersionSidebar();
 
@@ -195,7 +197,7 @@ function statusLabel(v) { return t(STATUS_LABEL_KEY[v] || v); }
 
 function buildHeaderHtml(sectionType = 'active', groupKey = '') {
   const f = activeFilters;
-  const firstTh = (SELECTABLE_GROUPS.includes(groupKey) && selectionMode[groupKey])
+  const firstTh = (SELECTABLE_GROUPS.includes(groupKey) && selectionModeGlobal)
     ? `<th class="select-all-th"><input type="checkbox" class="select-all-checkbox" data-group="${groupKey}"></th>`
     : `<th></th>`;
   const sel = (key, val) => val === f[key] ? ' selected' : '';
@@ -354,12 +356,26 @@ function renderSidebar() {
 
 async function switchVersion(versionId) {
   if (versionId === currentVersionId) return;
+
+  // 선택된 티켓이 있는 상태에서 탭을 이동하면 선택이 초기화됨 — 실수(마우스 오클릭, 터치패드
+  // 오터치 등)로 선택이 날아가는 사고를 막기 위해 한 번 확인
+  if (selectionModeGlobal) {
+    const total = SELECTABLE_GROUPS.reduce((sum, g) => sum + selectedRowIds[g].size, 0);
+    if (total > 0) {
+      const ok = confirm(`선택된 ${total}개 티켓의 선택이 해제됩니다. 다른 버전으로 이동할까요?`);
+      if (!ok) return;
+    }
+  }
+
   currentVersionId = versionId;
   localStorage.setItem('dqa_current_version', versionId);
-  // 버전 탭 전환 시 그룹별 선택 목록은 초기화 (선택 모드 자체는 유지)
-  SELECTABLE_GROUPS.forEach(group => {
-    if (selectionMode[group]) { selectedRowIds[group].clear(); updateBulkActionBar(group); }
-  });
+  // 버전 탭 전환 시 선택 목록은 초기화 (선택 모드 자체는 유지)
+  if (selectionModeGlobal) {
+    SELECTABLE_GROUPS.forEach(group => selectedRowIds[group].clear());
+  // 헤더는 탭 전환마다 새로 그리지 않고 재사용되므로, 전체선택 체크박스 UI도 직접 풀어줘야 함
+    document.querySelectorAll('.select-all-checkbox').forEach(cb => { cb.checked = false; });
+    updateBulkActionBarGlobal();
+  }
   renderSidebar();
   await loadTickets();
 }
@@ -397,60 +413,85 @@ function setupSidebarToggle() {
   });
 }
 
-// ─── 선택 모드 / 버전 일괄이동 (DQA/MVN 완전 독립) ────────────────────────────
-// 완료/보류 그룹, 잠긴 행은 대상에서 제외. 담당자 그룹(WW/MVN) 자체는 바꾸지 않고
-// 같은 그룹 내에서 버전만 이동 + 대상 버전 내 max+1부터 순차 실시순서 재배정.
-// 각 그룹은 자기 헤더에 내장된 선택모드 버튼/액션바만 갖고, 상태(selectionMode/selectedRowIds)도
-// 그룹별로 독립 — 한쪽에서 선택모드를 켜도 다른 그룹은 전혀 영향받지 않는다.
+// ─── 선택 모드 / 버전 일괄이동 (전역 통합 — WW/MVN/완료/보류 4개 섹션 동시 적용) ──────
+// 헤더의 "티켓이동" 버튼 하나로 4개 섹션 전체가 동시에 선택모드로 전환된다.
+// 그룹별 selectedRowIds Set 구조는 그대로 유지(체크박스 change 핸들러 재사용 목적)하되,
+// on/off 스위치와 액션바는 전역 하나뿐.
+// 이동 시 상태별로 분기:
+//   - 완료(status='완료') 티켓 → copyTicketToVersion 호출(복사, 원본 보존, 진행전 상태로 사본 생성)
+//   - 그 외(진행중/진행전/재테스트/보류/N/A) → 기존 moveTicket 호출(덮어쓰기 이동)
 
-function syncSelectionModeButtonText(group) {
-  const btn = document.getElementById(`btn-select-mode-${group}`);
-  if (btn) btn.textContent = selectionMode[group] ? t('btn_select_mode_active') : t('btn_select_mode');
+function syncSelectionModeButtonTextGlobal() {
+  const btn = document.getElementById('btn-move-mode-global');
+  if (btn) btn.textContent = selectionModeGlobal ? t('btn_select_mode_active') : t('btn_select_mode');
 }
 
-function setupBulkSelectionUI() {
-  SELECTABLE_GROUPS.forEach(group => {
-    document.getElementById(`btn-select-mode-${group}`).addEventListener('click', (e) => {
-      e.stopPropagation(); // 섹션 헤더 접기/펼치기 클릭으로 전파 방지
-      toggleSelectionMode(group);
-    });
-    document.getElementById(`btn-bulk-move-${group}`).addEventListener('click', (e) => {
-      e.stopPropagation();
-      handleBulkMove(group);
-    });
-    // 헤더 영역 내 다른 조작(드롭다운 클릭 등)도 섹션 접기로 전파되지 않도록 컨테이너 단위 차단
-    const actions = document.querySelector(`.section-header-actions[data-group="${group}"]`);
-    if (actions) actions.addEventListener('click', e => e.stopPropagation());
+function setupBulkSelectionUIGlobal() {
+  const modeBtn = document.getElementById('btn-move-mode-global');
+  if (modeBtn) modeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // 켜져 있는 상태에서 끄려는 경우(=버튼이 "이동/삭제 취소" 역할)에만, 선택된 게 있으면 확인
+    if (selectionModeGlobal) {
+      const total = SELECTABLE_GROUPS.reduce((sum, g) => sum + selectedRowIds[g].size, 0);
+      if (total > 0) {
+        const ok = confirm(`선택된 ${total}개 티켓의 선택이 해제됩니다. 이동/삭제를 취소할까요?`);
+        if (!ok) return;
+      }
+    }
+    toggleSelectionModeGlobal();
   });
+
+  const moveBtn = document.getElementById('btn-bulk-move-global');
+  if (moveBtn) moveBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleBulkMoveGlobal();
+  });
+
+  const deleteBtn = document.getElementById('btn-bulk-delete-global');
+  if (deleteBtn) deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleBulkDeleteGlobal();
+  });
+
+// 헤더 영역 클릭이 다른 곳으로 전파되지 않도록 차단
+  const bar = document.getElementById('bulk-action-bar-global');
+  if (bar) bar.addEventListener('click', e => e.stopPropagation());
 }
 
-function toggleSelectionMode(group) {
-  selectionMode[group] = !selectionMode[group];
-  if (!selectionMode[group]) selectedRowIds[group].clear();
+function toggleSelectionModeGlobal() {
+  selectionModeGlobal = !selectionModeGlobal;
+  if (!selectionModeGlobal) SELECTABLE_GROUPS.forEach(g => selectedRowIds[g].clear());
 
-  document.getElementById(`btn-select-mode-${group}`).classList.toggle('active', selectionMode[group]);
-  document.getElementById(`bulk-action-bar-${group}`).classList.toggle('open', selectionMode[group]);
-  syncSelectionModeButtonText(group);
+  const modeBtn = document.getElementById('btn-move-mode-global');
+  if (modeBtn) modeBtn.classList.toggle('active', selectionModeGlobal);
 
-  if (selectionMode[group]) populateBulkTargetVersions(group);
+  const bar = document.getElementById('bulk-action-bar-global');
+  if (bar) bar.style.display = selectionModeGlobal ? 'flex' : 'none';
+
+  syncSelectionModeButtonTextGlobal();
+
+  if (selectionModeGlobal) populateBulkTargetVersionsGlobal();
 
   buildAllHeaders();
   renderAll();
-  updateBulkActionBar(group);
+  updateBulkActionBarGlobal();
 }
 
-function populateBulkTargetVersions(group) {
-  const sel = document.getElementById(`bulk-target-version-${group}`);
+function populateBulkTargetVersionsGlobal() {
+  const sel = document.getElementById('bulk-target-version-global');
   if (!sel) return;
   sel.innerHTML = `<option value="">${t('bulk_target_placeholder')}</option>` +
     versions.map(v => `<option value="${escHtml(v.version_id)}">${escHtml(v.version_name)}</option>`).join('');
 }
 
-function updateBulkActionBar(group) {
-  const countEl = document.getElementById(`bulk-selected-count-${group}`);
-  const moveBtn = document.getElementById(`btn-bulk-move-${group}`);
-  if (countEl) countEl.innerHTML = `<span class="bulk-count-num">${selectedRowIds[group].size}</span>${t('unit_selected')}`;
-  if (moveBtn) moveBtn.disabled = selectedRowIds[group].size === 0;
+function updateBulkActionBarGlobal() {
+  const countEl = document.getElementById('bulk-selected-count-global');
+  const moveBtn = document.getElementById('btn-bulk-move-global');
+  const deleteBtn = document.getElementById('btn-bulk-delete-global');
+  const total = SELECTABLE_GROUPS.reduce((sum, g) => sum + selectedRowIds[g].size, 0);
+  if (countEl) countEl.innerHTML = `<span class="bulk-count-num">${total}</span>${t('unit_selected')}`;
+  if (moveBtn) moveBtn.disabled = total === 0;
+  if (deleteBtn) deleteBtn.disabled = total === 0;
 }
 
 function handleSelectAllChange(e) {
@@ -462,20 +503,30 @@ function handleSelectAllChange(e) {
     if (checked) selectedRowIds[group].add(cb.dataset.rowId);
     else selectedRowIds[group].delete(cb.dataset.rowId);
   });
-  updateBulkActionBar(group);
+  updateBulkActionBarGlobal();
 }
 
-async function handleBulkMove(group) {
-  const targetVersionId = document.getElementById(`bulk-target-version-${group}`).value;
+async function handleBulkMoveGlobal() {
+  const targetVersionId = document.getElementById('bulk-target-version-global').value;
   if (!targetVersionId) { alert('이동할 버전을 선택하세요.'); return; }
 
-  const selectedTickets = [...selectedRowIds[group]]
-    .map(rowId => allTickets[group].find(tk => tk.row_id === rowId))
-    .filter(Boolean);
+  // 4개 그룹의 선택된 티켓을 모두 모음 (그룹별로 어느 allTickets 배열에서 찾을지 알아야 함)
+  const selectedTickets = [];
+  SELECTABLE_GROUPS.forEach(group => {
+    [...selectedRowIds[group]].forEach(rowId => {
+      const ticket = allTickets[group].find(tk => tk.row_id === rowId);
+      if (ticket) selectedTickets.push(ticket);
+    });
+  });
   if (selectedTickets.length === 0) return;
 
+  const doneCount = selectedTickets.filter(tk => tk.status === '완료').length;
   const targetVersion = versions.find(v => v.version_id === targetVersionId);
-  const ok = confirm(`선택한 ${selectedTickets.length}개 티켓을 "${targetVersion ? targetVersion.version_name : ''}" 버전으로 이동하시겠습니까?`);
+  let confirmMsg = `선택한 ${selectedTickets.length}개 티켓을 "${targetVersion ? targetVersion.version_name : ''}" 버전으로 이동하시겠습니까?`;
+  if (doneCount > 0) {
+    confirmMsg += `\n\n(완료 상태 ${doneCount}개는 원본을 남기고 사본을 생성합니다 — 진행전 상태로 새로 추가)`;
+  }
+  const ok = confirm(confirmMsg);
   if (!ok) return;
 
   // 실시순서는 GAS moveTicket에서 버전 이동 시 무조건 초기화
@@ -490,14 +541,18 @@ async function handleBulkMove(group) {
     const ticket = selectedTickets[i];
     if (overlayText) overlayText.textContent = `이동 중... (${i + 1}/${selectedTickets.length})`;
 
-    if (ticket.version_id === targetVersionId) {
+    if (ticket.status !== '완료' && ticket.version_id === targetVersionId) {
       succeeded.push(ticket);
       continue;
     }
 
     // 실패해도 중단하지 않고 다음 건 계속 진행. 재시도 없음(1건당 1회만 시도).
     try {
-      await moveTicket(ticket.row_id, targetVersionId);
+      if (ticket.status === '완료') {
+        await copyTicketToVersion(ticket.row_id, targetVersionId); // 복사(원본 보존)
+      } else {
+        await moveTicket(ticket.row_id, targetVersionId);          // 기존 방식(덮어쓰기 이동)
+      }
       succeeded.push(ticket);
     } catch (err) {
       console.error('[bulkMove] 이동 실패:', ticket.ticket_id, err);
@@ -508,11 +563,61 @@ async function handleBulkMove(group) {
   if (overlay) overlay.style.display = 'none';
   if (overlayText) overlayText.textContent = t('loading');
 
-  clearTicketsCaches();       // 이동으로 소속이 바뀐 티켓이 캐시로 되살아나 보이지 않도록 무효화
-  toggleSelectionMode(group); // 선택 모드 종료(선택 목록 초기화 포함)
-  await loadTickets();        // 최신 상태 재조회
+  clearTicketsCaches();             // 이동으로 소속이 바뀐 티켓이 캐시로 되살아나 보이지 않도록 무효화
+  toggleSelectionModeGlobal();      // 선택 모드 종료(선택 목록 초기화 포함)
+  await loadTickets();              // 최신 상태 재조회
 
   let msg = `이동 완료: ${succeeded.length}개 성공 / ${failed.length}개 실패`;
+  if (failed.length) {
+    msg += `\n\n실패한 티켓:\n${failed.map(tk => tk.ticket_id).join(', ')}`;
+  }
+  alert(msg);
+}
+
+async function handleBulkDeleteGlobal() {
+  const selectedTickets = [];
+  SELECTABLE_GROUPS.forEach(group => {
+    [...selectedRowIds[group]].forEach(rowId => {
+      const ticket = allTickets[group].find(tk => tk.row_id === rowId);
+      if (ticket) selectedTickets.push(ticket);
+    });
+  });
+  if (selectedTickets.length === 0) return;
+
+  // 삭제는 되돌릴 수 없으므로 2차 확인 문구를 별도로 강조
+  const ok = confirm(
+    `선택한 ${selectedTickets.length}개 티켓을 삭제하시겠습니까?\n\n` +
+    `이 작업은 되돌릴 수 없습니다. 첨부파일이 있는 티켓은 파일도 함께 휴지통으로 이동됩니다.`
+  );
+  if (!ok) return;
+
+  const succeeded = [];
+  const failed = [];
+
+  const overlay = document.getElementById('loading');
+  const overlayText = overlay ? overlay.querySelector('.detail-loading-text') : null;
+  if (overlay) overlay.style.display = 'flex';
+
+  for (let i = 0; i < selectedTickets.length; i++) {
+    const ticket = selectedTickets[i];
+    if (overlayText) overlayText.textContent = `삭제 중... (${i + 1}/${selectedTickets.length})`;
+    try {
+      await deleteTicket(ticket.row_id);   // 기존 단건 삭제 API 재사용 (row 삭제 + 첨부파일 휴지통 이동)
+      succeeded.push(ticket);
+    } catch (err) {
+      console.error('[bulkDelete] 삭제 실패:', ticket.ticket_id, err);
+      failed.push(ticket);
+    }
+  }
+
+  if (overlay) overlay.style.display = 'none';
+  if (overlayText) overlayText.textContent = t('loading');
+
+  clearTicketsCaches();
+  toggleSelectionModeGlobal();
+  await loadTickets();
+
+  let msg = `삭제 완료: ${succeeded.length}개 성공 / ${failed.length}개 실패`;
   if (failed.length) {
     msg += `\n\n실패한 티켓:\n${failed.map(tk => tk.ticket_id).join(', ')}`;
   }
@@ -714,7 +819,7 @@ function renderSection(group, tickets, dimmed) {
       const rowId = el.dataset.rowId;
       if (el.checked) selectedRowIds[group].add(rowId);
       else selectedRowIds[group].delete(rowId);
-      updateBulkActionBar(group);
+      updateBulkActionBarGlobal();
     });
   });
 }
@@ -801,9 +906,9 @@ function buildRow(ticket, dimmed, group) {
     ? `<td class="orig-icon-cell" tabindex="0" aria-label="원문 보기" data-orig="${escHtml(ticket.title)}">i</td>`
     : `<td class="orig-icon-cell orig-icon-empty"></td>`;
 
-  // 선택 모드: 활성 그룹(WW/MVN) + 잠기지 않은 행만 clip-cell을 체크박스로 대체(새 컬럼 추가 없음)
-  // 그룹별 독립 상태이므로 이 행이 속한 그룹의 selectionMode만 확인
-  const canSelect = SELECTABLE_GROUPS.includes(group) && selectionMode[group] && isActive && !locked;
+  // 선택 모드: 4개 섹션(WW/MVN/완료/보류) 전부 + 잠기지 않은 행만 clip-cell을 체크박스로 대체
+  // (새 컬럼 추가 없음). 완료/보류 티켓도 이동 대상이 될 수 있어야 하므로 isActive 조건은 없음.
+  const canSelect = SELECTABLE_GROUPS.includes(group) && selectionModeGlobal && !locked;
   const clipContent = canSelect
     ? `<input type="checkbox" class="row-select-checkbox" data-row-id="${escHtml(ticket.row_id)}"${selectedRowIds[group].has(ticket.row_id) ? ' checked' : ''}>`
     : ((isLockedForDisplay(ticket) || hasFiles) ? `<div class="status-icons">${isLockedForDisplay(ticket) ? `<span class="lock-icon" data-tip="${escHtml(t('tooltip_editing_by_other'))}">${PENCIL_SVG}</span>` : ''}${hasFiles ? `<svg data-tip="첨부 파일 - ${escHtml(firstFileName)}" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>` : ''}</div>` : '');

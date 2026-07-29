@@ -6,6 +6,15 @@
   <title>DQA Ticket Manager</title>
   <link rel="icon" type="image/png" href="favicon_32x32.png">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* 티켓 이동(전역) — 헤더 타이틀/로고와 오른쪽 영역 사이 여백에 배치 */
+    .topbar-center { display: flex; align-items: center; gap: 10px; margin-left: 16px; flex: 1 1 auto; }
+    .bulk-action-bar-global { display: none; align-items: center; gap: 8px; }
+    .bulk-action-bar-global .bulk-target-select { max-width: 160px; }
+    .bulk-action-bar-global .bulk-selected-count { white-space: nowrap; font-size: 13px; color: #4b5563; }
+    #btn-bulk-delete-global.btn-danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+    #btn-bulk-delete-global.btn-danger:disabled { background: #f3a8a3; border-color: #f3a8a3; cursor: not-allowed; }
+  </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
 </head>
 <body>
@@ -17,6 +26,17 @@
   </button>
   <h1 class="app-title app-title-home" data-i18n="app_title">DQA Ticket Manager</h1>
   <img src="favicon_32x32.png" class="app-logo" alt="DQA">
+
+  <div class="topbar-center">
+    <button type="button" id="btn-move-mode-global" class="btn btn-secondary btn-sm">티켓 이동/삭제</button>
+    <div class="bulk-action-bar-global" id="bulk-action-bar-global">
+      <span class="bulk-selected-count" id="bulk-selected-count-global">0개 선택됨</span>
+      <select class="bulk-target-select" id="bulk-target-version-global"></select>
+      <button type="button" id="btn-bulk-move-global" class="btn btn-sm btn-primary" disabled data-i18n="move_to">이동</button>
+      <button type="button" id="btn-bulk-delete-global" class="btn btn-sm btn-danger" disabled data-i18n="btn_delete">삭제</button>
+    </div>
+  </div>
+
   <div class="topbar-right">
     <button type="button" id="btn-search-toggle" class="search-toggle" aria-label="검색">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -94,14 +114,6 @@
       <span class="toggle-icon" id="toggle-activeWW">▼</span>
       <span>🔵</span>
       <span data-i18n="section_activeWW">WW</span>
-      <div class="section-header-actions" data-group="activeWW">
-        <button type="button" id="btn-select-mode-activeWW" class="btn btn-secondary btn-sm btn-select-mode-group">티켓이동</button>
-        <div class="bulk-action-bar-inline" id="bulk-action-bar-activeWW">
-          <select class="bulk-target-select" id="bulk-target-version-activeWW"></select>
-          <span class="bulk-selected-count" id="bulk-selected-count-activeWW">0개 선택됨</span>
-          <button type="button" id="btn-bulk-move-activeWW" class="btn btn-sm btn-bulk-move-group" disabled data-i18n="move_to">이동</button>
-        </div>
-      </div>
       <span class="count-badge" id="count-activeWW">0</span>
     </div>
     <div id="section-activeWW-body">
@@ -121,14 +133,6 @@
       <span class="toggle-icon" id="toggle-activeMVN">▼</span>
       <span>🟢</span>
       <span data-i18n="section_activeMVN">MVN</span>
-      <div class="section-header-actions" data-group="activeMVN">
-        <button type="button" id="btn-select-mode-activeMVN" class="btn btn-secondary btn-sm btn-select-mode-group">티켓이동</button>
-        <div class="bulk-action-bar-inline" id="bulk-action-bar-activeMVN">
-          <select class="bulk-target-select" id="bulk-target-version-activeMVN"></select>
-          <span class="bulk-selected-count" id="bulk-selected-count-activeMVN">0개 선택됨</span>
-          <button type="button" id="btn-bulk-move-activeMVN" class="btn btn-sm btn-bulk-move-group" disabled data-i18n="move_to">이동</button>
-        </div>
-      </div>
       <span class="count-badge" id="count-activeMVN">0</span>
     </div>
     <div id="section-activeMVN-body">
