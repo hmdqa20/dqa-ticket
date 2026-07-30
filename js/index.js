@@ -330,14 +330,14 @@ async function fetchFreshList(vid, hadCache) {
 // ─── 버전 사이드탭 ────────────────────────────────────────────────────────────
 
 function renderSidebar() {
-  const list = document.getElementById('version-list');
-  if (!list) return;
+  const itemsContainer = document.getElementById('version-list-items');
+  if (!itemsContainer) return;
 
-  // "전체 티켓"은 이제 상단 고정 버튼(정적 마크업) — active 상태만 갱신
+  // "전체 티켓"은 이제 버전 목록과 같은 스크롤 박스 안의 정적 첫 줄(sticky) — active 상태만 갱신
   const allBtn = document.getElementById('btn-all-tickets');
   if (allBtn) allBtn.classList.toggle('active', currentVersionId === ALL_VERSION);
 
-  // 버전 목록만 스크롤 영역에 렌더링
+  // 나머지 버전 탭들만 이 안쪽 컨테이너에 렌더링 (전체 티켓 행은 건드리지 않음)
   const html = versions.map(v => {
     const active = currentVersionId === v.version_id ? ' active' : '';
     const dotClass = v.status === '완료' ? 'dot-done' : 'dot-active';
@@ -347,9 +347,9 @@ function renderSidebar() {
     </div>`;
   }).join('');
 
-  list.innerHTML = html;
+  itemsContainer.innerHTML = html;
 
-  list.querySelectorAll('.version-item').forEach(item => {
+  itemsContainer.querySelectorAll('.version-item').forEach(item => {
     item.addEventListener('click', () => switchVersion(item.dataset.versionId));
   });
 }
@@ -381,9 +381,21 @@ async function switchVersion(versionId) {
 }
 
 function setupVersionSidebar() {
-  // 새 버전 추가 버튼은 onclick으로 versions.html 이동 처리 — 아이콘만 주입
+  // 버전 관리 버튼 — 아이콘 주입 + 클릭 시 versions.html로 이동
+  // (선택된 티켓이 있으면 페이지를 떠나며 선택이 통째로 날아가므로, switchVersion과 동일하게 확인창)
   const addVersionIcon = document.getElementById('btn-add-version-icon');
   if (addVersionIcon) addVersionIcon.innerHTML = TAG_SVG;
+  const addVersionBtn = document.getElementById('btn-add-version');
+  if (addVersionBtn) addVersionBtn.addEventListener('click', () => {
+    if (selectionModeGlobal) {
+      const total = SELECTABLE_GROUPS.reduce((sum, g) => sum + selectedRowIds[g].size, 0);
+      if (total > 0) {
+        const ok = confirm(`선택된 ${total}개 티켓의 선택이 해제됩니다. 버전 관리 화면으로 이동할까요?`);
+        if (!ok) return;
+      }
+    }
+    location.href = 'versions.html';
+  });
 
   // "전체 티켓"은 상단 고정 정적 버튼 — 아이콘 주입 + 클릭 리스너는 최초 1회만 연결
   const listIcon = document.getElementById('version-all-icon');
@@ -467,6 +479,10 @@ function toggleSelectionModeGlobal() {
 
   const bar = document.getElementById('bulk-action-bar-global');
   if (bar) bar.style.display = selectionModeGlobal ? 'flex' : 'none';
+
+  // 선택모드 중엔 검색을 쓸 일이 없으므로 검색 버튼/입력창을 잠깐 숨김
+  const searchGroup = document.getElementById('search-group');
+  if (searchGroup) searchGroup.classList.toggle('hidden-in-selection', selectionModeGlobal);
 
   syncSelectionModeButtonTextGlobal();
 
@@ -567,7 +583,7 @@ async function handleBulkMoveGlobal() {
   toggleSelectionModeGlobal();      // 선택 모드 종료(선택 목록 초기화 포함)
   await loadTickets();              // 최신 상태 재조회
 
-  let msg = `이동 완료: ${succeeded.length}개 성공 / ${failed.length}개 실패`;
+  let msg = `"${targetVersion ? targetVersion.version_name : ''}"으로 이동 완료: ${succeeded.length}개 성공 / ${failed.length}개 실패`;
   if (failed.length) {
     msg += `\n\n실패한 티켓:\n${failed.map(tk => tk.ticket_id).join(', ')}`;
   }
@@ -813,7 +829,7 @@ function renderSection(group, tickets, dimmed) {
   tbody.querySelectorAll('.inline-select, .wjira-checkbox').forEach(el => {
     el.addEventListener('change', handleInlineChange);
   });
-  
+
   tbody.querySelectorAll('.row-select-checkbox').forEach(el => {
     el.addEventListener('change', () => {
       const rowId = el.dataset.rowId;

@@ -28,7 +28,7 @@
   --surface-2:   #ffffff;
   --fill-accent:   #2563eb;
   --filter-active: #4f46e5;  /* 헤더 필터 활성 깔때기 아이콘 강조색 (인디고) */
-  --sidebar-bg:    #F0F2F5;
+  --sidebar-bg:    #FFFFFF;  /* 버전탭 배경색 */
   --bg-accent:     #eff6ff;
   --text-accent:   #1d4ed8;
   --border-accent: #bfdbfe;
@@ -46,7 +46,9 @@
 
   /* 버전 관리(versions.html) 고유색 — index 그룹 헤더의 --ww/--mvn 포지션 (purple-600/100) */
   --verman:     #9333ea;
-  --verman-mid: #f3e8ff;
+  --verman-mid: #e8ffea;
+  --all-color: #D6E7FF;  /* 버전 관리 버튼 배경 */
+  --all-mid:   #FFE8A8;  /* 전체 티켓 배경 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -507,7 +509,7 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   top: calc(56px + var(--test-banner-h));
   align-self: flex-start;
   max-height: calc(100vh - 56px - var(--test-banner-h));
-  background: var(--sidebar-bg);
+  background: #E9EDF3;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -527,9 +529,9 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   gap: 6px;
   border-right: 0.5px solid var(--border);
   border-bottom: 0.5px solid var(--border);
-  background: color-mix(in srgb, var(--sidebar-bg), black 15%);
-  box-shadow: inset 0 -1px 3px rgba(0,0,0,0.08);
+  background: color-mix(in srgb, var(--all-color), white 75%);  box-shadow: inset 0 -1px 3px rgba(0,0,0,0.08);
   padding: 12px 16px;   /* 위아래 여백도 살짝 늘려서 버튼과 경계 사이 공간 확보 */
+  margin-bottom: 7px;
 }
 
 .version-list {
@@ -591,11 +593,29 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   white-space: nowrap;
 }
 
-/* 상단 고정 버튼 두 개("버전 관리" / "전체 티켓") — 같은 버튼 패밀리(크기·패딩·radius·폰트 통일),
-   톤만 달리해서 역할을 구분. 선택된 버전 탭(.version-item.active, 흰 배경+좌측 파란선)과는
-   확실히 다른 시각 언어(칠해진 배경)라서 서로 헷갈리지 않는다. */
-.btn-add-version,
-.version-all-btn {
+/* "전체 티켓" — 다른 버전 탭과 완전히 동일한 .version-item 구조를 그대로 쓰되(진짜 탭 목록의
+   일부), position: sticky로 부모(.version-list, overflow-y:auto)의 스크롤과 무관하게 항상
+   맨 위에 붙어있게 한다. 점 색상과 평상시 배경만 달라서 "전체"라는 정체성을 구분. */
+.version-item-all {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--all-mid);
+}
+.version-item-all:hover { background: color-mix(in srgb, var(--all-mid), black 6%); }
+.version-item-all.active {
+  background: var(--surface-2);
+  border-left-color: var(--all-color);
+}
+.dot-all { background: var(--all-color); }
+
+/* "버전 관리"는 설정/관리 성격이라 칠해진 버튼 형태 유지, 상단 고정 영역에 단독 배치.
+   "전체 티켓"은 더 이상 버튼이 아니라 버전 목록과 같은 스크롤 박스 안의 진짜 첫 번째 탭
+   (.version-item 구조를 그대로 씀, position: sticky로 스크롤해도 항상 최상단에 붙어있음).
+   다른 버전 탭들과 같은 시각 언어(왼쪽 강조선 + 선택 시 흰 배경)를 쓰되, 강조선 색·점 모양·
+   굵기·아래 구분선으로 "특정 버전이 아닌 전체"라는 정체성만 구분한다. 상세 스타일은
+   아래 .version-item-all 규칙 참고. */
+.btn-add-version {
   width: 100%;
   display: flex;
   align-items: center;
@@ -609,28 +629,11 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   font-weight: 600;
   font-family: inherit;
   transition: background 0.12s;
-}
-
-/* 버전 관리 — 앱의 기존 강조색(파랑) 사용 */
-.btn-add-version {
   background: color-mix(in srgb, var(--fill-accent), white 85%);
   color: var(--fill-accent);
 }
 .btn-add-version:hover {
   background: color-mix(in srgb, var(--fill-accent), white 72%);
-}
-
-/* 전체 티켓 — MVN 초록, 동일한 공식(white 85%)으로 파생 */
-.version-all-btn {
-  background: color-mix(in srgb, var(--mvn), white 85%);
-  color: var(--mvn);
-}
-.version-all-btn:hover {
-  background: color-mix(in srgb, var(--mvn), white 72%);
-}
-.version-all-btn.active {
-  background: var(--mvn);
-  color: #fff;
 }
 
 .sidebar-btn-icon { display: inline-flex; flex-shrink: 0; }
