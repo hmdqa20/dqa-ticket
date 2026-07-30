@@ -85,7 +85,7 @@ const I18N = {
     btn_select_mode: '티켓 이동/삭제',
     btn_select_mode_active: '이동/삭제 취소',
     bulk_move_btn: '선택한 티켓 이동',
-    bulk_target_placeholder: '이동할 버전 선택',
+    bulk_target_placeholder: '버전 선택',
     unit_selected: '개 선택됨',
     btn_edit: '수정',
     btn_new_ticket: '티켓등록',

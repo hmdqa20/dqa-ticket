@@ -813,12 +813,20 @@ function renderSection(group, tickets, dimmed) {
   tbody.querySelectorAll('.inline-select, .wjira-checkbox').forEach(el => {
     el.addEventListener('change', handleInlineChange);
   });
-
+  
   tbody.querySelectorAll('.row-select-checkbox').forEach(el => {
     el.addEventListener('change', () => {
       const rowId = el.dataset.rowId;
       if (el.checked) selectedRowIds[group].add(rowId);
       else selectedRowIds[group].delete(rowId);
+
+      // 개별 체크 상태가 바뀔 때마다 그 섹션의 전체선택 체크박스도 동기화
+      // (전체선택→개별 반영은 이미 되고 있었는데, 개별→전체선택 역방향 동기화가 빠져있었음)
+      const rowCheckboxes = tbody.querySelectorAll('.row-select-checkbox');
+      const allChecked = rowCheckboxes.length > 0 && [...rowCheckboxes].every(cb => cb.checked);
+      const selAllCb = document.querySelector(`.select-all-checkbox[data-group="${group}"]`);
+      if (selAllCb) selAllCb.checked = allChecked;
+
       updateBulkActionBarGlobal();
     });
   });

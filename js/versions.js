@@ -478,7 +478,7 @@ async function handleDelete(versionId) {
 
   const count = ticketCounts[versionId] || 0;
   const msg   = count > 0
-    ? `[${v.version_name}]을(를) 삭제하시겠습니까?\n소속 티켓 ${count}개의 버전 정보가 초기화됩니다. 티켓 자체는 유지됩니다.`
+    ? `[${v.version_name}]을(를) 삭제하시겠습니까?\n소속 티켓 ${count}개의 버전 정보가 초기화됩니다.\n ${count}개의 티켓은 전체 티켓에서 확인 가능합니다.`
     : `[${v.version_name}]을(를) 삭제하시겠습니까?`;
 
   if (!confirm(msg)) return;
