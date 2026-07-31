@@ -38,6 +38,10 @@ const ALL_VERSION = '__ALL__';
 // 버전 탭 상태
 let versions = [];                  // [{version_id, version_name, status, ...}]
 let currentVersionId = ALL_VERSION; // 현재 선택된 버전 (ALL_VERSION=전체)
+let versionsEmbedOpen = false; // 버전 관리 embed가 열려있는 동안엔, 뒤늦게 도착한 renderSidebar()가
+                                // 탭 active 표시를 되살리지 못하게 막는 가드
+let loadTicketsSeq = 0;    // 매 요청마다 증가 — 뒤늦게 도착한 옛날 응답을 무조건 무시하기 위한 번호표
+let switchVersionDebounceTimer = null; // 탭 연타 시 실제 요청은 마지막 클릭 기준 1번만 나가게 지연
 
 // 선택 모드 (버전 일괄이동) — 헤더의 전역 버튼 하나로 4개 섹션(WW/MVN/완료/보류) 전체를
 // 동시에 선택모드로 전환. 그룹별 Set 자체는 그대로 유지(체크박스 change 핸들러가 그룹 키로
@@ -76,12 +80,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadSectionStates();
   applyCollapsedStates();
 
-  // 언어 전환 시 API 재호출 없이 현재 데이터로 재렌더링
+// 언어 전환 시 API 재호출 없이 현재 데이터로 재렌더링
   onLangChange(() => {
     applyTranslations();
     syncSelectionModeButtonTextGlobal();
     buildAllHeaders();
     renderAll();
+  });
+
+  // 버전 관리(iframe)에서 "← 목록" 눌렀을 때 postMessage로 전달되는 닫기 신호 수신
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'dqa-versions-close') hideVersionsEmbed();
   });
 
   // 마지막 선택 버전 복원 (없으면 ALL_VERSION으로 전체 로드 후 최신 버전으로 전환)
@@ -266,6 +275,7 @@ function buildHeaderHtml(sectionType = 'active', groupKey = '') {
 
 async function loadTickets() {
   const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
+  const mySeq = ++loadTicketsSeq; // 이 호출의 번호표 — 나보다 늦게 시작된 호출이 있으면 나는 버려짐
 
   // 캐시 우선 렌더링(stale-while-revalidate): 직전에 받아둔 데이터가 있으면 즉시 그려서
   // GAS 콜드스타트(수 초)를 기다리지 않게 하고, 최신 데이터는 백그라운드로 받아 갈아끼운다.
@@ -280,14 +290,14 @@ async function loadTickets() {
     populateDynamicFilters();
     renderAll();
     showLoading(false);
-    fetchFreshList(vid, true);   // 백그라운드 — await 금지
+    fetchFreshList(vid, true, mySeq);   // 백그라운드 — await 금지
     return;
   }
   showLoading(true);
-  await fetchFreshList(vid, false);
+  await fetchFreshList(vid, false, mySeq);
 }
 
-async function fetchFreshList(vid, hadCache) {
+async function fetchFreshList(vid, hadCache, mySeq) {
   try {
     // 1차 시도 실패 시 RETRY_DELAY_MS 대기 후 1회 자동 재시도
     // 로딩 인디케이터는 재시도 동안 계속 표시 (finally에서만 숨김)
@@ -299,6 +309,10 @@ async function fetchFreshList(vid, hadCache) {
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
       data = await getTickets(vid);  // 실패 시 throw → outer catch
     }
+
+    // 이 응답을 기다리는 동안 더 최신 요청(다른 탭 클릭 등)이 이미 시작됐으면, 이 응답은
+    // 무조건 버림 — 버전이 우연히 같아도 마찬가지. 화면 갱신은 오직 "가장 최근에 쏜 요청"만 담당.
+    if (mySeq !== loadTicketsSeq) return;
 
     saveTicketsCache(vid, data);
 
@@ -333,13 +347,15 @@ function renderSidebar() {
   const itemsContainer = document.getElementById('version-list-items');
   if (!itemsContainer) return;
 
-  // "전체 티켓"은 이제 버전 목록과 같은 스크롤 박스 안의 정적 첫 줄(sticky) — active 상태만 갱신
+  // "전체 티켓"은 이제 버전 목록과 같은 스크롤 박스 안의 정적 첫 줄(sticky) — active 상태만 갱신.
+  // 단, 버전 관리가 열려있는 동안엔 뒤늦게 도착한 이 함수 호출이 탭 active를 되살리면 안 되므로
+  // 무조건 꺼진 상태로 강제한다 (레이스 컨디션 방지).
   const allBtn = document.getElementById('btn-all-tickets');
-  if (allBtn) allBtn.classList.toggle('active', currentVersionId === ALL_VERSION);
+  if (allBtn) allBtn.classList.toggle('active', !versionsEmbedOpen && currentVersionId === ALL_VERSION);
 
   // 나머지 버전 탭들만 이 안쪽 컨테이너에 렌더링 (전체 티켓 행은 건드리지 않음)
   const html = versions.map(v => {
-    const active = currentVersionId === v.version_id ? ' active' : '';
+    const active = (!versionsEmbedOpen && currentVersionId === v.version_id) ? ' active' : '';
     const dotClass = v.status === '완료' ? 'dot-done' : 'dot-active';
     return `<div class="version-item${active}" data-version-id="${escHtml(v.version_id)}">
       <span class="version-dot ${dotClass}"></span>
@@ -356,6 +372,10 @@ function renderSidebar() {
 
 async function switchVersion(versionId) {
   if (versionId === currentVersionId) return;
+
+  // embed된 버전관리 화면을 보고 있는 중이었다면, 버전탭 클릭 시 자동으로 티켓 목록으로 복귀
+  const embedEl = document.getElementById('versions-embed');
+  if (embedEl && embedEl.style.display !== 'none') hideVersionsEmbed();
 
   // 선택된 티켓이 있는 상태에서 탭을 이동하면 선택이 초기화됨 — 실수(마우스 오클릭, 터치패드
   // 오터치 등)로 선택이 날아가는 사고를 막기 위해 한 번 확인
@@ -377,7 +397,11 @@ async function switchVersion(versionId) {
     updateBulkActionBarGlobal();
   }
   renderSidebar();
-  await loadTickets();
+
+  // 탭 연타 방지: 클릭 직후 바로 요청 쏘지 않고 180ms 대기 — 그 사이 다른 탭을 또 누르면
+  // 이전 타이머를 취소하고 새로 잡음. 결과적으로 "연타가 멈춘 마지막 탭"에 대해서만 요청 1번 나감.
+  clearTimeout(switchVersionDebounceTimer);
+  switchVersionDebounceTimer = setTimeout(() => { loadTickets(); }, 180);
 }
 
 function setupVersionSidebar() {
@@ -394,7 +418,7 @@ function setupVersionSidebar() {
         if (!ok) return;
       }
     }
-    location.href = 'versions.html';
+    showVersionsEmbed();
   });
 
   // "전체 티켓"은 상단 고정 정적 버튼 — 아이콘 주입 + 클릭 리스너는 최초 1회만 연결
@@ -402,6 +426,35 @@ function setupVersionSidebar() {
   if (listIcon) listIcon.innerHTML = LIST_SVG;
   const allBtn = document.getElementById('btn-all-tickets');
   if (allBtn) allBtn.addEventListener('click', () => switchVersion(ALL_VERSION));
+}
+
+// ─── 버전 관리 iframe embed 전환 ──────────────────────────────────────────────
+function showVersionsEmbed() {
+  versionsEmbedOpen = true;
+  document.querySelectorAll('.ticket-section, .section-divider').forEach(el => { el.style.display = 'none'; });
+  // 버전 관리 화면은 특정 버전을 "보고 있는" 상태가 아니므로, 전체 티켓 포함 모든 탭의
+  // 선택(active) 표시를 해제 — 나갈 때는 loadTickets()가 renderSidebar()를 다시 불러 복원됨
+  document.querySelectorAll('.version-item.active').forEach(el => el.classList.remove('active'));
+  // 대신 "버전 관리" 버튼 자체를 선택 상태로 표시 (탭과는 다른 시각 언어: 꽉 찬 배경)
+  const addVersionBtn = document.getElementById('btn-add-version');
+  if (addVersionBtn) addVersionBtn.classList.add('active');
+  const embed = document.getElementById('versions-embed');
+  const iframe = document.getElementById('versions-iframe');
+  if (iframe && !iframe.dataset.loaded) {
+    iframe.src = 'versions.html';
+    iframe.dataset.loaded = '1';
+  }
+  if (embed) embed.style.display = 'block';
+}
+
+function hideVersionsEmbed() {
+  versionsEmbedOpen = false;
+  document.querySelectorAll('.ticket-section, .section-divider').forEach(el => { el.style.display = ''; });
+  const embed = document.getElementById('versions-embed');
+  if (embed) embed.style.display = 'none';
+  const addVersionBtn = document.getElementById('btn-add-version');
+  if (addVersionBtn) addVersionBtn.classList.remove('active');
+  loadTickets(); // 버전 관리에서 추가/수정/삭제했을 수 있으니 사이드바·목록 최신화
 }
 
 // ─── 사이드바 접기/펼치기 ────────────────────────────────────────────────────
@@ -1441,12 +1494,17 @@ async function refreshList() {
   if (isUserBusy()) return;        // 조작 중이면 이번 주기 건너뜀
 
   const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
+  const mySeq = ++loadTicketsSeq;   // loadTickets/fetchFreshList와 동일한 번호표 체계 공유
+
   let data;
   try {
     data = await getTickets(vid);
   } catch (_) {
     return;                         // 실패는 조용히 무시 (다음 주기에 재시도)
   }
+
+  // 이 응답을 기다리는 동안 더 최신 요청(탭 클릭 등)이 이미 시작됐으면 무조건 버림
+  if (mySeq !== loadTicketsSeq) return;
 
   saveTicketsCache(vid, data);     // 다음 페이지 진입 시 즉시 렌더용 캐시 갱신 (vid 키와 짝이 맞아 항상 안전)
 

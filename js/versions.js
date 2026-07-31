@@ -13,6 +13,11 @@ let sortState = { col: null, dir: 'asc' }; // col: 'name'|'count'|'date'|null
 
 // ─── 초기화 ──────────────────────────────────────────────────────────────────
 
+// iframe으로 embed됐는지 감지 — embed면 자체 헤더 숨기고, "← 목록"은 페이지 이동 대신
+// 부모 창(index.html)에 postMessage로 "닫아줘" 신호만 보냄
+const IS_EMBEDDED = window.parent !== window;
+if (IS_EMBEDDED) document.body.classList.add('embedded-in-dqa');
+
 function applyTranslations() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
@@ -23,8 +28,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTranslations();
   onLangChange(applyTranslations);
 
-  document.getElementById('btn-back').addEventListener('click', () => {
-    location.href = 'index.html';
+document.getElementById('btn-back').addEventListener('click', () => {
+    if (IS_EMBEDDED) {
+      window.parent.postMessage({ type: 'dqa-versions-close' }, '*');
+    } else {
+      location.href = 'index.html';
+    }
   });
 
   document.getElementById('btn-add-ver').addEventListener('click', handleAdd);

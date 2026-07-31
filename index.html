@@ -200,6 +200,12 @@
     </div>
   </section>
 
+  <!-- "버전 관리"를 별도 페이지 이동 없이 여기서 iframe으로 embed. 평소엔 숨김.
+       postMessage로 iframe(versions.html) ↔ 이 페이지가 통신함(js/index.js). -->
+  <div id="versions-embed" style="display:none">
+    <iframe id="versions-iframe" title="버전 관리"></iframe>
+  </div>
+
 </main>
 
 </div>
