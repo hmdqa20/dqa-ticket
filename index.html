@@ -7,14 +7,14 @@
   <link rel="icon" type="image/png" href="favicon_32x32.png">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* ����E�E�E��E�E�E�E��)  E����E�E����E����/�E�고�E� �E��E��E� �E�E�� �E��E� �E��E��E�E�E��E�E*/
+    /* 티켓 이동(전역) — 헤더 타이틀/로고와 오른쪽 영역 사이 여백에 배치 */
     .topbar-center { display: flex; align-items: center; gap: 10px; margin-left: 16px; flex: 1 1 auto; }
     .bulk-action-bar-global { display: none; align-items: center; gap: 8px; }
     .bulk-action-bar-global .bulk-target-select { max-width: 160px; }
     .bulk-action-bar-global .bulk-selected-count { white-space: nowrap; font-size: 13px; color: #4b5563; }
     #btn-bulk-delete-global.btn-danger { background: #dc2626; color: #fff; border-color: #dc2626; }
     #btn-bulk-delete-global.btn-danger:disabled { background: #f3a8a3; border-color: #f3a8a3; cursor: not-allowed; }
-    /* �E��E�E�E��E�E�E����모�E�E�E�엔 �E��E�을 �E��E�E�E��E� */
+    /* 이동/삭제 선택모드 중엔 검색을 잠깐 숨김 */
     .search-group { display: flex; align-items: center; gap: inherit; }
     .search-group.hidden-in-selection { display: none; }  
     @media (max-width: 768px) {
@@ -25,103 +25,103 @@
 </head>
 <body>
 
-<!-- ─── �E�E�� �E�E─────────────────────────────────────────────────────────── -->
+<!-- ─── 상단 바 ─────────────────────────────────────────────────────────── -->
 <header class="topbar">
-  <button type="button" id="btn-sidebar-toggle" class="sidebar-toggle" aria-label="�E��E��E�밁E�E�기/����E�기">
+  <button type="button" id="btn-sidebar-toggle" class="sidebar-toggle" aria-label="사이드바 접기/펼치기">
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <h1 class="app-title app-title-home" data-i18n="app_title">DQA Ticket Manager</h1>
   <img src="favicon_32x32.png" class="app-logo" alt="DQA">
 
   <div class="topbar-center">
-    <button type="button" id="btn-move-mode-global" class="btn btn-secondary btn-sm">����E�E�E��E�E�E��E�E/button>
+    <button type="button" id="btn-move-mode-global" class="btn btn-secondary btn-sm">티켓 이동/삭제</button>
     <div class="bulk-action-bar-global" id="bulk-action-bar-global">
-      <span class="bulk-selected-count" id="bulk-selected-count-global">0�E�E�E����됨</span>
+      <span class="bulk-selected-count" id="bulk-selected-count-global">0개 선택됨</span>
       <select class="bulk-target-select" id="bulk-target-version-global"></select>
-      <button type="button" id="btn-bulk-move-global" class="btn btn-sm btn-primary" disabled data-i18n="move_to">�E��E�E/button>
-      <button type="button" id="btn-bulk-delete-global" class="btn btn-sm btn-danger" disabled data-i18n="btn_delete">�E��E�E/button>
+      <button type="button" id="btn-bulk-move-global" class="btn btn-sm btn-primary" disabled data-i18n="move_to">이동</button>
+      <button type="button" id="btn-bulk-delete-global" class="btn btn-sm btn-danger" disabled data-i18n="btn_delete">삭제</button>
     </div>
   </div>
 
   <div class="topbar-right">
     <div class="search-group" id="search-group">
-      <button type="button" id="btn-search-toggle" class="search-toggle" aria-label="�E��E�E>
+      <button type="button" id="btn-search-toggle" class="search-toggle" aria-label="검색">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
       </button>
       <div class="search-wrap">
-        <input id="search-input" type="text" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="�E��E�E..">
-        <button type="button" id="btn-search-clear" class="search-clear" aria-label="�E��E�어 �E��E��E�">ÁE/button>
+        <input id="search-input" type="text" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="검색...">
+        <button type="button" id="btn-search-clear" class="search-clear" aria-label="검색어 지우기">×</button>
       </div>
-      <button type="button" id="btn-search-close" class="search-close" data-i18n="btn_close">�E��E�</button>
+      <button type="button" id="btn-search-close" class="search-close" data-i18n="btn_close">닫기</button>
     </div>
     <div class="lang-dropdown">
       <button type="button" class="lang-dropdown-btn" id="lang-dropdown-btn"></button>
       <div class="lang-dropdown-menu" id="lang-dropdown-menu">
-        <button type="button" class="lang-option" data-lang="ko"><span class="fi fi-kr"></span> ���국�E�</button>
-        <button type="button" class="lang-option" data-lang="jp"><span class="fi fi-jp"></span> 日本誁E/button>
+        <button type="button" class="lang-option" data-lang="ko"><span class="fi fi-kr"></span> 한국어</button>
+        <button type="button" class="lang-option" data-lang="jp"><span class="fi fi-jp"></span> 日本語</button>
         <button type="button" class="lang-option" data-lang="en"><span class="fi fi-gb"></span> English</button>
         <button type="button" class="lang-option" data-lang="vi"><span class="fi fi-vn"></span> Tiếng Việt</button>
       </div>
     </div>
-    <button id="btn-new" class="btn btn-primary" data-i18n="new_ticket">����E�E�E��E�E/button>
+    <button id="btn-new" class="btn btn-primary" data-i18n="new_ticket">티켓 등록</button>
   </div>
 </header>
 
-<!-- ─── �E��E��E�E�E�E��E�E���인 �E��E� ────────────────────────────────────────── -->
+<!-- ─── 실시순서 충돌 확인 모달 ────────────────────────────────────────── -->
 <div id="cascade-modal" class="modal-overlay" style="display:none">
   <div class="modal-box">
     <p id="cascade-msg" class="modal-msg"></p>
     <label class="modal-skip-label">
       <input type="checkbox" id="cascade-skip-today">
-      <span data-i18n="skip_today">�E��E�E�E��E�E�E��E�</span>
+      <span data-i18n="skip_today">오늘 그만 보기</span>
     </label>
     <div class="modal-actions">
-      <button id="cascade-cancel" class="btn btn-secondary" data-i18n="btn_cancel">�E��E�E/button>
-      <button id="cascade-ok" class="btn btn-primary" data-i18n="btn_confirm">���인</button>
+      <button id="cascade-cancel" class="btn btn-secondary" data-i18n="btn_cancel">취소</button>
+      <button id="cascade-ok" class="btn btn-primary" data-i18n="btn_confirm">확인</button>
     </div>
   </div>
 </div>
 
-<!-- ─── �E�딩 �E��E�E��이 ───────────────────────────────────────────────────── -->
+<!-- ─── 로딩 오버레이 ───────────────────────────────────────────────────── -->
 <div id="loading" class="detail-loading-overlay" style="display:flex">
   <div class="spinner"></div>
-  <span class="detail-loading-text" data-i18n="loading">�E�딩 �E�E..</span>
+  <span class="detail-loading-text" data-i18n="loading">로딩 중...</span>
 </div>
 
-<!-- ─── �E�러 �E�시�E� ────────────────────────────────────────────────────── -->
+<!-- ─── 에러 메시지 ────────────────────────────────────────────────────── -->
 <div id="error-msg" class="error-msg" style="display:none">
   <span class="error-text"></span>
-  <button class="btn btn-secondary" onclick="loadTickets()" data-i18n="btn_retry">�E��E�도</button>
+  <button class="btn btn-secondary" onclick="loadTickets()" data-i18n="btn_retry">재시도</button>
 </div>
 
-<!-- ─── �E�우 �E�E�� �E�이�E�E�� ─────────────────────────────────────────────── -->
+<!-- ─── 좌우 분할 레이아웃 ─────────────────────────────────────────────── -->
 <div class="layout">
 
-<!-- �E��E�: �E�E��E�E��E��E�탭 -->
+<!-- 왼쪽: 버전 사이드탭 -->
 <aside class="version-sidebar">
-  <!-- �E�E�� �E��E�E�E�E��: "�E�E��E�E��E�"�E�E(�E��E�E�E��E��E��E� ��� �E��E�과 �E�E�� �E��E�) -->
+  <!-- 상단 고정 영역: "버전 관리"만 (설정 성격이라 탭 목록과 분리 유지) -->
   <div class="sidebar-fixed-top">
     <button type="button" id="btn-add-version" class="btn-add-version">
       <span class="sidebar-btn-icon" id="btn-add-version-icon"></span>
-      <span>�E�E��E�E��E�</span>
+      <span>버전 관리</span>
     </button>
   </div>
   
-  <!-- "�E�E�� ����E�E�E� �E�E��E�E��E�과 �E�은 �E�����E� �E�스 �E�의 �E�E��E�E� �E�째 ���  E
-       position: sticky�E�E�E�����E�����E�E����E�E�E� �E�E�� �E�어�E�음(css/style.css) -->
+  <!-- "전체 티켓"은 버전 목록과 같은 스크롤 박스 안의 진짜 첫 번째 탭 —
+       position: sticky로 스크롤해도 항상 맨 위에 붙어있음(css/style.css) -->
   <div class="version-list" id="version-list">
     <div class="version-item version-item-all" id="btn-all-tickets">
       <span class="version-dot dot-all"></span>
-      <span class="version-name" data-i18n="version_all">�E�E�� ����E�E/span>
+      <span class="version-name" data-i18n="version_all">전체 티켓</span>
     </div>
     <div id="version-list-items"></div>
   </div>
 </aside>
 
-<!-- �E��E��E�: �E�인 �E��E�E� -->
+<!-- 오른쪽: 메인 콘텐츠 -->
 <main class="main-content">
 
-  <!-- �E��E�E1: WW -->
+  <!-- 섹션 1: WW -->
   <section class="ticket-section section-ww">
     <div class="section-header collapsible" id="section-ww-header">
       <span class="toggle-icon" id="toggle-activeWW">▼</span>
@@ -140,7 +140,7 @@
     </div>
   </section>
 
-  <!-- �E��E�E2: MVN -->
+  <!-- 섹션 2: MVN -->
   <section class="ticket-section section-mvn">
     <div class="section-header collapsible" id="section-mvn-header">
       <span class="toggle-icon" id="toggle-activeMVN">▼</span>
@@ -159,15 +159,15 @@
     </div>
   </section>
 
-  <!-- �E��E�E�� -->
+  <!-- 구분선 -->
   <div class="section-divider"></div>
 
-  <!-- �E��E�E3: �E�E��E(�E��E� �E�힘) -->
+  <!-- 섹션 3: 완료 (기본 접힘) -->
   <section class="ticket-section section-done">
     <div class="section-header collapsible" id="section-done-header">
       <span class="toggle-icon" id="toggle-done">▼</span>
       <span>⚫</span>
-      <span data-i18n="section_done">�E�E��E/span>
+      <span data-i18n="section_done">완료</span>
       <span class="count-badge" id="count-done">0</span>
     </div>
     <div id="section-done-body">
@@ -181,12 +181,12 @@
     </div>
   </section>
 
-  <!-- �E��E�E4: �E��E�EN/A (�E��E� �E�힘) -->
+  <!-- 섹션 4: 보류/N/A (기본 접힘) -->
   <section class="ticket-section section-hold">
     <div class="section-header collapsible" id="section-hold-header">
       <span class="toggle-icon" id="toggle-hold">▼</span>
       <span>⚪</span>
-      <span data-i18n="section_hold">�E��E�E& N/A</span>
+      <span data-i18n="section_hold">보류 & N/A</span>
       <span class="count-badge" id="count-hold">0</span>
     </div>
     <div id="section-hold-body">
@@ -200,10 +200,10 @@
     </div>
   </section>
 
-  <!-- "�E�E��E�E��E�"�E� �E�E�� ���이�E� �E��E�E�E�E�� �E��E��E�Eiframe�E��E�Eembed. ����E�E�E�E��E�.
-       postMessage�E�Eiframe(versions.html) ↁE�E� ���이�E��E� ����E����(js/index.js). -->
+  <!-- "버전 관리"를 별도 페이지 이동 없이 여기서 iframe으로 embed. 평소엔 숨김.
+       postMessage로 iframe(versions.html) ↔ 이 페이지가 통신함(js/index.js). -->
   <div id="versions-embed" style="display:none">
-    <iframe id="versions-iframe" title="�E�E��E�E��E�"></iframe>
+    <iframe id="versions-iframe" title="버전 관리"></iframe>
   </div>
 
 </main>
@@ -213,6 +213,6 @@
 
 <script src="js/i18n.js?v=20260801"></script>
 <script src="js/api.js?v=20260801"></script>
-<script src="js/index.js?v=20260801"></script>
+<script src="js/versions.js?v=20260801"></script>
 </body>
 </html>
