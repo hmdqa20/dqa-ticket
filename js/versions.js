@@ -13,6 +13,11 @@ let sortState = { col: null, dir: 'asc' }; // col: 'name'|'count'|'date'|null
 
 // ─── 초기화 ──────────────────────────────────────────────────────────────────
 
+// iframe으로 embed됐는지 감지 — embed면 자체 헤더 숨기고, "← 목록"은 페이지 이동 대신
+// 부모 창(index.html)에 postMessage로 "닫아줘" 신호만 보냄
+const IS_EMBEDDED = window.parent !== window;
+if (IS_EMBEDDED) document.body.classList.add('embedded-in-dqa');
+
 function applyTranslations() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
@@ -23,8 +28,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTranslations();
   onLangChange(applyTranslations);
 
-  document.getElementById('btn-back').addEventListener('click', () => {
-    location.href = 'index.html';
+document.getElementById('btn-back').addEventListener('click', () => {
+    if (IS_EMBEDDED) {
+      window.parent.postMessage({ type: 'dqa-versions-close' }, '*');
+    } else {
+      location.href = 'index.html';
+    }
   });
 
   document.getElementById('btn-add-ver').addEventListener('click', handleAdd);
@@ -478,7 +487,7 @@ async function handleDelete(versionId) {
 
   const count = ticketCounts[versionId] || 0;
   const msg   = count > 0
-    ? `[${v.version_name}]을(를) 삭제하시겠습니까?\n소속 티켓 ${count}개의 버전 정보가 초기화됩니다. 티켓 자체는 유지됩니다.`
+    ? `[${v.version_name}]을(를) 삭제하시겠습니까?\n소속 티켓 ${count}개의 버전 정보가 초기화됩니다.\n ${count}개의 티켓은 전체 티켓에서 확인 가능합니다.`
     : `[${v.version_name}]을(를) 삭제하시겠습니까?`;
 
   if (!confirm(msg)) return;

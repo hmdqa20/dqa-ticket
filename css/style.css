@@ -28,7 +28,7 @@
   --surface-2:   #ffffff;
   --fill-accent:   #2563eb;
   --filter-active: #4f46e5;  /* 헤더 필터 활성 깔때기 아이콘 강조색 (인디고) */
-  --sidebar-bg:    #F0F2F5;
+  --sidebar-bg:    #E9EDF3;  /* 버전탭 배경색 */
   --bg-accent:     #eff6ff;
   --text-accent:   #1d4ed8;
   --border-accent: #bfdbfe;
@@ -46,7 +46,10 @@
 
   /* 버전 관리(versions.html) 고유색 — index 그룹 헤더의 --ww/--mvn 포지션 (purple-600/100) */
   --verman:     #9333ea;
-  --verman-mid: #f3e8ff;
+  --verman-mid: #f3e8ff;  /* 버전 목록 페이지에서의 버전 목록 헤더 */
+  --verman-mid-soft: #faf5ff;     /* 새 버전 추가 헤더 — 더 연한 톤으로 하위 느낌 */
+  --all-color: #D6E7FF;  /* 버전 관리 버튼 배경 */
+  --all-mid:   #FFE8A8;  /* 전체 티켓 배경 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -507,12 +510,13 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   top: calc(56px + var(--test-banner-h));
   align-self: flex-start;
   max-height: calc(100vh - 56px - var(--test-banner-h));
-  background: var(--sidebar-bg);
+  background: #F4F5F7;          /* ← 순백 → 아주 연한 회색으로 변경 (본문과 구분) */ 
   display: flex;
   flex-direction: column;
   padding: 0;
   overflow: hidden; /* 스크롤은 아래 .version-list에서만 — 상단 고정 영역은 항상 보임 */
   transition: width 0.25s ease;
+  border-right: 1px solid var(--border);  /* 오른쪽 경계선 살짝 강화 */
 }
 /* 접힘: width 0 + overflow:hidden으로 통째로 숨김. 본문(.main-content flex:1)이 전체 폭을 채움 */
 body.sidebar-collapsed .version-sidebar { width: 0; }
@@ -525,11 +529,12 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-right: 0.5px solid var(--border);
-  border-bottom: 0.5px solid var(--border);
-  background: color-mix(in srgb, var(--sidebar-bg), black 15%);
-  box-shadow: inset 0 -1px 3px rgba(0,0,0,0.08);
-  padding: 12px 16px;   /* 위아래 여백도 살짝 늘려서 버튼과 경계 사이 공간 확보 */
+  border-top: 4px solid var(--border);
+  border-bottom: 4px solid var(--border);
+  background: color-mix(in srgb, var(--all-color), white 60%);
+  box-shadow: inset 0 -1px 3px rgba(0,0,0,0.06);
+  padding: 12px 16px;
+  margin-bottom: 0px;          /* 10px → 16px 로 더 넓게 */
 }
 
 .version-list {
@@ -538,7 +543,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   flex: 1;
   min-height: 0;   /* flex 컨테이너 안에서 overflow-y가 실제로 작동하려면 필요 */
   overflow-y: auto;
-  background: var(--sidebar-bg);
+  background: #F4F5F7;           /* 사이드바와 동일하게 통일 */
 }
 
 .version-item {
@@ -553,17 +558,20 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   cursor: pointer;
   font-size: 12px;
   color: var(--text);
-  background: var(--sidebar-bg);
+  background: transparent;       /* ← 배경 투명 → 사이드바 회색이 비침 */
   transition: background 0.1s;
   user-select: none;
 }
-.version-item:hover { background: #e4e6ea; }
+
+.version-item:hover {
+  background: #E8EAED;           /* 호버 시 조금 더 진한 회색 */
+}
 
 /* 선택된 탭: 흰색 배경, 파란 왼쪽 선, 오른쪽·아래쪽 선 없애서 콘텐츠와 이어지는 느낌.
    왼쪽 선을 굵게(2.5→5px) 강조하되, 굵어진 만큼 padding-left를 줄여
    (기본 2.5+14 = 활성 5+11.5 = 16.5px) 버전명 시작 위치가 다른 탭과 어긋나지 않게 유지 */
 .version-item.active {
-  background: var(--surface-2);
+  background: #FFFFFF;           /* 선택 시 순백으로 떠오르게 */
   border-left-width: 5px;
   border-left-color: var(--fill-accent);
   padding-left: 11.5px;
@@ -573,6 +581,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   color: var(--text);
   position: relative;
   z-index: 1;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);  /* 아주 약한 그림자로 떠 있는 느낌 */
 }
 
 /* 상태 표시 점 */
@@ -581,9 +590,13 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--text);   /* ← 텍스트 색상과 동일하게 */
 }
-.dot-active { background: #3B6D11; }
-.dot-done   { background: #9ca3af; }
+
+/* 기존 상태별 색상 규칙 제거 (또는 주석 처리) */
+/* .dot-active { background: #3B6D11; } */
+/* .dot-done   { background: #9ca3af; } */
+/* .dot-all    { background: var(--all-color); } */
 
 .version-name {
   overflow: hidden;
@@ -591,46 +604,79 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   white-space: nowrap;
 }
 
-/* 상단 고정 버튼 두 개("버전 관리" / "전체 티켓") — 같은 버튼 패밀리(크기·패딩·radius·폰트 통일),
-   톤만 달리해서 역할을 구분. 선택된 버전 탭(.version-item.active, 흰 배경+좌측 파란선)과는
-   확실히 다른 시각 언어(칠해진 배경)라서 서로 헷갈리지 않는다. */
-.btn-add-version,
-.version-all-btn {
+/* "전체 티켓" — 다른 버전 탭과 완전히 동일한 .version-item 구조를 그대로 쓰되(진짜 탭 목록의
+   일부), position: sticky로 부모(.version-list, overflow-y:auto)의 스크롤과 무관하게 항상
+   맨 위에 붙어있게 한다. 점 색상과 평상시 배경만 달라서 "전체"라는 정체성을 구분. */
+.version-item-all {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--all-mid);
+}
+.version-item-all:hover {
+  background: color-mix(in srgb, var(--all-mid), black 6%);
+}
+.version-item-all.active {
+  background: var(--surface-2);
+  border-left: 5px solid #F9A825;          /* 노란색 세로바 유지 */
+  padding-left: 11.5px;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  font-weight: 600;
+  position: relative;
+}
+
+/* 테두리용 pseudo */
+.version-item-all.active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3.5px solid var(--all-mid);      /* 빨간색 → all-mid, 굵기 1.5 → 2.5px */
+  pointer-events: none;
+}
+
+.dot-all {
+  background: var(--text);   /* 전체 티켓 점만 텍스트 색 */
+}
+
+/* "버전 관리"는 설정/관리 성격이라 칠해진 버튼 형태 유지, 상단 고정 영역에 단독 배치.
+   "전체 티켓"은 더 이상 버튼이 아니라 버전 목록과 같은 스크롤 박스 안의 진짜 첫 번째 탭
+   (.version-item 구조를 그대로 씀, position: sticky로 스크롤해도 항상 최상단에 붙어있음).
+   다른 버전 탭들과 같은 시각 언어(왼쪽 강조선 + 선택 시 흰 배경)를 쓰되, 강조선 색·점 모양·
+   굵기·아래 구분선으로 "특정 버전이 아닌 전체"라는 정체성만 구분한다. 상세 스타일은
+   아래 .version-item-all 규칙 참고. */
+.btn-add-version {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 6px 8px;
-  border: none;
+  padding: 7px 8px;
+  border: 1px solid color-mix(in srgb, var(--verman), white 40%);
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 11.5px;
   font-weight: 600;
   font-family: inherit;
-  transition: background 0.12s;
-}
-
-/* 버전 관리 — 앱의 기존 강조색(파랑) 사용 */
-.btn-add-version {
-  background: color-mix(in srgb, var(--fill-accent), white 85%);
-  color: var(--fill-accent);
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+  background: color-mix(in srgb, var(--verman), white 88%);
+  color: var(--verman);
+  box-shadow: 0 1px 2px rgba(147, 51, 234, 0.08);
 }
 .btn-add-version:hover {
-  background: color-mix(in srgb, var(--fill-accent), white 72%);
+  background: color-mix(in srgb, var(--verman), white 70%);
+  border-color: color-mix(in srgb, var(--verman), white 20%);
+  box-shadow: 0 2px 5px rgba(147, 51, 234, 0.12);
 }
 
-/* 전체 티켓 — MVN 초록, 동일한 공식(white 85%)으로 파생 */
-.version-all-btn {
-  background: color-mix(in srgb, var(--mvn), white 85%);
-  color: var(--mvn);
-}
-.version-all-btn:hover {
-  background: color-mix(in srgb, var(--mvn), white 72%);
-}
-.version-all-btn.active {
-  background: var(--mvn);
+.btn-add-version.active {
+  background: var(--verman);
   color: #fff;
+  border-color: var(--verman);
+  box-shadow:
+    0 2px 6px rgba(147, 51, 234, 0.3),
+    0 0 0 3px color-mix(in srgb, var(--verman), white 55%);
+  transform: scale(1.02);
 }
 
 .sidebar-btn-icon { display: inline-flex; flex-shrink: 0; }
@@ -701,8 +747,24 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   flex: 1;
   min-width: 0;
   padding: 16px 8px;
-  background: var(--surface-2);
 }
+
+#versions-embed {
+  height: calc(100vh - 56px - var(--test-banner-h));
+  margin: -16px -8px;
+  padding: 0;
+}
+#versions-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+/* versions.html이 iframe 안에 embed된 상태일 때 — 자체 상단바(중복 헤더) 숨김 */
+body.embedded-in-dqa .topbar { display: none; }
+body.embedded-in-dqa #test-mode-banner { display: none; }
 
 /* ─── 섹션 ────────────────────────────────────────────────────────────────── */
 .ticket-section {
@@ -1985,11 +2047,18 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   font-size: 14px;
   border-bottom: 1px solid var(--border);
   border-left: 4px solid var(--verman);
-  background: var(--verman-mid);
+  background: var(--verman-mid);          /* 버전 목록 기본 */
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* 새 버전 추가 헤더 — 더 연한 배경 + 세로바도 살짝 연하게 */
+.ver-add-section .ver-section-header {
+  background: var(--verman-mid-soft);
+  border-left-color: color-mix(in srgb, var(--verman), white 35%);
+  border-bottom: none;
 }
 
 /* 버전 목록 섹션 헤더: 버전목록·순서변경됨·원래대로·순서저장 4개를 4단 균등 배치.
@@ -1999,6 +2068,11 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   grid-template-columns: repeat(4, 1fr);
   justify-items: center;
   align-items: center;
+}
+
+.ver-list-header .ver-section-title {
+  justify-self: start;   /* 제목만 왼쪽 정렬 */
+  padding-left: 0;
 }
 
 /* "순서 변경됨" 상태 배지 — 완전 알약형(999px)+테두리 없음 = 클릭 안 되는 상태 표시.

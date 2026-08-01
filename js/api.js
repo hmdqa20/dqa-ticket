@@ -165,6 +165,11 @@ async function moveTicket(rowId, targetVersionId) {
   return callGAS('moveTicket', { row_id: rowId, target_version_id: targetVersionId });
 }
 
+// 완료 티켓을 다른 버전으로 복사 (원본 보존, 진행전 상태로 사본 생성)
+async function copyTicketToVersion(rowId, targetVersionId) {
+  return callGAS('copyTicketToVersion', { row_id: rowId, target_version_id: targetVersionId });
+}
+
 // 티켓 추가
 async function addTicket(data) {
   return callGAS('addTicket', data);

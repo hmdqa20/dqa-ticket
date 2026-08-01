@@ -6,6 +6,21 @@
   <title>DQA Ticket Manager</title>
   <link rel="icon" type="image/png" href="favicon_32x32.png">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* 티켓 이동(전역) — 헤더 타이틀/로고와 오른쪽 영역 사이 여백에 배치 */
+    .topbar-center { display: flex; align-items: center; gap: 10px; margin-left: 16px; flex: 1 1 auto; }
+    .bulk-action-bar-global { display: none; align-items: center; gap: 8px; }
+    .bulk-action-bar-global .bulk-target-select { max-width: 160px; }
+    .bulk-action-bar-global .bulk-selected-count { white-space: nowrap; font-size: 13px; color: #4b5563; }
+    #btn-bulk-delete-global.btn-danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+    #btn-bulk-delete-global.btn-danger:disabled { background: #f3a8a3; border-color: #f3a8a3; cursor: not-allowed; }
+    /* 이동/삭제 선택모드 중엔 검색을 잠깐 숨김 */
+    .search-group { display: flex; align-items: center; gap: inherit; }
+    .search-group.hidden-in-selection { display: none; }  
+    @media (max-width: 768px) {
+      #btn-move-mode-global { display: none; }
+    }
+  </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
 </head>
 <body>
@@ -17,15 +32,28 @@
   </button>
   <h1 class="app-title app-title-home" data-i18n="app_title">DQA Ticket Manager</h1>
   <img src="favicon_32x32.png" class="app-logo" alt="DQA">
-  <div class="topbar-right">
-    <button type="button" id="btn-search-toggle" class="search-toggle" aria-label="검색">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-    </button>
-    <div class="search-wrap">
-      <input id="search-input" type="text" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="검색...">
-      <button type="button" id="btn-search-clear" class="search-clear" aria-label="검색어 지우기">×</button>
+
+  <div class="topbar-center">
+    <button type="button" id="btn-move-mode-global" class="btn btn-secondary btn-sm">티켓 이동/삭제</button>
+    <div class="bulk-action-bar-global" id="bulk-action-bar-global">
+      <span class="bulk-selected-count" id="bulk-selected-count-global">0개 선택됨</span>
+      <select class="bulk-target-select" id="bulk-target-version-global"></select>
+      <button type="button" id="btn-bulk-move-global" class="btn btn-sm btn-primary" disabled data-i18n="move_to">이동</button>
+      <button type="button" id="btn-bulk-delete-global" class="btn btn-sm btn-danger" disabled data-i18n="btn_delete">삭제</button>
     </div>
-    <button type="button" id="btn-search-close" class="search-close" data-i18n="btn_close">닫기</button>
+  </div>
+
+  <div class="topbar-right">
+    <div class="search-group" id="search-group">
+      <button type="button" id="btn-search-toggle" class="search-toggle" aria-label="검색">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      </button>
+      <div class="search-wrap">
+        <input id="search-input" type="text" class="search-input" data-i18n-placeholder="search_placeholder" placeholder="검색...">
+        <button type="button" id="btn-search-clear" class="search-clear" aria-label="검색어 지우기">×</button>
+      </div>
+      <button type="button" id="btn-search-close" class="search-close" data-i18n="btn_close">닫기</button>
+    </div>
     <div class="lang-dropdown">
       <button type="button" class="lang-dropdown-btn" id="lang-dropdown-btn"></button>
       <div class="lang-dropdown-menu" id="lang-dropdown-menu">
@@ -71,18 +99,23 @@
 
 <!-- 왼쪽: 버전 사이드탭 -->
 <aside class="version-sidebar">
-  <!-- 상단 고정 영역: 버전이 아무리 늘어나도 이 두 버튼은 항상 최상단에 고정, 아래 버전 목록만 스크롤 -->
+  <!-- 상단 고정 영역: "버전 관리"만 (설정 성격이라 탭 목록과 분리 유지) -->
   <div class="sidebar-fixed-top">
-    <button type="button" class="btn-add-version" onclick="location.href='versions.html'">
+    <button type="button" id="btn-add-version" class="btn-add-version">
       <span class="sidebar-btn-icon" id="btn-add-version-icon"></span>
       <span>버전 관리</span>
     </button>
-    <button type="button" class="version-all-btn" id="btn-all-tickets">
-      <span class="sidebar-btn-icon" id="version-all-icon"></span>
-      <span data-i18n="version_all">전체 티켓</span>
-    </button>
   </div>
-  <div class="version-list" id="version-list"></div>
+  
+  <!-- "전체 티켓"은 버전 목록과 같은 스크롤 박스 안의 진짜 첫 번째 탭 —
+       position: sticky로 스크롤해도 항상 맨 위에 붙어있음(css/style.css) -->
+  <div class="version-list" id="version-list">
+    <div class="version-item version-item-all" id="btn-all-tickets">
+      <span class="version-dot dot-all"></span>
+      <span class="version-name" data-i18n="version_all">전체 티켓</span>
+    </div>
+    <div id="version-list-items"></div>
+  </div>
 </aside>
 
 <!-- 오른쪽: 메인 콘텐츠 -->
@@ -94,14 +127,6 @@
       <span class="toggle-icon" id="toggle-activeWW">▼</span>
       <span>🔵</span>
       <span data-i18n="section_activeWW">WW</span>
-      <div class="section-header-actions" data-group="activeWW">
-        <button type="button" id="btn-select-mode-activeWW" class="btn btn-secondary btn-sm btn-select-mode-group">티켓이동</button>
-        <div class="bulk-action-bar-inline" id="bulk-action-bar-activeWW">
-          <select class="bulk-target-select" id="bulk-target-version-activeWW"></select>
-          <span class="bulk-selected-count" id="bulk-selected-count-activeWW">0개 선택됨</span>
-          <button type="button" id="btn-bulk-move-activeWW" class="btn btn-sm btn-bulk-move-group" disabled data-i18n="move_to">이동</button>
-        </div>
-      </div>
       <span class="count-badge" id="count-activeWW">0</span>
     </div>
     <div id="section-activeWW-body">
@@ -121,14 +146,6 @@
       <span class="toggle-icon" id="toggle-activeMVN">▼</span>
       <span>🟢</span>
       <span data-i18n="section_activeMVN">MVN</span>
-      <div class="section-header-actions" data-group="activeMVN">
-        <button type="button" id="btn-select-mode-activeMVN" class="btn btn-secondary btn-sm btn-select-mode-group">티켓이동</button>
-        <div class="bulk-action-bar-inline" id="bulk-action-bar-activeMVN">
-          <select class="bulk-target-select" id="bulk-target-version-activeMVN"></select>
-          <span class="bulk-selected-count" id="bulk-selected-count-activeMVN">0개 선택됨</span>
-          <button type="button" id="btn-bulk-move-activeMVN" class="btn btn-sm btn-bulk-move-group" disabled data-i18n="move_to">이동</button>
-        </div>
-      </div>
       <span class="count-badge" id="count-activeMVN">0</span>
     </div>
     <div id="section-activeMVN-body">
@@ -182,6 +199,12 @@
       </div>
     </div>
   </section>
+
+  <!-- "버전 관리"를 별도 페이지 이동 없이 여기서 iframe으로 embed. 평소엔 숨김.
+       postMessage로 iframe(versions.html) ↔ 이 페이지가 통신함(js/index.js). -->
+  <div id="versions-embed" style="display:none">
+    <iframe id="versions-iframe" title="버전 관리"></iframe>
+  </div>
 
 </main>
 
