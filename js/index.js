@@ -42,6 +42,7 @@ let versionsEmbedOpen = false; // 버전 관리 embed가 열려있는 동안엔,
                                 // 탭 active 표시를 되살리지 못하게 막는 가드
 let loadTicketsSeq = 0;    // 매 요청마다 증가 — 뒤늦게 도착한 옛날 응답을 무조건 무시하기 위한 번호표
 let switchVersionDebounceTimer = null; // 탭 연타 시 실제 요청은 마지막 클릭 기준 1번만 나가게 지연
+let currentTicketsAbort = null;        // 진행 중인 getTickets를 취소하기 위한 AbortController
 
 // 선택 모드 (버전 일괄이동) — 헤더의 전역 버튼 하나로 4개 섹션(WW/MVN/완료/보류) 전체를
 // 동시에 선택모드로 전환. 그룹별 Set 자체는 그대로 유지(체크박스 change 핸들러가 그룹 키로
@@ -298,16 +299,25 @@ async function loadTickets() {
 }
 
 async function fetchFreshList(vid, hadCache, mySeq) {
+  // 이전 요청이 있으면 즉시 취소
+  if (currentTicketsAbort) {
+    currentTicketsAbort.abort();
+  }
+  const controller = new AbortController();
+  currentTicketsAbort = controller;
+
   try {
     // 1차 시도 실패 시 RETRY_DELAY_MS 대기 후 1회 자동 재시도
     // 로딩 인디케이터는 재시도 동안 계속 표시 (finally에서만 숨김)
     let data;
     try {
-      data = await getTickets(vid);
+      data = await getTickets(vid, controller.signal);
     } catch (firstErr) {
+      if (firstErr.name === 'AbortError') return;          // 의도적 취소 → 조용히 종료
       console.warn('[loadTickets] 1차 실패, 재시도 중...', firstErr.message);
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-      data = await getTickets(vid);  // 실패 시 throw → outer catch
+      if (controller.signal.aborted) return;               // 재시도 대기 중 취소됐을 수 있음
+      data = await getTickets(vid, controller.signal);     // 실패 시 throw → outer catch
     }
 
     // 이 응답을 기다리는 동안 더 최신 요청(다른 탭 클릭 등)이 이미 시작됐으면, 이 응답은
@@ -337,6 +347,10 @@ async function fetchFreshList(vid, hadCache, mySeq) {
     // 캐시로 이미 화면을 그렸다면 에러 배너 대신 조용히 넘어감 (다음 자동 갱신에서 재시도)
     if (!hadCache) showError(true, err.message);
   } finally {
+    // 이 요청이 아직 현재 요청일 때만 컨트롤러 정리
+    if (currentTicketsAbort === controller) {
+      currentTicketsAbort = null;
+    }
     showLoading(false);
   }
 }
@@ -371,11 +385,21 @@ function renderSidebar() {
 }
 
 async function switchVersion(versionId) {
-  if (versionId === currentVersionId) return;
-
   // embed된 버전관리 화면을 보고 있는 중이었다면, 버전탭 클릭 시 자동으로 티켓 목록으로 복귀
   const embedEl = document.getElementById('versions-embed');
-  if (embedEl && embedEl.style.display !== 'none') hideVersionsEmbed();
+  if (embedEl && embedEl.style.display !== 'none') {
+    hideVersionsEmbed();
+    // embed를 닫으면서 이미 loadTickets()가 호출되므로,
+    // 같은 탭을 클릭한 경우에는 여기서 끝낸다
+    if (versionId === currentVersionId) return;
+  }
+
+  // 같은 탭을 다시 클릭한 경우 → 강제 재로드 (한 번 씹혔을 때 복구용)
+  if (versionId === currentVersionId) {
+    clearTimeout(switchVersionDebounceTimer);
+    switchVersionDebounceTimer = setTimeout(() => { loadTickets(); }, 250);
+    return;
+  }
 
   // 선택된 티켓이 있는 상태에서 탭을 이동하면 선택이 초기화됨 — 실수(마우스 오클릭, 터치패드
   // 오터치 등)로 선택이 날아가는 사고를 막기 위해 한 번 확인
@@ -401,7 +425,7 @@ async function switchVersion(versionId) {
   // 탭 연타 방지: 클릭 직후 바로 요청 쏘지 않고 180ms 대기 — 그 사이 다른 탭을 또 누르면
   // 이전 타이머를 취소하고 새로 잡음. 결과적으로 "연타가 멈춘 마지막 탭"에 대해서만 요청 1번 나감.
   clearTimeout(switchVersionDebounceTimer);
-  switchVersionDebounceTimer = setTimeout(() => { loadTickets(); }, 180);
+  switchVersionDebounceTimer = setTimeout(() => { loadTickets(); }, 250);
 }
 
 function setupVersionSidebar() {
@@ -1493,14 +1517,25 @@ async function refreshList() {
   if (document.hidden) return;     // 비활성 탭에서는 GAS 호출 생략
   if (isUserBusy()) return;        // 조작 중이면 이번 주기 건너뜀
 
+  // 이미 다른 요청이 진행 중이면 이번 자동 갱신은 스킵 (탭 전환과 충돌 방지)
+  if (currentTicketsAbort) return;
+
   const vid = currentVersionId === ALL_VERSION ? '' : currentVersionId;
   const mySeq = ++loadTicketsSeq;   // loadTickets/fetchFreshList와 동일한 번호표 체계 공유
 
+  const controller = new AbortController();
+  currentTicketsAbort = controller;
+
   let data;
   try {
-    data = await getTickets(vid);
-  } catch (_) {
+    data = await getTickets(vid, controller.signal);
+  } catch (err) {
+    if (err.name === 'AbortError') return;
     return;                         // 실패는 조용히 무시 (다음 주기에 재시도)
+  } finally {
+    if (currentTicketsAbort === controller) {
+      currentTicketsAbort = null;
+    }
   }
 
   // 이 응답을 기다리는 동안 더 최신 요청(탭 클릭 등)이 이미 시작됐으면 무조건 버림

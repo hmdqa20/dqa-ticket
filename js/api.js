@@ -105,13 +105,16 @@ async function callGAS(type, params = {}) {
 }
 
 // 전체 티켓 조회 (doGet) — versionId 주면 해당 버전 티켓만 / versions도 함께 반환
-async function getTickets(versionId) {
+// signal: AbortController.signal (탭 전환 시 이전 요청 취소용)
+async function getTickets(versionId, signal) {
   const url = versionId ? `${GAS_URL}?version_id=${encodeURIComponent(versionId)}` : GAS_URL;
 
   let res;
   try {
-    res = await fetch(url, { redirect: 'follow' });
+    res = await fetch(url, { redirect: 'follow', signal });
   } catch (networkErr) {
+    // AbortError는 의도적 취소이므로 상위로 그대로 전파 (호출 쪽에서 무시)
+    if (networkErr.name === 'AbortError') throw networkErr;
     console.error('[getTickets] 네트워크 오류:', networkErr);
     throw new Error('네트워크 오류 — 인터넷 연결을 확인하세요.');
   }
