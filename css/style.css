@@ -529,12 +529,12 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-right: 0.5px solid var(--border);
-  border-bottom: 3px solid var(--border);
-  background: color-mix(in srgb, var(--all-color), white 78%);
+  border-top: 4px solid var(--border);
+  border-bottom: 4px solid var(--border);
+  background: color-mix(in srgb, var(--all-color), white 60%);
   box-shadow: inset 0 -1px 3px rgba(0,0,0,0.06);
   padding: 12px 16px;
-  margin-bottom: 10px;          /* 10px → 16px 로 더 넓게 */
+  margin-bottom: 0px;          /* 10px → 16px 로 더 넓게 */
 }
 
 .version-list {
@@ -659,7 +659,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   font-weight: 600;
   font-family: inherit;
   transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
-  background: var(--verman-mid);
+  background: color-mix(in srgb, var(--verman), white 88%);
   color: var(--verman);
   box-shadow: 0 1px 2px rgba(147, 51, 234, 0.08);
 }
@@ -747,7 +747,6 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   flex: 1;
   min-width: 0;
   padding: 16px 8px;
-  background: var(--surface-2);
 }
 
 #versions-embed {
