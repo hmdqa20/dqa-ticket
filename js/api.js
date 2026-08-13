@@ -88,20 +88,40 @@ function loadAnyTicketsCache(preferredVersionId) {
 }
 
 // POST 공통 함수 — URLSearchParams로 form-encoded 전송
-async function callGAS(type, params = {}) {
+// maxRetries: 404나 비정상 응답 시 자동 재시도 횟수 (기본 2회)
+async function callGAS(type, params = {}, maxRetries = 2) {
   const body = new URLSearchParams({ type, ...params });
-  const res = await fetch(GAS_URL, {
-    method: 'POST',
-    body,
-    redirect: 'follow'
-  });
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    throw new Error(`GAS가 JSON이 아닌 응답을 반환했습니다 (${res.status}). 배포 설정 또는 스크립트 권한을 확인하세요.`);
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(GAS_URL, {
+        method: 'POST',
+        body,
+        redirect: 'follow'
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        // GAS 리다이렉트 오류(404 등) 시 HTML이 반환되는 경우 재시도 대상으로 간주
+        throw new Error(`GAS가 JSON이 아닌 응답을 반환했습니다 (${res.status}).`);
+      }
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || '알 수 없는 오류');
+      return json;
+
+    } catch (err) {
+      const isLastAttempt = attempt === maxRetries;
+      console.warn(`[callGAS] 요청 실패 (시도 ${attempt + 1}/${maxRetries + 1}):`, err.message);
+
+      if (isLastAttempt) {
+        throw new Error(err.message + ' 배포 설정 또는 스크립트 권한을 확인하세요.');
+      }
+
+      // 재시도 전 대기 (1초)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
-  const json = await res.json();
-  if (!json.success) throw new Error(json.error || '알 수 없는 오류');
-  return json;
 }
 
 // 전체 티켓 조회 (doGet) — versionId 주면 해당 버전 티켓만 / versions도 함께 반환

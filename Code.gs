@@ -223,40 +223,45 @@ function doPost(e) {
 // 실시간 요청 경로는 throttleMs를 넘기지 않아(undefined) 기존과 동일하게 지연 없이 동작한다.
 function buildTranslatedTitle(title, targetLang, throttleMs) {
   if (!title) return '';
-  var JP_RUN_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]+/g;
-  var runs = [];
-  var m;
-  while ((m = JP_RUN_RE.exec(title)) !== null) {
-    runs.push({ text: m[0], index: m.index });
+  try {
+    var JP_RUN_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]+/g;
+    var runs = [];
+    var m;
+    while ((m = JP_RUN_RE.exec(title)) !== null) {
+      runs.push({ text: m[0], index: m.index });
+    }
+    if (runs.length === 0) {
+      // 대상 언어 문자가 이미 원문에 있으면(한글/베트남어 위주) 번역 불필요 — 그대로 반환
+      var ALREADY_TARGET_RE = {
+        ko: /[가-힣]/,                            // 한글 음절
+        vi: /[À-ÿĂăĐđƠơƯưẠ-ỹ]/                     // 베트남어 성조/전용 문자
+      };
+      var alreadyRe = ALREADY_TARGET_RE[targetLang];
+      if (alreadyRe && alreadyRe.test(title)) return title;
+      // 순수 영어 등 — 전체 문자열을 통째로 번역 (source 언어는 자동감지)
+      var wholeTranslated = LanguageApp.translate(title, '', targetLang);
+      if (throttleMs) Utilities.sleep(throttleMs);
+      return wholeTranslated;
+    }
+    var result = title;
+    for (var i = runs.length - 1; i >= 0; i--) {
+      var r = runs[i];
+      var translated = LanguageApp.translate(r.text, 'ja', targetLang);
+      if (throttleMs) Utilities.sleep(throttleMs);
+      result = result.slice(0, r.index) + translated + result.slice(r.index + r.text.length);
+    }
+    return result;
+  } catch (err) {
+    Logger.log('번역 실패 (원문 유지): ' + err.message);
+    return title; // 번역 실패 시 원문 반환하여 프로세스 중단 방지
   }
-  if (runs.length === 0) {
-    // 대상 언어 문자가 이미 원문에 있으면(한글/베트남어 위주) 번역 불필요 — 그대로 반환
-    var ALREADY_TARGET_RE = {
-      ko: /[가-힣]/,                            // 한글 음절
-      vi: /[À-ÿĂăĐđƠơƯưẠ-ỹ]/                     // 베트남어 성조/전용 문자
-    };
-    var alreadyRe = ALREADY_TARGET_RE[targetLang];
-    if (alreadyRe && alreadyRe.test(title)) return title;
-    // 순수 영어 등 — 전체 문자열을 통째로 번역 (source 언어는 자동감지)
-    var wholeTranslated = LanguageApp.translate(title, '', targetLang);
-    if (throttleMs) Utilities.sleep(throttleMs);
-    return wholeTranslated;
-  }
-  var result = title;
-  for (var i = runs.length - 1; i >= 0; i--) {
-    var r = runs[i];
-    var translated = LanguageApp.translate(r.text, 'ja', targetLang);
-    if (throttleMs) Utilities.sleep(throttleMs);
-    result = result.slice(0, r.index) + translated + result.slice(r.index + r.text.length);
-  }
-  return result;
 }
 
 // ─── addTicket ────────────────────────────────────────────────────────────────
 
 function addTicket(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet    = getSheet();
     const p        = e.parameter;
@@ -309,7 +314,7 @@ function addTicket(e) {
 
 function updateTicket(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet  = getSheet();
     const data   = sheet.getDataRange().getValues();
@@ -391,7 +396,7 @@ function updateTicket(e) {
 
 function deleteTicket(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet  = getSheet();
     const data   = sheet.getDataRange().getValues();
@@ -462,7 +467,7 @@ function getVersions(e) {
 
 function addVersion(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet = getVersionSheet();
     const p     = e.parameter;
@@ -493,7 +498,7 @@ function addVersion(e) {
 
 function updateVersion(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet     = getVersionSheet();
     const data      = sheet.getDataRange().getValues();
@@ -528,7 +533,7 @@ function updateVersion(e) {
 
 function deleteVersion(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const versionId = e.parameter.version_id;
     if (!versionId) return jsonResponse({ success: false, error: 'version_id is required' });
@@ -563,7 +568,7 @@ function deleteVersion(e) {
 
 function moveTicket(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet    = getSheet();
     const data     = sheet.getDataRange().getValues();
@@ -605,7 +610,7 @@ function moveTicket(e) {
 
 function copyTicketToVersion(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet    = getSheet();
     const data     = sheet.getDataRange().getValues();
@@ -694,7 +699,7 @@ function fetchJira(e) {
 
 function uploadFile(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  lock.waitLock(30000);
   try {
     const props    = PropertiesService.getScriptProperties();
     const folderId = props.getProperty('DRIVE_FOLDER_ID');
@@ -733,7 +738,7 @@ function uploadFile(e) {
 
 function lockTicket(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet = getSheet();
     const data  = sheet.getDataRange().getValues();
@@ -767,7 +772,7 @@ function lockTicket(e) {
 
 function unlockTicket(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet = getSheet();
     const data  = sheet.getDataRange().getValues();
@@ -817,7 +822,7 @@ function checkLock(e) {
 // LOCKED_AT 외 다른 컬럼은 일절 건드리지 않는다.
 function heartbeat(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  lock.waitLock(30000);
   try {
     const sheet = getSheet();
     const data  = sheet.getDataRange().getValues();
