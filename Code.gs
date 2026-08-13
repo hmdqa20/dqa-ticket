@@ -127,10 +127,41 @@ function jsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ─── 캐시 관리 헬퍼 ──────────────────────────────────────────────────────────
+const CACHE_KEY_PREFIX = 'dqa_all_data_';
+
+function getCacheKey(versionId) {
+  return CACHE_KEY_PREFIX + (versionId || 'ALL');
+}
+
+function clearAllCaches() {
+  try {
+    const cache = CacheService.getScriptCache();
+    // CacheService는 키 목록 조회가 불가능하므로, 자주 쓰이는 패턴들을 명시적으로 제거하거나
+    // 데이터 변경 시 관련 캐시를 무효화하는 방식으로 관리.
+    // 여기서는 간단히 'ALL' 캐시를 먼저 비우고, 필요 시 확장.
+    cache.remove(CACHE_KEY_PREFIX + 'ALL');
+  } catch (err) {
+    Logger.log('Cache clear failed: ' + err.message);
+  }
+}
+
 // ─── doGet ────────────────────────────────────────────────────────────────────
 
 function doGet(e) {
+  const versionId = e && e.parameter ? e.parameter.version_id : '';
+  const cacheKey = getCacheKey(versionId);
+
   try {
+    // 1. 캐시 확인
+    const cache = CacheService.getScriptCache();
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      Logger.log('Cache hit for: ' + cacheKey);
+      return jsonResponse(JSON.parse(cached));
+    }
+
+    // 2. 캐시 없으면 시트에서 직접 조회
     const sheet = getSheet();
     const data  = sheet.getDataRange().getValues();
     const empty = { activeWW: [], activeMVN: [], done: [], hold: [] };
@@ -141,10 +172,12 @@ function doGet(e) {
     const versions = vData.length <= 1 ? [] :
       vData.slice(1).map(versionRowToObj).filter(v => v.version_id !== '').sort((a, b) => a.sort_order - b.sort_order);
 
-    if (data.length <= 1) return jsonResponse({ success: true, data: empty, versions });
+    if (data.length <= 1) {
+      const resp = { success: true, data: empty, versions };
+      cache.put(cacheKey, JSON.stringify(resp), 600); // 10분 캐시
+      return jsonResponse(resp);
+    }
 
-    // version_id 파라미터가 있으면 해당 버전 티켓만 (없으면 전체 — 하위 호환)
-    const versionId = e && e.parameter ? e.parameter.version_id : '';
     let rows = data.slice(1).map(rowToObj).filter(r => r.row_id !== '');
     if (versionId) rows = rows.filter(r => r.version_id === versionId);
 
@@ -175,7 +208,19 @@ function doGet(e) {
     done.sort(byChangedDesc);
     hold.sort(byChangedDesc);
 
-    return jsonResponse({ success: true, data: { activeWW, activeMVN, done, hold }, versions });
+    const fullResp = { success: true, data: { activeWW, activeMVN, done, hold }, versions };
+
+    // 3. 결과 캐싱 (최대 100KB 제한 주의 - 텍스트 양이 많으면 실패할 수 있음)
+    try {
+      const jsonStr = JSON.stringify(fullResp);
+      if (jsonStr.length < 100 * 1024) { // GAS CacheService 100KB 제한
+        cache.put(cacheKey, jsonStr, 600);
+      }
+    } catch (cacheErr) {
+      Logger.log('Cache put failed: ' + cacheErr.message);
+    }
+
+    return jsonResponse(fullResp);
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.message });
@@ -303,6 +348,7 @@ function addTicket(e) {
     ];
 
     sheet.appendRow(newRow);
+    clearAllCaches(); // 캐시 무효화
     return jsonResponse({ success: true, row_id: rowId });
 
   } finally {
@@ -384,7 +430,7 @@ function updateTicket(e) {
     ];
 
     sheet.getRange(sheetRow, 1, 1, updatedRow.length).setValues([updatedRow]);
-
+    clearAllCaches(); // 캐시 무효화
     return jsonResponse({ success: true });
 
   } finally {
@@ -412,6 +458,7 @@ function deleteTicket(e) {
         const versionId = String(data[i][COL.VERSION_ID] || '');
 
         sheet.deleteRow(i + 1);
+        clearAllCaches(); // 캐시 무효화
 
         // Drive 첨부 파일 휴지통으로 이동
         if (fileUrls) {
@@ -486,6 +533,7 @@ function addVersion(e) {
     }
 
     sheet.appendRow([versionId, name, status, now, 0]);
+    clearAllCaches(); // 캐시 무효화
     return jsonResponse({ success: true, version_id: versionId });
 
   } finally {
@@ -519,6 +567,7 @@ function updateVersion(e) {
         if (p.status !== undefined) {
           sheet.getRange(sheetRow, VCOL.STATUS + 1).setValue(p.status);
         }
+        clearAllCaches(); // 캐시 무효화
         return jsonResponse({ success: true });
       }
     }
@@ -649,6 +698,7 @@ function copyTicketToVersion(e) {
         ];
 
         sheet.appendRow(newRow);
+        clearAllCaches(); // 캐시 무효화
         return jsonResponse({ success: true, row_id: newRowId });
       }
     }

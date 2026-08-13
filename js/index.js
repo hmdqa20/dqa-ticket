@@ -877,23 +877,65 @@ function renderSection(group, tickets, dimmed) {
   const tbody = document.getElementById('tbody-' + group);
   if (!tbody) return;
 
+  // 이전 점진적 렌더링 중단
+  if (tbody._renderTaskId) {
+    cancelAnimationFrame(tbody._renderTaskId);
+    tbody._renderTaskId = null;
+  }
+
   if (tickets.length === 0) {
     tbody.innerHTML = `<tr class="no-data"><td colspan="11">${t('no_tickets')}</td></tr>`;
+    updateCounts();
     return;
   }
 
-  tbody.innerHTML = tickets.map(ticket => buildRow(ticket, dimmed, group)).join('');
+  tbody.innerHTML = ''; // 초기화
 
-  tbody.querySelectorAll('.navigate-cell').forEach(td => {
+  const BATCH_SIZE = 30; // 한 번에 그릴 티켓 수
+  let currentIndex = 0;
+
+  function renderBatch() {
+    const nextIndex = Math.min(currentIndex + BATCH_SIZE, tickets.length);
+    const batch = tickets.slice(currentIndex, nextIndex);
+
+    // DocumentFragment를 사용하여 성능 최적화
+    const temp = document.createElement('tbody');
+    temp.innerHTML = batch.map(ticket => buildRow(ticket, dimmed, group)).join('');
+
+    const fragment = document.createDocumentFragment();
+    while (temp.firstChild) {
+      const row = temp.firstChild;
+      attachRowListeners(row, group);
+      fragment.appendChild(row);
+    }
+    tbody.appendChild(fragment);
+
+    currentIndex = nextIndex;
+    if (currentIndex < tickets.length) {
+      tbody._renderTaskId = requestAnimationFrame(renderBatch);
+    } else {
+      tbody._renderTaskId = null;
+      updateAllScrollHints(); // 전체 렌더링 완료 후 힌트 가시성 재계산
+    }
+  }
+
+  renderBatch();
+}
+
+// 개별 행에 이벤트 리스너 부착 (점진적 렌더링용으로 분리)
+function attachRowListeners(row, group) {
+  if (!(row instanceof HTMLElement)) return;
+
+  row.querySelectorAll('.navigate-cell').forEach(td => {
     td.addEventListener('click', () => {
-      const rowId = td.closest('tr').dataset.rowId;
+      const rowId = row.dataset.rowId;
       if (!rowId) return;
       stopAutoRefresh();
       location.href = 'detail.html?id=' + rowId;
     });
   });
 
-  tbody.querySelectorAll('.orig-icon-cell[data-orig]').forEach(td => {
+  row.querySelectorAll('.orig-icon-cell[data-orig]').forEach(td => {
     td.addEventListener('click', () => _toggleOrigPopover(td));
     td.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -903,23 +945,23 @@ function renderSection(group, tickets, dimmed) {
     });
   });
 
-  tbody.querySelectorAll('.inline-select, .wjira-checkbox').forEach(el => {
+  row.querySelectorAll('.inline-select, .wjira-checkbox').forEach(el => {
     el.addEventListener('change', handleInlineChange);
   });
 
-  tbody.querySelectorAll('.row-select-checkbox').forEach(el => {
+  row.querySelectorAll('.row-select-checkbox').forEach(el => {
     el.addEventListener('change', () => {
       const rowId = el.dataset.rowId;
       if (el.checked) selectedRowIds[group].add(rowId);
       else selectedRowIds[group].delete(rowId);
 
-      // 개별 체크 상태가 바뀔 때마다 그 섹션의 전체선택 체크박스도 동기화
-      // (전체선택→개별 반영은 이미 되고 있었는데, 개별→전체선택 역방향 동기화가 빠져있었음)
-      const rowCheckboxes = tbody.querySelectorAll('.row-select-checkbox');
-      const allChecked = rowCheckboxes.length > 0 && [...rowCheckboxes].every(cb => cb.checked);
-      const selAllCb = document.querySelector(`.select-all-checkbox[data-group="${group}"]`);
-      if (selAllCb) selAllCb.checked = allChecked;
-
+      const tbody = row.closest('tbody');
+      if (tbody) {
+        const rowCheckboxes = tbody.querySelectorAll('.row-select-checkbox');
+        const allChecked = rowCheckboxes.length > 0 && [...rowCheckboxes].every(cb => cb.checked);
+        const selAllCb = document.querySelector(`.select-all-checkbox[data-group="${group}"]`);
+        if (selAllCb) selAllCb.checked = allChecked;
+      }
       updateBulkActionBarGlobal();
     });
   });
