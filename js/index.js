@@ -360,7 +360,8 @@ async function fetchFreshList(vid, hadCache, mySeq) {
     allTickets = data;
     versions = allTickets.versions || [];
     // 저장된 선택 버전이 더 이상 존재하지 않으면 전체로 복귀
-    if (currentVersionId !== ALL_VERSION && !versions.some(v => v.version_id === currentVersionId)) {
+    // (단, '미지정' 가상 버전인 경우는 제외)
+    if (currentVersionId !== ALL_VERSION && currentVersionId !== UNASSIGNED_VERSION && !versions.some(v => v.version_id === currentVersionId)) {
       currentVersionId = ALL_VERSION;
     }
     renderSidebar();
