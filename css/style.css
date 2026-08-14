@@ -509,7 +509,8 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   position: sticky;
   top: calc(56px + var(--test-banner-h));
   align-self: flex-start;
-  height: calc(100vh - 56px - var(--test-banner-h)); /* max-height -> height로 변경하여 항상 바닥까지 닿게 함 */
+  height: calc(100vh - 56px - var(--test-banner-h));
+  height: calc(100dvh - 56px - var(--test-banner-h)); /* 최신 브라우저용 동적 높이 대응 */
   background: #F4F5F7;          /* ← 순백 → 아주 연한 회색으로 변경 (본문과 구분) */ 
   display: flex;
   flex-direction: column;
@@ -600,7 +601,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0;
+  margin: auto 12px 16px 12px; /* margin-top: auto 로 목록 아래 바닥으로 밀어냄 */
   height: 32px;
   width: 32px;
   background: #DBEAFE; /* 연한 파란색 (Blue 100 계열) */
@@ -610,9 +611,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   overflow: hidden;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s, border-color 0.2s;
   user-select: none;
-  position: absolute; /* 절대 위치 고정 */
-  bottom: 16px;
-  left: 12px;
+  position: relative; /* absolute 제거하여 레이아웃 흐름에 포함 */
   z-index: 10;
 }
 
