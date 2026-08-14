@@ -2,9 +2,15 @@
 // 운영 GAS는 hmdqa20.github.io에서 열었을 때만 사용. 그 외 모든 환경(로컬, file:// 등)은 dev GAS(안전 기본값).
 const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec';
 const DEV_GAS_URL  = 'https://script.google.com/macros/s/AKfycbwULFEhn_BEJVoYKE8Ki4XPJ2VtBFj7q3klc2TSQT1oKGQjzPRDIueM0t46IZWIu7DCCA/exec';
-const GAS_URL = (location.hostname === 'hmdqa20.github.io')
+
+// 배포 시각 — 푸시 전 제미나이가 자동으로 업데이트 (YYYY-MM-DD HH:mm 형식)
+const DEPLOY_TIME = '2026-08-14 11:48';
+
+const GAS_URL = (location.hostname === 'hmdqa20.github.io' && !location.pathname.includes('dqa-ticket-dev'))
   ? PROD_GAS_URL
   : DEV_GAS_URL;
+
+// 테스트 모드 판정: 로컬 환경이거나, 경로에 'dqa-ticket-dev'가 포함된 경우
 const IS_TEST_MODE = GAS_URL !== PROD_GAS_URL;
 
 // 테스트 모드 배너 — index.html/detail.html/versions.html 등 api.js를 불러오는 모든 화면에 공통 적용.
@@ -15,7 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!IS_TEST_MODE) return;
   const banner = document.createElement('div');
   banner.id = 'test-mode-banner';
-  banner.textContent = '⚠️ 테스트 모드 - 실제 데이터 아님';
+
+  // 배포 시각이 있으면 문구 뒤에 추가
+  const timeInfo = DEPLOY_TIME ? ` (${DEPLOY_TIME})` : '';
+  banner.textContent = '⚠️ 테스트 모드 - 실제 데이터 아님' + timeInfo;
+
   document.body.prepend(banner);
 
   const syncBannerHeight = () => {
