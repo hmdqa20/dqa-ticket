@@ -128,19 +128,27 @@ function jsonResponse(obj) {
 }
 
 // ─── 캐시 관리 헬퍼 ──────────────────────────────────────────────────────────
-const CACHE_KEY_PREFIX = 'dqa_all_data_';
+const CACHE_KEY_PREFIX = 'dqa_data_v2_';
+const CACHE_VER_KEY    = 'dqa_cache_ver';
 
 function getCacheKey(versionId) {
-  return CACHE_KEY_PREFIX + (versionId || 'ALL');
+  const cache = CacheService.getScriptCache();
+  // 캐시 버전 번호를 가져와서 키에 조합 (버전이 바뀌면 모든 캐시가 무효화됨)
+  let ver = cache.get(CACHE_VER_KEY);
+  if (!ver) {
+    ver = '1';
+    cache.put(CACHE_VER_KEY, ver, 21600);
+  }
+  return CACHE_KEY_PREFIX + ver + '_' + (versionId || 'ALL');
 }
 
 function clearAllCaches() {
   try {
     const cache = CacheService.getScriptCache();
-    // CacheService는 키 목록 조회가 불가능하므로, 자주 쓰이는 패턴들을 명시적으로 제거하거나
-    // 데이터 변경 시 관련 캐시를 무효화하는 방식으로 관리.
-    // 여기서는 간단히 'ALL' 캐시를 먼저 비우고, 필요 시 확장.
-    cache.remove(CACHE_KEY_PREFIX + 'ALL');
+    const ver = cache.get(CACHE_VER_KEY) || '1';
+    // 버전 번호를 올려서 기존 모든 캐시를 한꺼번에 무효화 (GAS CacheService 한계 극복)
+    cache.put(CACHE_VER_KEY, String(Number(ver) + 1), 21600);
+    Logger.log('All caches invalidated (new version: ' + (Number(ver) + 1) + ')');
   } catch (err) {
     Logger.log('Cache clear failed: ' + err.message);
   }
@@ -179,7 +187,12 @@ function doGet(e) {
     }
 
     let rows = data.slice(1).map(rowToObj).filter(r => r.row_id !== '');
-    if (versionId) rows = rows.filter(r => r.version_id === versionId);
+    // __NONE__ 파라미터가 오면 version_id가 빈 문자열인 티켓들만 필터링
+    if (versionId === '__NONE__') {
+      rows = rows.filter(r => r.version_id === '');
+    } else if (versionId) {
+      rows = rows.filter(r => r.version_id === versionId);
+    }
 
     const activeWW  = [];
     const activeMVN = [];

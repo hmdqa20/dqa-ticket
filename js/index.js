@@ -34,6 +34,7 @@ function applyCollapsedStates() {
 
 // "전체" 가상 탭 식별자
 const ALL_VERSION = '__ALL__';
+const UNASSIGNED_VERSION = '__NONE__';
 
 // 버전 탭 상태
 let versions = [];                  // [{version_id, version_name, status, ...}]
@@ -75,6 +76,28 @@ const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupSidebarToggle();  // 첫 페인트 전에 접힘 상태부터 적용 (펼쳐진 사이드바가 깜빡이지 않도록 최우선)
+
+  // 미지정 버전 익스팬더 설정 (평소 '미' 배지, 클릭 시 펼침)
+  const expanderWrap = document.getElementById('unassigned-expander-wrap');
+  const badge = document.getElementById('btn-unassigned-badge');
+  const unassignedTab = document.getElementById('btn-unassigned-tab');
+  if (expanderWrap && badge && unassignedTab) {
+    // '미' 배지 클릭 시 펼침/접힘 토글
+    badge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      expanderWrap.classList.toggle('expanded');
+    });
+    // "미지정 버전" 텍스트 클릭 시 해당 탭 선택
+    unassignedTab.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchVersion(UNASSIGNED_VERSION);
+    });
+    // 문서 클릭 시 익스팬더 자동으로 접기
+    document.addEventListener('click', () => {
+      expanderWrap.classList.remove('expanded');
+    });
+  }
+
   applyTranslations();
   syncSelectionModeButtonTextGlobal();
   buildAllHeaders();
@@ -366,6 +389,15 @@ function renderSidebar() {
   // 무조건 꺼진 상태로 강제한다 (레이스 컨디션 방지).
   const allBtn = document.getElementById('btn-all-tickets');
   if (allBtn) allBtn.classList.toggle('active', !versionsEmbedOpen && currentVersionId === ALL_VERSION);
+
+  // 미지정 버전 익스팬더 active 상태 및 접힘 관리
+  const expanderWrap = document.getElementById('unassigned-expander-wrap');
+  if (expanderWrap) {
+    const isActive = !versionsEmbedOpen && currentVersionId === UNASSIGNED_VERSION;
+    expanderWrap.classList.toggle('active', isActive);
+    // 다른 탭(전체/특정버전) 선택 시 펼쳐진 익스팬더는 접음
+    if (currentVersionId !== UNASSIGNED_VERSION) expanderWrap.classList.remove('expanded');
+  }
 
   // 나머지 버전 탭들만 이 안쪽 컨테이너에 렌더링 (전체 티켓 행은 건드리지 않음)
   const html = versions.map(v => {
@@ -898,7 +930,6 @@ function renderSection(group, tickets, dimmed) {
     const nextIndex = Math.min(currentIndex + BATCH_SIZE, tickets.length);
     const batch = tickets.slice(currentIndex, nextIndex);
 
-    // DocumentFragment를 사용하여 성능 최적화
     const temp = document.createElement('tbody');
     temp.innerHTML = batch.map(ticket => buildRow(ticket, dimmed, group)).join('');
 
@@ -915,7 +946,8 @@ function renderSection(group, tickets, dimmed) {
       tbody._renderTaskId = requestAnimationFrame(renderBatch);
     } else {
       tbody._renderTaskId = null;
-      updateAllScrollHints(); // 전체 렌더링 완료 후 힌트 가시성 재계산
+      updateCounts(); // 렌더링 완료 후 최종 카운트 업데이트
+      updateAllScrollHints();
     }
   }
 
