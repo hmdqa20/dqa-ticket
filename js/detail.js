@@ -133,7 +133,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const params = new URLSearchParams(location.search);
   const rowId = params.get('id');
-  currentVersionId = params.get('version_id') || '';
+  const rawVersionId = params.get('version_id') || '';
+  // 내부 기호 __NONE__ 이 실제 데이터로 유입되지 않도록 정규화
+  currentVersionId = (rawVersionId === '__NONE__') ? '' : rawVersionId;
   returnToRowId = params.get('from') || '';
 
   if (rowId) {
@@ -382,10 +384,10 @@ function renderVersionSelect(selectedId) {
 
   sel.disabled = false;
 
-  // 신규 모드이고 버전이 지정되지 않은 경우 sort_order 최소 버전으로 자동 선택
+  // 신규 모드이고 버전이 지정되지 않은 경우 sort_order 최대 버전으로 자동 선택 (최신 버전 우선)
   if (isNewMode && !selectedId && allVersions.length > 0) {
-    const first = allVersions.reduce((a, b) => a.sort_order <= b.sort_order ? a : b);
-    selectedId = first.version_id;
+    const latest = allVersions.reduce((a, b) => a.sort_order >= b.sort_order ? a : b);
+    selectedId = latest.version_id;
     currentVersionId = selectedId;
   }
 

@@ -4,7 +4,7 @@ const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyo
 const DEV_GAS_URL  = 'https://script.google.com/macros/s/AKfycbwULFEhn_BEJVoYKE8Ki4XPJ2VtBFj7q3klc2TSQT1oKGQjzPRDIueM0t46IZWIu7DCCA/exec';
 
 // 배포 시각 — 푸시 전 제미나이가 자동으로 업데이트 (YYYY-MM-DD HH:mm 형식)
-const DEPLOY_TIME = '2026-08-14 14:35';
+const DEPLOY_TIME = '2026-08-14 15:55';
 
 const GAS_URL = (location.hostname === 'hmdqa20.github.io' && !location.pathname.includes('dqa-ticket-dev'))
   ? PROD_GAS_URL
