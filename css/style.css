@@ -509,7 +509,7 @@ body.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   position: sticky;
   top: calc(56px + var(--test-banner-h));
   align-self: flex-start;
-  max-height: calc(100vh - 56px - var(--test-banner-h));
+  height: calc(100vh - 56px - var(--test-banner-h)); /* max-height -> height로 변경하여 항상 바닥까지 닿게 함 */
   background: #F4F5F7;          /* ← 순백 → 아주 연한 회색으로 변경 (본문과 구분) */ 
   display: flex;
   flex-direction: column;
@@ -544,6 +544,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   min-height: 0;   /* flex 컨테이너 안에서 overflow-y가 실제로 작동하려면 필요 */
   overflow-y: auto;
   background: #F4F5F7;           /* 사이드바와 동일하게 통일 */
+  padding-bottom: 50px;          /* 하단 '미' 배지 공간 확보 */
 }
 
 .version-item {
@@ -599,30 +600,33 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: auto 12px 12px 12px; /* 위쪽은 밀어내기, 좌우하는 12px 여백 */
+  margin: 0;
   height: 32px;
-  width: 32px; /* 초기 상태는 배지만큼의 너비 */
-  background: #E8EAED; /* 사이드바 배경보다 약간 더 진한 회색 */
-  border: 1px solid var(--border);
+  width: 32px;
+  background: #DBEAFE; /* 연한 파란색 (Blue 100 계열) */
+  border: 1.5px solid #BFDBFE; /* Blue 200 계열 */
   border-radius: 16px;
   cursor: pointer;
   overflow: hidden;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s, border-color 0.2s;
   user-select: none;
-  position: relative;
+  position: absolute; /* 절대 위치 고정 */
+  bottom: 16px;
+  left: 12px;
+  z-index: 10;
 }
 
 .unassigned-expander-wrap:hover {
-  background: #DDE0E4;
-  border-color: var(--muted);
+  background: #BFDBFE;
+  border-color: #93C5FD;
 }
 
 /* 펼쳐진 상태 */
 .unassigned-expander-wrap.expanded {
-  width: 106px; /* "미" 배지 + 간격 + "미지정 버전" 텍스트 공간 */
+  width: 106px;
   background: #fff;
   border-color: var(--ww);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
 
 .unassigned-badge {
@@ -634,7 +638,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   justify-content: center;
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: #2563EB; /* 진한 파란색 글자 */
   border-radius: 50%;
 }
 .unassigned-expander-wrap.expanded .unassigned-badge {
@@ -644,8 +648,8 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
 .unassigned-label {
   white-space: nowrap;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+  color: #1E40AF;
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -657,7 +661,8 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
 .unassigned-expander-wrap.active {
   background: #fff;
   border-color: var(--ww);
-  border-width: 1.5px;
+  border-width: 2px;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 .unassigned-expander-wrap.active .unassigned-badge {
   color: var(--ww);
