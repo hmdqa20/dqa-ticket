@@ -1243,45 +1243,15 @@ body.embedded-in-dqa #test-mode-banner { display: none; }
   cursor: pointer;
   vertical-align: middle;
 }
-/* "선택 모드" 활성화 시 teal 계열로 — 티켓 등록(파랑)과 구분되는 "보조 모드 전환" 톤 */
-.btn-select-mode-group.active { background: var(--btn-selectmode); color: #fff; border-color: var(--btn-selectmode); }
-.btn-select-mode-group.active:hover { background: var(--btn-selectmode-hover); border-color: var(--btn-selectmode-hover); }
-
 /* "선택한 티켓 이동"은 indigo 계열로 — "확정 실행 액션" 톤 */
 .btn-bulk-move-group { background: var(--btn-bulkmove); color: #fff; border-color: var(--btn-bulkmove); }
 .btn-bulk-move-group:hover:not(:disabled) { background: var(--btn-bulkmove-hover); }
 
-/* ─── 버전 일괄이동: 그룹(DQA/MVN) 헤더에 내장 — 완전 독립 ──────────────────── */
-/* 헤더(.section-header)는 이미 flex 한 줄. 이 액션 영역도 같은 줄에 이어 붙어
-   높이가 절대 변하지 않는다(레이아웃 튐 없음). 클릭 시 섹션 접기로 전파되지 않도록
-   JS에서 stopPropagation 처리. */
-.section-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 0;
-  flex-shrink: 0;
-}
-.bulk-action-bar-inline {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.bulk-action-bar-inline.open { display: flex; opacity: 1; }
 .bulk-selected-count {
   font-size: 12px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
-}
-/* 선택 개수 자릿수가 1→2자리로 바뀌어도 옆 이동 버튼이 밀리지 않도록 폭을 미리 확보 */
-.bulk-count-num {
-  display: inline-block;
-  min-width: 1.4em;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 .bulk-target-select {
   height: 28px;
@@ -1293,16 +1263,12 @@ body.embedded-in-dqa #test-mode-banner { display: none; }
   max-width: 140px;
 }
 
-/* 모바일: "티켓이동" 버튼도 그룹명+개수뱃지와 항상 같은 줄 유지 — 줄바꿈 대신 버튼/텍스트만 축소 */
+/* 모바일: 전역 티켓이동/삭제 바 축소 */
 @media (max-width: 768px) {
   .section-header { flex-wrap: nowrap; overflow-x: auto; }
-  .section-header-actions { gap: 4px; }
   .count-badge { flex-shrink: 0; }
-  .section-header-actions .btn-select-mode-group { padding: 3px 6px; font-size: 10px; }
-  .bulk-action-bar-inline { gap: 4px; }
   .bulk-target-select { max-width: 78px; height: 22px; padding: 0 3px; font-size: 10px; }
   .bulk-selected-count { font-size: 10px; }
-  .bulk-action-bar-inline .btn-bulk-move-group { padding: 3px 6px; font-size: 10px; }
 }
 
 /* ─── 담당자 셀 ───────────────────────────────────────────────────────────── */
