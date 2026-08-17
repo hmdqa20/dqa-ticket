@@ -82,18 +82,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   const badge = document.getElementById('btn-unassigned-badge');
   const unassignedTab = document.getElementById('btn-unassigned-tab');
   if (expanderWrap && badge && unassignedTab) {
-    // '미' 배지 클릭 시 펼침/접힘 토글
+    // 아이콘 클릭 시 펼치기만 함 (접힌 상태 → 펼침). 이미 펼쳐진 상태에서 다시 눌러도
+    // 접지 않음 — 접힘은 오직 "다른 버전 탭 클릭"이나 "다른 페이지 이동" 등
+    // 미지정 버전에서 벗어날 때만 일어나야, 펼침 상태가 항상 "지금 미지정 버전을 보는 중"과
+    // 일치함 (다른 버전탭들과 동일한 동작 규칙).
     badge.addEventListener('click', (e) => {
       e.stopPropagation();
-      expanderWrap.classList.toggle('expanded');
+      if (!expanderWrap.classList.contains('expanded')) {
+        expanderWrap.classList.add('expanded');
+      }
     });
     // "미지정 버전" 텍스트 클릭 시 해당 탭 선택
     unassignedTab.addEventListener('click', (e) => {
       e.stopPropagation();
       switchVersion(UNASSIGNED_VERSION);
     });
-    // 문서 클릭 시 익스팬더 자동으로 접기
+    // 문서 클릭 시 익스팬더 자동으로 접기 — 단, 지금 미지정 버전을 보고 있는 중이면 유지
+    // (다른 탭으로 전환하거나 티켓 상세로 이동하는 등 "상태가 바뀔 때"만 접히도록,
+    //  실제 접힘 처리는 renderVersionList 쪽의 currentVersionId 체크에 맡긴다)
     document.addEventListener('click', () => {
+      if (currentVersionId === UNASSIGNED_VERSION) return;
       expanderWrap.classList.remove('expanded');
     });
   }
@@ -117,8 +125,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.data && e.data.type === 'dqa-versions-close') hideVersionsEmbed();
   });
 
-  // 마지막 선택 버전 복원 (없으면 ALL_VERSION으로 전체 로드 후 최신 버전으로 전환)
+// 마지막 선택 버전 복원 (없으면 ALL_VERSION으로 전체 로드 후 최신 버전으로 전환)
   currentVersionId = localStorage.getItem('dqa_current_version') || ALL_VERSION;
+
+  // 새로고침 시점에 미지정 버전을 보고 있던 상태였다면 배지도 펼쳐진 채로 복원
+  if (expanderWrap && currentVersionId === UNASSIGNED_VERSION) {
+    expanderWrap.classList.add('expanded');
+  }
 
   await loadTickets();
 

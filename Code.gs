@@ -653,6 +653,7 @@ function moveTicket(e) {
           sheet.getRange(sheetRow, COL.PRIORITY + 1).setValue('');
         }
 
+        clearAllCaches(); // 캐시 무효화
         return jsonResponse({ success: true });
       }
     }
