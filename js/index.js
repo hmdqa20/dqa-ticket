@@ -5,6 +5,36 @@ let activeFilters = { assignee: '', status: '', verdict: '', version: '', wjira:
 const userCollapsed = new Set(); // 사용자가 직접 접은 섹션
 const ALL_SECTIONS = ['activeWW', 'activeMVN', 'done', 'hold'];
 const SECTION_STATE_KEY = 'dqa_section_collapsed';
+const APP_STATE_KEY = 'dqa_app_state';
+
+function saveAppState() {
+  const state = {
+    currentVersionId,
+    searchQuery,
+    activeFilters
+  };
+  sessionStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
+}
+
+function loadAppState() {
+  try {
+    const raw = sessionStorage.getItem(APP_STATE_KEY);
+    if (!raw) return false;
+    const state = JSON.parse(raw);
+    currentVersionId = state.currentVersionId || ALL_VERSION;
+    searchQuery = state.searchQuery || '';
+    activeFilters = state.activeFilters || { assignee: '', status: '', verdict: '', version: '', wjira: '' };
+
+    // UI 반영
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.value = searchQuery;
+
+    return true;
+  } catch (e) {
+    console.error('App state restore failed:', e);
+    return false;
+  }
+}
 
 function saveSectionStates() {
   const state = {};
@@ -76,6 +106,7 @@ const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupSidebarToggle();  // 첫 페인트 전에 접힘 상태부터 적용 (펼쳐진 사이드바가 깜빡이지 않도록 최우선)
+  loadAppState(); // 앱 상태(검색어, 필터, 탭) 복원
 
   // 미지정 버전 익스팬더 설정 (평소 '미' 배지, 클릭 시 펼침)
   const expanderWrap = document.getElementById('unassigned-expander-wrap');
@@ -117,8 +148,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.data && e.data.type === 'dqa-versions-close') hideVersionsEmbed();
   });
 
-  // 마지막 선택 버전 복원 (없으면 ALL_VERSION으로 전체 로드 후 최신 버전으로 전환)
-  currentVersionId = localStorage.getItem('dqa_current_version') || ALL_VERSION;
+  // 마지막 선택 버전 복원 (sessionStorage 앱 상태 우선)
+  if (!sessionStorage.getItem(APP_STATE_KEY)) {
+    currentVersionId = localStorage.getItem('dqa_current_version') || ALL_VERSION;
+  }
 
   await loadTickets();
 
@@ -160,6 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('search-input').addEventListener('input', (e) => {
     searchQuery = e.target.value.toLowerCase().trim();
+    saveAppState();
     renderAll();
   });
 
@@ -176,6 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const key = e.target.dataset.filterKey;
     const value = e.target.value;
     activeFilters[key] = value;
+    saveAppState();
     buildAllHeaders();
     populateDynamicFilters();
     renderAll();
@@ -446,6 +481,7 @@ async function switchVersion(versionId) {
 
   currentVersionId = versionId;
   localStorage.setItem('dqa_current_version', versionId);
+  saveAppState();
   // 버전 탭 전환 시 선택 목록은 초기화 (선택 모드 자체는 유지)
   if (selectionModeGlobal) {
     SELECTABLE_GROUPS.forEach(group => selectedRowIds[group].clear());
@@ -824,6 +860,7 @@ function setupMobileSearch() {
     e.preventDefault();
     input.value = '';
     searchQuery = '';
+    saveAppState();
     updateHasText();
     renderAll();
     input.focus();
