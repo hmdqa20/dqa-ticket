@@ -177,7 +177,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     stopLockPoll();
     location.href = url;
   };
-  const navigateToList = () => leavePage('index.html');
+  const navigateToList = () => {
+    // 브라우저 히스토리가 있고 이전 페이지가 index.html인 경우 history.back() 사용하여 상태(검색/필터/스크롤) 유지
+    // 그 외의 경우(직접 링크 진입 등)는 index.html로 강제 이동
+    if (window.history.length > 1 && document.referrer.includes('index.html')) {
+      resetDirty();
+      pendingFiles = [];
+      releaseLockNow();
+      stopLockPoll();
+      history.back();
+    } else {
+      leavePage('index.html');
+    }
+  };
   document.getElementById('btn-edit').addEventListener('click', enterEditMode);
   document.getElementById('btn-cancel-top').addEventListener('click', () => {
     if (isNewMode) {
