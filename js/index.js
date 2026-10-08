@@ -154,6 +154,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 버전 관리(iframe)에서 "← 목록" 눌렀을 때 postMessage로 전달되는 닫기 신호 수신
   window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'dqa-versions-close') hideVersionsEmbed();
+    if (e.data && e.data.type === 'dqa-versions-changed' && Array.isArray(e.data.versions)) {
+      versions = e.data.versions;
+      if (currentVersionId !== ALL_VERSION && currentVersionId !== UNASSIGNED_VERSION && !versions.some(v => v.version_id === currentVersionId)) {
+        currentVersionId = ALL_VERSION;
+      }
+      renderSidebar();
+      populateBulkTargetVersionsGlobal();
+    }
   });
 
   // 마지막 선택 버전 복원 (sessionStorage 앱 상태 우선)

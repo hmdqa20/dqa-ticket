@@ -68,7 +68,7 @@ document.getElementById('btn-back').addEventListener('click', () => {
 
 // ─── 데이터 로드 ──────────────────────────────────────────────────────────────
 
-async function loadData() {
+async function loadData(notifyParent = false) {
   showLoading(true);
   try {
     // 티켓과 버전 목록을 1회 API 호출로 동시 취득
@@ -93,6 +93,7 @@ async function loadData() {
     });
 
     renderTable();
+    if (notifyParent) notifyVersionsChanged();
   } catch (err) {
     alert('데이터 로드 실패: ' + err.message);
   } finally {
@@ -422,6 +423,7 @@ async function handleSaveOrder() {
     // originalOrder를 현재 저장된 순서로 갱신
     originalOrder = versionList.map(v => v.version_id);
     setOrderDirty(false);
+    notifyVersionsChanged();
   } catch (err) {
     alert('순서 저장 실패: ' + err.message);
   } finally {
@@ -472,6 +474,7 @@ async function handleEditSave(versionId) {
     const v = versionList.find(x => x.version_id === versionId);
     if (v) v.version_name = newName;
     renderTable();
+    notifyVersionsChanged();
   } catch (err) {
     alert('수정 실패: ' + err.message);
   } finally {
@@ -502,6 +505,7 @@ async function handleDelete(versionId) {
       localStorage.removeItem('dqa_current_version');
     }
     renderTable();
+    notifyVersionsChanged();
   } catch (err) {
     alert('삭제 실패: ' + err.message);
   } finally {
@@ -520,12 +524,18 @@ async function handleAdd() {
   try {
     await addVersion(name);
     input.value = '';
-    await loadData();
+    await loadData(true);
   } catch (err) {
     alert('버전 추가 실패: ' + err.message);
   } finally {
     showLoading(false);
   }
+}
+
+// embed 상태에서 서버 저장 성공 직후 부모(index.html) 사이드바가 즉시 갱신되도록 최신 버전 목록 전달
+function notifyVersionsChanged() {
+  if (!IS_EMBEDDED) return;
+  window.parent.postMessage({ type: 'dqa-versions-changed', versions: versionList }, '*');
 }
 
 // ─── 유틸 ─────────────────────────────────────────────────────────────────────
