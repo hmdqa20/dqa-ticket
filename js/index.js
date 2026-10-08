@@ -1104,9 +1104,11 @@ function buildRow(ticket, dimmed, group) {
 
   // 버전명 끝이 CU/CD면 앞에 색상 점(dot)으로만 구분 표시 — 텍스트는 전부 기본색 유지
   // (escHtml 이후 치환 — CU/CD는 이스케이프와 무관해 안전)
-  const versionHtml = (ticket.check_version || '').split('\n')
-    .map(v => v.trim()).filter(Boolean)
-    .map(v => {
+  const versionLines = (ticket.check_version || '').split('\n')
+    .map(v => v.trim()).filter(Boolean);
+  const versionHtml = versionLines.length === 0
+    ? `<div class="version-line version-empty">${t('version_unspecified')}</div>`
+    : versionLines.map(v => {
       const m = v.match(/(CU|CD)$/i);
       const dot = m ? `<span class="ver-dot ver-dot-${m[1].toUpperCase() === 'CU' ? 'cu' : 'cd'}"></span>` : '';
       const html = escHtml(v).replace(/(CU|CD)$/i, s => `<span class="ver-suffix">${s}</span>`);

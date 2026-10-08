@@ -1779,6 +1779,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   font-size: 12px;
   line-height: 1.6;
 }
+.version-empty { color: var(--text-muted); }
 /* 버전명 끝 CU/CD 구분 — 색상은 앞의 점(dot)에만, 텍스트는 기본색 */
 .ver-dot {
   display: inline-block;
