@@ -1006,19 +1006,26 @@ function updateTitleTranslationHint(ticket) {
 
 // ─── 언어/번역 ────────────────────────────────────────────────────────────────
 
+// "버전 N - 테스트/비교 버전" 형태의 라벨·플레이스홀더 문구 생성
+function versionLabelText(base, el) {
+  const num  = el.dataset.versionNum;
+  if (!num) return base;
+  const kind = el.dataset.versionKind;
+  const kindText = kind ? t('version_kind_' + kind) : '';
+  return base + ' ' + num + (kindText ? ' - ' + kindText : '');
+}
+
 function applyTranslations() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const base = t(el.dataset.i18nPlaceholder);
-    const num  = el.dataset.versionNum;
-    el.placeholder = num ? base + ' ' + num : base;
+    el.placeholder = versionLabelText(base, el);
   });
   document.querySelectorAll('[data-i18n-version-label]').forEach(el => {
     const base = t(el.dataset.i18nVersionLabel);
-    const num  = el.dataset.versionNum;
-    el.textContent = num ? base + ' ' + num : base;
+    el.textContent = versionLabelText(base, el);
   });
   document.title = t('app_title');
 }
