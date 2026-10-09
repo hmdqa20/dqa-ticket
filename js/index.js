@@ -651,7 +651,8 @@ function buildOpenCountBadge(v) {
   const n = local !== null ? local : v.open_count;
   if (typeof n !== 'number') return '';
   const cls = 'version-open-count' + (n === 0 ? ' is-zero' : '') + (v.status === '완료' ? ' is-done' : '');
-  return `<span class="${cls}">${formatOpenCount(n)}</span>`;
+  const tip = escHtml(t('version_count_tooltip'));
+  return `<span class="${cls}" data-i18n-title="version_count_tooltip" title="${tip}" aria-label="${tip}">${formatOpenCount(n)}</span>`;
 }
 
 // renderAll 직후: 선택된 버전의 배지만 현재 화면 데이터로 갱신 (사이드바 전체를 다시 그리지 않음)
@@ -665,6 +666,9 @@ function updateSelectedVersionBadge() {
   let badge = item.querySelector('.version-open-count');
   if (!badge) {
     badge = document.createElement('span');
+    badge.dataset.i18nTitle = 'version_count_tooltip';
+    badge.title = t('version_count_tooltip');
+    badge.setAttribute('aria-label', badge.title);
     item.appendChild(badge);
   }
   badge.className = 'version-open-count' + (n === 0 ? ' is-zero' : '') + (v && v.status === '완료' ? ' is-done' : '');
@@ -2271,6 +2275,11 @@ function applyTranslations() {
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const txt = t(el.dataset.i18nTitle);
+    el.title = txt;
+    if (el.classList.contains('version-open-count')) el.setAttribute('aria-label', txt);
   });
   document.title = t('app_title');
 }

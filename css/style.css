@@ -720,6 +720,36 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
 .version-open-count.is-done { color: #6b7280; }
 .version-open-count.is-zero { color: #9ca3af; font-weight: 400; }
 
+/* "전체 티켓" + 아래 안내 줄을 한 덩어리로 스크롤 박스 맨 위에 고정 (둘 다 항상 보임) */
+.version-pinned {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #F4F5F7;           /* 아래로 스크롤되는 버전 항목이 비치지 않도록 사이드바와 같은 불투명 배경 */
+}
+
+/* 버전명 뒤 "(n)" 안내 줄 — 클릭 불가. 오른쪽 여백 14px + 오른쪽 선 0.5px는 .version-item과 동일해서
+   안내 줄의 "(n)" 오른쪽 끝이 아래 배지(.version-open-count) 오른쪽 끝과 같은 세로선에 놓인다. */
+.version-count-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 22px;
+  padding: 0 14px 0 6px;            /* 오른쪽 14px 고정(배지와 정렬), 왼쪽은 줄여서 130px 안에 한 줄로 */
+  border-left: 2.5px solid transparent;
+  border-right: 0.5px solid var(--border);
+  border-top: 0.5px solid var(--border);
+  border-bottom: 0.5px solid var(--border);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: default;
+  user-select: none;
+}
+
 /* "전체 티켓" — 다른 버전 탭과 완전히 동일한 .version-item 구조를 그대로 쓰되(진짜 탭 목록의
    일부), position: sticky로 부모(.version-list, overflow-y:auto)의 스크롤과 무관하게 항상
    맨 위에 붙어있게 한다. 점 색상과 평상시 배경만 달라서 "전체"라는 정체성을 구분. */
