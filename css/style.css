@@ -1117,6 +1117,8 @@ body.embedded-in-dqa #test-mode-banner { display: none; }
 }
 .ticket-table tr.search-hit > td:first-child { box-shadow: inset 0 -2px 0 #2563eb, inset 3px 0 0 #2563eb; }
 .ticket-table tr.search-hit > td:last-child  { box-shadow: inset 0 -2px 0 #2563eb, inset -3px 0 0 #2563eb; }
+/* 원문보기 ⓘ 셀은 border-radius: 6px 가 있어 위/아래 선 모서리가 끊겨 보임 → 강조 행에서는 직각으로 */
+.ticket-table tr.search-hit > td.orig-icon-cell { border-radius: 0; }
 .ticket-table tr.search-hit-pulse > td { animation: search-hit-pulse 0.9s ease-in-out 2; }
 @keyframes search-hit-pulse {
   0%, 100% { background-color: rgba(37, 99, 235, 0); }

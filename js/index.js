@@ -365,7 +365,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupMobileSearch();
   updateSearchClear();
   // 뒤로가기/bfcache 복원 시 브라우저가 입력값만 되살리고 input 이벤트는 발생시키지 않음
-  window.addEventListener('pageshow', updateSearchClear);
+  // bfcache로 복원된 경우(detail에서 history.back())는 DOMContentLoaded가 다시 돌지 않고, 떠날 때 행 클릭으로
+  // 강조도 지워진 상태이므로 여기서 reveal을 1회 다시 예약한다. 일반 로드(persisted=false)는 loadAppState의
+  // searchRevealPending 경로가 처리하므로 여기서 중복 실행하지 않는다.
+  window.addEventListener('pageshow', (e) => {
+    updateSearchClear();
+    if (e.persisted && searchQuery) scheduleSearchReveal();
+  });
 
   document.getElementById('section-ww-header').addEventListener('click', () => toggleSection('activeWW'));
   document.getElementById('section-mvn-header').addEventListener('click', () => toggleSection('activeMVN'));
