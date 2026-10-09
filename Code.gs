@@ -256,6 +256,15 @@ function doGet(e) {
   }
 }
 
+// 티켓 1행이 속하는 목록 그룹 판정 — doGet 그룹 분류와 버전별 진행중 DQA 카운트가 같은 규칙을 쓰도록 공유.
+// 반환: 'activeWW' | 'activeMVN' | 'done' | 'hold' | '' (어느 그룹에도 속하지 않는 상태)
+function getTicketGroup(r) {
+  if (ACTIVE_STATUSES.includes(r.status)) return r.assignee === 'MVN' ? 'activeMVN' : 'activeWW';
+  if (r.status === DONE_STATUS) return 'done';
+  if (HOLD_STATUSES.includes(r.status)) return 'hold';
+  return '';
+}
+
 // doGet 응답 객체 생성 (시트 읽기 전용 — 쓰기 없음). logResponseSizes()와 공유.
 function buildDoGetResponse(versionId) {
     const sheet = getSheet();
@@ -268,11 +277,19 @@ function buildDoGetResponse(versionId) {
     const versions = vData.length <= 1 ? [] :
       vData.slice(1).map(versionRowToObj).filter(v => v.version_id !== '').sort((a, b) => a.sort_order - b.sort_order);
 
+    // 버전별 진행중 DQA(activeWW) 티켓 수 — 요청한 버전으로 거르기 전의 전체 행 기준 (사이드바 표시용)
+    const allRows = data.length <= 1 ? [] : data.slice(1).map(rowToObj).filter(r => r.row_id !== '');
+    const openCounts = {};
+    allRows.forEach(r => {
+      if (getTicketGroup(r) === 'activeWW') openCounts[r.version_id] = (openCounts[r.version_id] || 0) + 1;
+    });
+    versions.forEach(v => { v.open_count = openCounts[v.version_id] || 0; });
+
     if (data.length <= 1) {
       return { success: true, data: empty, versions };
     }
 
-    let rows = data.slice(1).map(rowToObj).filter(r => r.row_id !== '');
+    let rows = allRows;
     // __NONE__ 파라미터가 오면 version_id가 빈 문자열인 티켓들만 필터링
     if (versionId === '__NONE__') {
       rows = rows.filter(r => r.version_id === '');
@@ -286,13 +303,11 @@ function buildDoGetResponse(versionId) {
     const hold      = [];
 
     rows.forEach(r => {
-      if (ACTIVE_STATUSES.includes(r.status)) {
-        (r.assignee === 'MVN' ? activeMVN : activeWW).push(r);
-      } else if (r.status === DONE_STATUS) {
-        done.push(r);
-      } else if (HOLD_STATUSES.includes(r.status)) {
-        hold.push(r);
-      }
+      const g = getTicketGroup(r);
+      if (g === 'activeWW')       activeWW.push(r);
+      else if (g === 'activeMVN') activeMVN.push(r);
+      else if (g === 'done')      done.push(r);
+      else if (g === 'hold')      hold.push(r);
     });
 
     const byPriority = (a, b) =>

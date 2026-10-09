@@ -706,6 +706,20 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   white-space: nowrap;
 }
 
+/* 버전명 뒤 진행중 DQA 티켓 수 "(N)" — 이름이 먼저 말줄임되고 배지는 줄바꿈/축소 없이 항상 보이게 */
+.version-open-count {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: #1d4ed8;
+}
+.version-open-count.is-done { color: #6b7280; }
+.version-open-count.is-zero { color: #9ca3af; font-weight: 400; }
+
 /* "전체 티켓" — 다른 버전 탭과 완전히 동일한 .version-item 구조를 그대로 쓰되(진짜 탭 목록의
    일부), position: sticky로 부모(.version-list, overflow-y:auto)의 스크롤과 무관하게 항상
    맨 위에 붙어있게 한다. 점 색상과 평상시 배경만 달라서 "전체"라는 정체성을 구분. */

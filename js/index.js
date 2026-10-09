@@ -298,7 +298,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'dqa-versions-close') hideVersionsEmbed();
     if (e.data && e.data.type === 'dqa-versions-changed' && Array.isArray(e.data.versions)) {
-      versions = e.data.versions;
+      // 버전 관리 iframe이 보낸 목록은 open_count가 없거나 더 오래됐을 수 있어 기존 값을 버전 ID 기준으로 유지
+      const prevCounts = new Map(versions.map(v => [v.version_id, v.open_count]));
+      versions = e.data.versions.map(v => {
+        const prev = prevCounts.get(v.version_id);
+        return typeof prev === 'number' ? { ...v, open_count: prev } : v;
+      });
       if (currentVersionId !== ALL_VERSION && currentVersionId !== UNASSIGNED_VERSION && !versions.some(v => v.version_id === currentVersionId)) {
         currentVersionId = ALL_VERSION;
       }
@@ -615,7 +620,7 @@ function renderSidebar() {
     const dotClass = v.status === '완료' ? 'dot-done' : 'dot-active';
     return `<div class="version-item${active}" data-version-id="${escHtml(v.version_id)}">
       <span class="version-dot ${dotClass}"></span>
-      <span class="version-name">${escHtml(v.version_name)}</span>
+      <span class="version-name">${escHtml(v.version_name)}</span>${buildOpenCountBadge(v)}
     </div>`;
   }).join('');
 
@@ -624,6 +629,46 @@ function renderSidebar() {
   itemsContainer.querySelectorAll('.version-item').forEach(item => {
     item.addEventListener('click', () => switchVersion(item.dataset.versionId));
   });
+}
+
+// ─── 사이드바 버전별 진행중 DQA 티켓 수 "(N)" ─────────────────────────────────
+// 서버가 버전 객체에 넣어주는 open_count를 쓰되, 지금 선택된 버전은 화면에 로드된 티켓(activeWW)으로
+// 즉시 계산한 값이 우선한다 (인라인 상태 변경이 바로 반영되도록). 값이 없으면 배지를 그리지 않는다.
+function formatOpenCount(n) { return n >= 100 ? '(99+)' : '(' + n + ')'; }
+
+// 선택된 버전의 로컬 계산값. 로드된 티켓이 전부 그 버전 것일 때만 신뢰 (탭 전환 직후 이전 버전
+// 데이터가 남아 있는 순간의 오표시 방지). 판단 불가하면 null → 서버 값 사용.
+function localOpenCount(versionId) {
+  if (versionId !== currentVersionId) return null;
+  const all = ALL_SECTIONS.flatMap(g => allTickets[g] || []);
+  if (all.length === 0) return null;
+  if (!all.every(tk => tk.version_id === versionId)) return null;
+  return (allTickets.activeWW || []).length;
+}
+
+function buildOpenCountBadge(v) {
+  const local = localOpenCount(v.version_id);
+  const n = local !== null ? local : v.open_count;
+  if (typeof n !== 'number') return '';
+  const cls = 'version-open-count' + (n === 0 ? ' is-zero' : '') + (v.status === '완료' ? ' is-done' : '');
+  return `<span class="${cls}">${formatOpenCount(n)}</span>`;
+}
+
+// renderAll 직후: 선택된 버전의 배지만 현재 화면 데이터로 갱신 (사이드바 전체를 다시 그리지 않음)
+function updateSelectedVersionBadge() {
+  const n = localOpenCount(currentVersionId);
+  if (n === null) return;
+  const v = versions.find(x => x.version_id === currentVersionId);
+  if (v) v.open_count = n;
+  const item = document.querySelector('#version-list-items .version-item[data-version-id="' + CSS.escape(currentVersionId) + '"]');
+  if (!item) return;
+  let badge = item.querySelector('.version-open-count');
+  if (!badge) {
+    badge = document.createElement('span');
+    item.appendChild(badge);
+  }
+  badge.className = 'version-open-count' + (n === 0 ? ' is-zero' : '') + (v && v.status === '완료' ? ' is-done' : '');
+  badge.textContent = formatOpenCount(n);
 }
 
 async function switchVersion(versionId) {
@@ -1118,6 +1163,7 @@ function renderAll() {
 
   updateCounts();
   updateAllScrollHints(); // [실험적 기능] 렌더링 후 힌트 가시성 재계산
+  updateSelectedVersionBadge();
 
   applySearchHit();
   // 페이지 로드/버전 전환 직후 첫 "데이터 있는" 렌더에서만 reveal 1회 예약 (자동 갱신에서는 실행 안 함)
