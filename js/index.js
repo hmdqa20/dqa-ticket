@@ -36,6 +36,7 @@ function loadAppState() {
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = searchQuery;
     updateSearchClear();
+    if (searchQuery) searchRevealPending = true;  // 복원된 검색어도 첫 렌더 후 1회 reveal
 
     return true;
   } catch (e) {
@@ -68,6 +69,140 @@ function applyCollapsedStates() {
     if (!body || !icon) continue;
     if (userCollapsed.has(g)) { body.classList.add('collapsed'); icon.textContent = '▶'; }
   }
+}
+
+// ─── 검색 결과 노출 (접힌 섹션 임시 펼침 + 첫 결과 행 강조/스크롤) ───────────────
+// 사용자의 접힘 설정(userCollapsed / localStorage)은 건드리지 않고, 검색이 임시로 연 섹션만
+// searchOpenedSections에 따로 기록했다가 검색어를 지우면 그 섹션만 다시 접는다.
+// renderAll()이 tbody를 매번 다시 그리므로 강조는 row_id 상태로 들고 있다가 렌더 후 재적용한다.
+const SEARCH_REVEAL_DELAY_MS = 500;       // 마지막 입력 후 이 시간이 지나야 펼침/스크롤 1회 실행
+const SEARCH_BOTTOM_BAR_H    = 18;        // 하단 고정 가로스크롤바 높이
+const searchOpenedSections = new Set();   // 검색이 임시로 펼친 섹션
+let searchHitRowId        = null;         // 강조 중인 첫 결과 행의 row_id
+let searchHitPulsePending = false;        // 다음 적용 때 맥동 애니메이션을 한 번 붙일지
+let searchRevealPending   = false;        // 페이지 로드/버전 전환 후 첫 렌더에서 reveal을 실행할지
+let searchRevealSeq       = 0;            // reveal 번호표 — 더 새로운 요청이 있으면 이전 것은 중단
+let searchRevealTimer     = null;
+
+function setSectionCollapsedView(group, collapsed) {
+  const body = document.getElementById('section-' + group + '-body');
+  const icon = document.getElementById('toggle-' + group);
+  if (!body || !icon) return;
+  body.classList.toggle('collapsed', collapsed);
+  icon.textContent = collapsed ? '▶' : '▼';
+}
+
+function clearSearchHit(cancelPendingReveal) {
+  searchHitRowId = null;
+  searchHitPulsePending = false;
+  if (cancelPendingReveal) {
+    searchRevealSeq++;
+    clearTimeout(searchRevealTimer);
+  }
+  document.querySelectorAll('tr.search-hit').forEach(tr => tr.classList.remove('search-hit', 'search-hit-pulse'));
+}
+
+// 렌더 후(배치마다) 호출 — 새로 그려진 행에 강조 클래스를 다시 붙임. 맥동은 최초 1회만.
+function applySearchHit() {
+  if (!searchHitRowId) return;
+  const tr = document.querySelector('.ticket-table tr[data-row-id="' + CSS.escape(searchHitRowId) + '"]');
+  if (!tr || tr.classList.contains('search-hit')) return;
+  tr.classList.add('search-hit');
+  if (searchHitPulsePending) {
+    tr.classList.add('search-hit-pulse');
+    searchHitPulsePending = false;
+  }
+}
+
+// 검색이 임시로 연 섹션을 다시 접는다 (사용자가 검색 중 직접 조작한 섹션은 이미 집합에서 빠져 있음)
+function restoreSearchSections() {
+  searchOpenedSections.forEach(g => { if (userCollapsed.has(g)) setSectionCollapsedView(g, true); });
+  searchOpenedSections.clear();
+}
+
+// 검색어가 바뀔 때(입력/지우기) 즉시 호출: 강조 해제 → 비었으면 복원, 아니면 입력이 멈춘 뒤 reveal 예약
+function onSearchTextChanged() {
+  clearSearchHit(false);
+  if (!searchQuery) {
+    searchRevealSeq++;
+    clearTimeout(searchRevealTimer);
+    restoreSearchSections();
+    return;
+  }
+  scheduleSearchReveal();
+}
+
+function scheduleSearchReveal() {
+  const seq = ++searchRevealSeq;
+  clearTimeout(searchRevealTimer);
+  searchRevealTimer = setTimeout(() => waitForRowsRendered(seq, () => runSearchReveal(seq)), SEARCH_REVEAL_DELAY_MS);
+}
+
+// 행은 30개씩 requestAnimationFrame으로 나눠 그려지므로, 모든 tbody의 그리기가 끝날 때까지 기다린다
+function waitForRowsRendered(seq, cb) {
+  let frames = 0;
+  const tick = () => {
+    if (seq !== searchRevealSeq) return;
+    const busy = ALL_SECTIONS.some(g => {
+      const tb = document.getElementById('tbody-' + g);
+      return tb && tb._renderTaskId;
+    });
+    if (busy && frames++ < 180) requestAnimationFrame(tick); else cb();
+  };
+  requestAnimationFrame(tick);
+}
+
+function runSearchReveal(seq) {
+  if (seq !== searchRevealSeq) return;
+  if (!searchQuery) { restoreSearchSections(); return; }
+  if (versionsEmbedOpen) return;
+
+  const matched = ALL_SECTIONS.filter(g => filterTickets(allTickets[g] || []).length > 0);
+
+  // 이전 검색이 열었지만 지금은 결과가 없는 섹션은 다시 접고, 결과가 있는 접힌 섹션은 펼친다
+  let changed = false;
+  [...searchOpenedSections].forEach(g => {
+    if (matched.includes(g)) return;
+    if (userCollapsed.has(g)) { setSectionCollapsedView(g, true); changed = true; }
+    searchOpenedSections.delete(g);
+  });
+  matched.forEach(g => {
+    const body = document.getElementById('section-' + g + '-body');
+    if (body && body.classList.contains('collapsed')) {
+      setSectionCollapsedView(g, false);
+      searchOpenedSections.add(g);
+      changed = true;
+    }
+  });
+  if (changed) { updateAllStickyBars(); updateAllScrollHints(); }
+
+  if (matched.length === 0) { clearSearchHit(false); return; }
+
+  // 펼침 직후 레이아웃이 반영된 다음 프레임에서 측정
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (seq !== searchRevealSeq || !searchQuery) return;
+    const row = document.querySelector('#tbody-' + matched[0] + ' tr[data-row-id]');
+    if (!row) return;
+    clearSearchHit(false);
+    searchHitRowId = row.dataset.rowId;
+    searchHitPulsePending = true;
+    applySearchHit();
+    scrollRowIntoView(row);
+  }));
+}
+
+// 보이는 영역(상단 topbar+배너 ~ 하단 가로스크롤바) 안에 행이 완전히 들어오지 않을 때만
+// 창을 세로로 스크롤해 행을 그 영역의 세로 중앙에 둔다 (가로 스크롤은 건드리지 않음)
+function scrollRowIntoView(row) {
+  const bannerH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--test-banner-h')) || 0;
+  const topbar  = document.querySelector('.topbar');
+  const topLimit    = bannerH + (topbar ? topbar.offsetHeight : 56);
+  const bottomLimit = window.innerHeight - SEARCH_BOTTOM_BAR_H;
+  const rect = row.getBoundingClientRect();
+  if (rect.top >= topLimit && rect.bottom <= bottomLimit) return;
+  const bandH = bottomLimit - topLimit;
+  const top = window.scrollY + rect.top - topLimit - Math.max(0, (bandH - rect.height) / 2);
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
 
 // "전체" 가상 탭 식별자
@@ -223,6 +358,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('search-input').addEventListener('input', (e) => {
     searchQuery = e.target.value.toLowerCase().trim();
     saveAppState();
+    onSearchTextChanged();
     renderAll();
   });
 
@@ -514,6 +650,8 @@ async function switchVersion(versionId) {
   currentVersionId = versionId;
   localStorage.setItem('dqa_current_version', versionId);
   saveAppState();
+  clearSearchHit(true);
+  if (searchQuery) searchRevealPending = true;  // 새 버전 데이터가 그려진 뒤 reveal 재실행
   // 버전 탭 전환 시 선택 목록은 초기화 (선택 모드 자체는 유지)
   if (selectionModeGlobal) {
     SELECTABLE_GROUPS.forEach(group => selectedRowIds[group].clear());
@@ -894,6 +1032,7 @@ function setupMobileSearch() {
     searchQuery = '';
     saveAppState();
     updateHasText();
+    onSearchTextChanged();
     renderAll();
     input.focus();
   });
@@ -973,6 +1112,13 @@ function renderAll() {
 
   updateCounts();
   updateAllScrollHints(); // [실험적 기능] 렌더링 후 힌트 가시성 재계산
+
+  applySearchHit();
+  // 페이지 로드/버전 전환 직후 첫 "데이터 있는" 렌더에서만 reveal 1회 예약 (자동 갱신에서는 실행 안 함)
+  if (searchRevealPending && searchQuery && ALL_SECTIONS.some(g => (allTickets[g] || []).length > 0)) {
+    searchRevealPending = false;
+    scheduleSearchReveal();
+  }
 }
 
 function renderSection(group, tickets, dimmed) {
@@ -1010,6 +1156,7 @@ function renderSection(group, tickets, dimmed) {
       fragment.appendChild(row);
     }
     tbody.appendChild(fragment);
+    applySearchHit();
 
     currentIndex = nextIndex;
     if (currentIndex < tickets.length) {
@@ -1027,6 +1174,9 @@ function renderSection(group, tickets, dimmed) {
 // 개별 행에 이벤트 리스너 부착 (점진적 렌더링용으로 분리)
 function attachRowListeners(row, group) {
   if (!(row instanceof HTMLElement)) return;
+
+  // 행을 클릭하면 검색 결과 강조 해제 (대기 중인 reveal도 취소)
+  row.addEventListener('click', () => clearSearchHit(true));
 
   row.querySelectorAll('.navigate-cell').forEach(td => {
     td.addEventListener('click', () => {
@@ -2038,6 +2188,7 @@ function toggleSection(group) {
   if (!body || !icon) return;
   const nowCollapsed = body.classList.toggle('collapsed');
   icon.textContent = nowCollapsed ? '▶' : '▼';
+  searchOpenedSections.delete(group);  // 사용자가 직접 조작한 섹션은 검색 종료 시 되접지 않음
   if (nowCollapsed) {
     userCollapsed.add(group);
   } else {
