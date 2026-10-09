@@ -467,6 +467,11 @@ async function handleEditSave(versionId) {
   const input   = row.querySelector('.ver-edit-input');
   const newName = input ? input.value.trim() : '';
   if (!newName) { input && input.focus(); return; }
+  if (isDuplicateVersionName(newName, versionId)) {
+    alert(t('version_name_duplicate'));
+    input.focus();
+    return;
+  }
 
   showLoading(true);
   try {
@@ -476,7 +481,7 @@ async function handleEditSave(versionId) {
     renderTable();
     notifyVersionsChanged();
   } catch (err) {
-    alert('수정 실패: ' + err.message);
+    alert(err.code === 'DUPLICATE_VERSION_NAME' ? t('version_name_duplicate') : '수정 실패: ' + err.message);
   } finally {
     showLoading(false);
   }
@@ -519,6 +524,11 @@ async function handleAdd() {
   const input = document.getElementById('new-version-name');
   const name  = input.value.trim();
   if (!name) { input.focus(); return; }
+  if (isDuplicateVersionName(name, '')) {
+    alert(t('version_name_duplicate'));
+    input.focus();
+    return;
+  }
 
   showLoading(true);
   try {
@@ -526,10 +536,17 @@ async function handleAdd() {
     input.value = '';
     await loadData(true);
   } catch (err) {
-    alert('버전 추가 실패: ' + err.message);
+    alert(err.code === 'DUPLICATE_VERSION_NAME' ? t('version_name_duplicate') : '버전 추가 실패: ' + err.message);
   } finally {
     showLoading(false);
   }
+}
+
+// 버전명 중복 여부 — 서버와 동일 규칙(trim + 대소문자 무시). excludeId: 수정 중인 자기 자신 제외
+function isDuplicateVersionName(name, excludeId) {
+  const target = String(name).trim().toLowerCase();
+  return versionList.some(v => v.version_id !== excludeId &&
+    String(v.version_name || '').trim().toLowerCase() === target);
 }
 
 // embed 상태에서 서버 저장 성공 직후 부모(index.html) 사이드바가 즉시 갱신되도록 최신 버전 목록 전달

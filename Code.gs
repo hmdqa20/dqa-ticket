@@ -593,6 +593,50 @@ function getVersions(e) {
   return jsonResponse({ success: true, versions: versions });
 }
 
+// ─── 버전명 중복 판정 ────────────────────────────────────────────────────────────
+// 판정 규칙: trim + 대소문자 무시(toLowerCase) 일치만 중복. 그 외 정규화 없음 ("V09.05.05" ≠ "09.05.05").
+// data: versions 시트 getValues() 결과(헤더 포함), excludeVersionId: 자기 자신 제외용(추가 시 '')
+function normalizeVersionName(name) {
+  return String(name == null ? '' : name).trim().toLowerCase();
+}
+
+function hasDuplicateVersionName(data, name, excludeVersionId) {
+  const target = normalizeVersionName(name);
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][VCOL.VERSION_ID]) === excludeVersionId) continue;
+    if (String(data[i][VCOL.VERSION_ID]) === '') continue;
+    if (normalizeVersionName(data[i][VCOL.VERSION_NAME]) === target) return true;
+  }
+  return false;
+}
+
+// 읽기 전용(수동 실행): 중복 버전명 그룹을 로그로 출력. 시트·캐시에 쓰지 않음.
+function listDuplicateVersionNames() {
+  const vData = getVersionSheet().getDataRange().getValues();
+  const tData = getSheet().getDataRange().getValues();
+  const counts = {};
+  for (let i = 1; i < tData.length; i++) {
+    const vid = String(tData[i][COL.VERSION_ID] || '');
+    if (vid) counts[vid] = (counts[vid] || 0) + 1;
+  }
+  const groups = {};
+  vData.slice(1).map(versionRowToObj).filter(v => v.version_id !== '').forEach(v => {
+    const k = normalizeVersionName(v.version_name);
+    (groups[k] = groups[k] || []).push(v);
+  });
+  let found = 0;
+  Object.keys(groups).forEach(k => {
+    if (groups[k].length < 2) return;
+    found++;
+    Logger.log('중복 그룹 "%s" (%s개)', k, groups[k].length);
+    groups[k].forEach(v => {
+      Logger.log('  version_id=%s, name="%s", status=%s, sort_order=%s, tickets=%s',
+        v.version_id, v.version_name, v.status, v.sort_order, counts[v.version_id] || 0);
+    });
+  });
+  Logger.log('=== listDuplicateVersionNames 완료: 중복 그룹 %s개 ===', found);
+}
+
 // ─── addVersion ────────────────────────────────────────────────────────────────
 
 function addVersion(e) {
@@ -605,6 +649,9 @@ function addVersion(e) {
     if (!name) return jsonResponse({ success: false, error: 'version_name is required' });
 
     const data      = sheet.getDataRange().getValues();
+    if (hasDuplicateVersionName(data, name, '')) {
+      return jsonResponse({ success: false, error: 'A version with the same name already exists: ' + name, code: 'DUPLICATE_VERSION_NAME' });
+    }
     const versionId = Utilities.getUuid();
     const now       = getJSTISOString();
     const status    = p.status || '진행중';
@@ -641,8 +688,18 @@ function updateVersion(e) {
     for (let i = 1; i < data.length; i++) {
       if (String(data[i][VCOL.VERSION_ID]) === versionId) {
         const sheetRow = i + 1;
+        let newName = null;
         if (p.version_name !== undefined) {
-          sheet.getRange(sheetRow, VCOL.VERSION_NAME + 1).setValue(p.version_name);
+          newName = String(p.version_name).trim();
+          if (!newName) {
+            return jsonResponse({ success: false, error: 'version_name is required', code: 'VERSION_NAME_REQUIRED' });
+          }
+          if (hasDuplicateVersionName(data, newName, versionId)) {
+            return jsonResponse({ success: false, error: 'A version with the same name already exists: ' + newName, code: 'DUPLICATE_VERSION_NAME' });
+          }
+        }
+        if (newName !== null) {
+          sheet.getRange(sheetRow, VCOL.VERSION_NAME + 1).setValue(newName);
         }
         if (p.sort_order !== undefined) {
           sheet.getRange(sheetRow, VCOL.SORT_ORDER + 1).setValue(Number(p.sort_order));

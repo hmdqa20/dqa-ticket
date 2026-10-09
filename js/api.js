@@ -117,10 +117,16 @@ async function callGAS(type, params = {}, maxRetries = 2) {
       }
 
       const json = await res.json();
-      if (!json.success) throw new Error(json.error || '알 수 없는 오류');
+      if (!json.success) {
+        const bizErr = new Error(json.error || '알 수 없는 오류');
+        // 서버가 업무 오류 코드를 준 경우: 코드 보존 + 재시도하지 않음(같은 요청은 같은 결과)
+        if (json.code) { bizErr.code = json.code; bizErr.noRetry = true; }
+        throw bizErr;
+      }
       return json;
 
     } catch (err) {
+      if (err.noRetry) throw err;
       const isLastAttempt = attempt === maxRetries;
       console.warn(`[callGAS] 요청 실패 (시도 ${attempt + 1}/${maxRetries + 1}):`, err.message);
 
