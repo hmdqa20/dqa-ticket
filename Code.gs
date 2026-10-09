@@ -619,6 +619,7 @@ function deleteVersion(e) {
       }
     }
 
+    clearAllCaches(); // 캐시 무효화
     return jsonResponse({ success: true });
   } finally {
     lock.releaseLock();
