@@ -154,22 +154,110 @@ function clearAllCaches() {
   }
 }
 
+// ─── 분할(chunk) 캐시 헬퍼 ───────────────────────────────────────────────────
+// CacheService 값 1개당 100KB(바이트) 제한 → 큰 JSON을 여러 키로 나눠 저장.
+// 30,000자 단위: 한글/일본어(UTF-8 3바이트)만으로 채워도 90KB라 항상 한도 이내.
+// 저장 형태: key_c0, key_c1, ... + key_meta({count, length}). meta는 청크 저장 후 마지막에 기록.
+// 읽기 시 meta 누락·청크 누락·길이 불일치는 모두 캐시 미스로 처리 → 시트 직접 조회로 폴백.
+const CACHE_CHUNK_CHARS = 30000;
+const CACHE_MAX_CHUNKS  = 30;
+
+function cachePutChunked(cache, key, jsonString, ttl) {
+  try {
+    const chunks = [];
+    let pos = 0;
+    while (pos < jsonString.length) {
+      let end = Math.min(pos + CACHE_CHUNK_CHARS, jsonString.length);
+      // 서로게이트 쌍(이모지 등) 중간에서 자르지 않도록 경계 조정
+      const code = jsonString.charCodeAt(end - 1);
+      if (end < jsonString.length && code >= 0xD800 && code <= 0xDBFF) end--;
+      chunks.push(jsonString.slice(pos, end));
+      pos = end;
+    }
+    if (chunks.length === 0) return false;
+    if (chunks.length > CACHE_MAX_CHUNKS) {
+      Logger.log('Cache skip (too large): key=%s, chars=%s, chunks=%s > %s',
+        key, jsonString.length, chunks.length, CACHE_MAX_CHUNKS);
+      return false;
+    }
+    const values = {};
+    chunks.forEach((c, i) => { values[key + '_c' + i] = c; });
+    cache.putAll(values, ttl);
+    cache.put(key + '_meta', JSON.stringify({ count: chunks.length, length: jsonString.length }), ttl);
+    return true;
+  } catch (err) {
+    Logger.log('Cache put failed: key=%s — %s', key, err.message);
+    return false;
+  }
+}
+
+// 반환: 저장된 원본 문자열 / 미스·오류 시 null
+function cacheGetChunked(cache, key) {
+  try {
+    const metaRaw = cache.get(key + '_meta');
+    if (!metaRaw) return null;
+    const meta  = JSON.parse(metaRaw);
+    const count = Number(meta.count);
+    if (!(count >= 1 && count <= CACHE_MAX_CHUNKS)) return null;
+    const keys = [];
+    for (let i = 0; i < count; i++) keys.push(key + '_c' + i);
+    const got = cache.getAll(keys);
+    const parts = [];
+    for (let i = 0; i < keys.length; i++) {
+      if (typeof got[keys[i]] !== 'string') return null;
+      parts.push(got[keys[i]]);
+    }
+    const joined = parts.join('');
+    if (joined.length !== Number(meta.length)) return null;
+    return joined;
+  } catch (err) {
+    Logger.log('Cache get failed: key=%s — %s', key, err.message);
+    return null;
+  }
+}
+
 // ─── doGet ────────────────────────────────────────────────────────────────────
 
 function doGet(e) {
   const versionId = e && e.parameter ? e.parameter.version_id : '';
-  const cacheKey = getCacheKey(versionId);
+
+  // 캐시 준비 실패는 무시하고 시트 직접 조회로 진행
+  let cache = null, cacheKey = null;
+  try {
+    cache    = CacheService.getScriptCache();
+    cacheKey = getCacheKey(versionId);
+  } catch (err) {
+    Logger.log('Cache unavailable: ' + err.message);
+    cache = null;
+  }
 
   try {
-    // 1. 캐시 확인
-    const cache = CacheService.getScriptCache();
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      Logger.log('Cache hit for: ' + cacheKey);
-      return jsonResponse(JSON.parse(cached));
+    // 1. 캐시 확인 (JSON 파싱까지 성공해야 히트로 인정)
+    if (cache) {
+      const cached = cacheGetChunked(cache, cacheKey);
+      if (cached) {
+        try {
+          JSON.parse(cached);
+          Logger.log('Cache hit for: ' + cacheKey);
+          return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+        } catch (parseErr) {
+          Logger.log('Cache parse failed, reading sheet: ' + parseErr.message);
+        }
+      }
     }
 
-    // 2. 캐시 없으면 시트에서 직접 조회
+    // 2. 캐시 없으면 시트에서 직접 조회 → 3. 분할 캐싱 (10분)
+    const jsonStr = JSON.stringify(buildDoGetResponse(versionId));
+    if (cache) cachePutChunked(cache, cacheKey, jsonStr, 600);
+    return ContentService.createTextOutput(jsonStr).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return jsonResponse({ success: false, error: err.message });
+  }
+}
+
+// doGet 응답 객체 생성 (시트 읽기 전용 — 쓰기 없음). logResponseSizes()와 공유.
+function buildDoGetResponse(versionId) {
     const sheet = getSheet();
     const data  = sheet.getDataRange().getValues();
     const empty = { activeWW: [], activeMVN: [], done: [], hold: [] };
@@ -181,9 +269,7 @@ function doGet(e) {
       vData.slice(1).map(versionRowToObj).filter(v => v.version_id !== '').sort((a, b) => a.sort_order - b.sort_order);
 
     if (data.length <= 1) {
-      const resp = { success: true, data: empty, versions };
-      cache.put(cacheKey, JSON.stringify(resp), 600); // 10분 캐시
-      return jsonResponse(resp);
+      return { success: true, data: empty, versions };
     }
 
     let rows = data.slice(1).map(rowToObj).filter(r => r.row_id !== '');
@@ -221,23 +307,7 @@ function doGet(e) {
     done.sort(byChangedDesc);
     hold.sort(byChangedDesc);
 
-    const fullResp = { success: true, data: { activeWW, activeMVN, done, hold }, versions };
-
-    // 3. 결과 캐싱 (최대 100KB 제한 주의 - 텍스트 양이 많으면 실패할 수 있음)
-    try {
-      const jsonStr = JSON.stringify(fullResp);
-      if (jsonStr.length < 100 * 1024) { // GAS CacheService 100KB 제한
-        cache.put(cacheKey, jsonStr, 600);
-      }
-    } catch (cacheErr) {
-      Logger.log('Cache put failed: ' + cacheErr.message);
-    }
-
-    return jsonResponse(fullResp);
-
-  } catch (err) {
-    return jsonResponse({ success: false, error: err.message });
-  }
+    return { success: true, data: { activeWW, activeMVN, done, hold }, versions };
 }
 
 // ─── doPost router ────────────────────────────────────────────────────────────
@@ -1143,4 +1213,58 @@ function testBackupNow() {
   Logger.log('=== testBackupNow: 수동 백업 시작 ===');
   runDailyBackup();
   Logger.log('=== testBackupNow: 완료 ===');
+}
+
+
+// ─── 분할 캐시 수동 점검 (GAS 에디터에서 직접 실행) ──────────────────────────────
+
+// 분할 캐시 저장/읽기 자가 테스트. 시트·실제 캐시 키는 건드리지 않음 (테스트 전용 키 사용 후 삭제).
+function testChunkedCache() {
+  const cache = CacheService.getScriptCache();
+  const key   = 'dqa_test_chunked_' + Utilities.getUuid();
+  const unit  = '확인버전 테스트 한국어 텍스트 / 確認バージョン 日本語テキスト / ASCII text 0123456789 🙂\n';
+  let str = '';
+  while (Utilities.newBlob(str).getBytes().length < 300 * 1024) str += unit;
+  const bytes = Utilities.newBlob(str).getBytes().length;
+  Logger.log('test string: chars=%s, bytes=%s', str.length, bytes);
+
+  let meta = null;
+  try {
+    const putOk = cachePutChunked(cache, key, str, 600);
+    Logger.log((putOk ? 'PASS' : 'FAIL') + ': cachePutChunked');
+
+    const read = cacheGetChunked(cache, key);
+    Logger.log((read === str ? 'PASS' : 'FAIL') + ': read back equals original');
+
+    meta = JSON.parse(cache.get(key + '_meta') || '{"count":0}');
+    Logger.log('chunks=%s', meta.count);
+
+    cache.remove(key + '_c1');
+    const afterRemove = cacheGetChunked(cache, key);
+    Logger.log((afterRemove === null ? 'PASS' : 'FAIL') + ': missing chunk → cache miss (null)');
+  } catch (err) {
+    Logger.log('FAIL: exception — ' + err.message);
+  } finally {
+    const keys = [key + '_meta'];
+    for (let i = 0; i < CACHE_MAX_CHUNKS; i++) keys.push(key + '_c' + i);
+    cache.removeAll(keys);
+    Logger.log('cleanup done');
+  }
+}
+
+// 읽기 전용: doGet이 반환할 JSON 크기를 전체/미지정/버전별로 로그. 시트·캐시에 쓰지 않음.
+function logResponseSizes() {
+  const report = (label, versionId) => {
+    const str    = JSON.stringify(buildDoGetResponse(versionId));
+    const bytes  = Utilities.newBlob(str).getBytes().length;
+    const chunks = Math.ceil(str.length / CACHE_CHUNK_CHARS);
+    Logger.log('%s: chars=%s, bytes=%s, chunks=%s%s', label, str.length, bytes, chunks,
+      chunks <= 1 ? ' (fits in one chunk)' : (chunks > CACHE_MAX_CHUNKS ? ' (TOO LARGE — not cached)' : ''));
+  };
+  report('ALL', '');
+  report('UNASSIGNED (__NONE__)', '__NONE__');
+  const vData = getVersionSheet().getDataRange().getValues();
+  vData.slice(1).map(versionRowToObj).filter(v => v.version_id !== '').forEach(v => {
+    report('version ' + v.version_name, v.version_id);
+  });
 }
