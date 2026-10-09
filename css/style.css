@@ -544,6 +544,7 @@ body.sidebar-collapsed .version-sidebar { width: 0; }
   flex: 1;
   min-height: 0;   /* flex 컨테이너 안에서 overflow-y가 실제로 작동하려면 필요 */
   overflow-y: auto;
+  scrollbar-gutter: stable;      /* 스크롤바 유무와 상관없이 자리를 미리 확보 → 안내 줄/(n) 배지가 스크롤바 생길 때 왼쪽으로 밀리지 않음 */
   background: #F4F5F7;           /* 사이드바와 동일하게 통일 */
   padding-bottom: 50px;          /* 하단 '미' 배지 공간 확보 */
 }
