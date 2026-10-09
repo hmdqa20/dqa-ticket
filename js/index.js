@@ -16,6 +16,13 @@ function saveAppState() {
   sessionStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
 }
 
+// 검색창 안쪽 지우기 ×는 입력창에 텍스트가 있을 때만 표시 — 값이 프로그램으로 바뀌는 모든 경로에서 호출
+function updateSearchClear() {
+  const wrap  = document.querySelector('.search-wrap');
+  const input = document.getElementById('search-input');
+  if (wrap && input) wrap.classList.toggle('has-text', !!input.value);
+}
+
 function loadAppState() {
   try {
     const raw = sessionStorage.getItem(APP_STATE_KEY);
@@ -28,6 +35,7 @@ function loadAppState() {
     // UI 반영
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = searchQuery;
+    updateSearchClear();
 
     return true;
   } catch (e) {
@@ -219,6 +227,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   setupMobileSearch();
+  updateSearchClear();
+  // 뒤로가기/bfcache 복원 시 브라우저가 입력값만 되살리고 input 이벤트는 발생시키지 않음
+  window.addEventListener('pageshow', updateSearchClear);
 
   document.getElementById('section-ww-header').addEventListener('click', () => toggleSection('activeWW'));
   document.getElementById('section-mvn-header').addEventListener('click', () => toggleSection('activeMVN'));
@@ -861,7 +872,7 @@ function setupMobileSearch() {
   // 접힘 상태에서 검색어가 남아 있으면 돋보기에 배지 점 표시
   const updateBadge   = () => toggle.classList.toggle('has-filter', !!searchQuery);
   // input 안쪽 지우기 ×는 텍스트가 있을 때만 표시
-  const updateHasText = () => wrap.classList.toggle('has-text', !!input.value);
+  const updateHasText = updateSearchClear;
   const closeSearch = () => {
     document.body.classList.remove('search-open');
     updateBadge();
