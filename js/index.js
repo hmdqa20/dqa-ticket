@@ -598,6 +598,7 @@ async function fetchFreshList(vid, hadCache, mySeq) {
 function renderSidebar() {
   const itemsContainer = document.getElementById('version-list-items');
   if (!itemsContainer) return;
+  hideAppTooltip();   // 배지가 새로 그려지면 마우스가 올라가 있던 요소가 사라지므로 mouseout이 오지 않음 → 툴팁 숨김
 
   // "전체 티켓"은 이제 버전 목록과 같은 스크롤 박스 안의 정적 첫 줄(sticky) — active 상태만 갱신.
   // 단, 버전 관리가 열려있는 동안엔 뒤늦게 도착한 이 함수 호출이 탭 active를 되살리면 안 되므로
@@ -652,7 +653,7 @@ function buildOpenCountBadge(v) {
   if (typeof n !== 'number') return '';
   const cls = 'version-open-count' + (n === 0 ? ' is-zero' : '') + (v.status === '완료' ? ' is-done' : '');
   const tip = escHtml(t('version_count_tooltip'));
-  return `<span class="${cls}" data-i18n-title="version_count_tooltip" title="${tip}" aria-label="${tip}">${formatOpenCount(n)}</span>`;
+  return `<span class="${cls}" data-i18n-tip="version_count_tooltip" data-tip="${tip}" aria-label="${tip}">${formatOpenCount(n)}</span>`;
 }
 
 // renderAll 직후: 선택된 버전의 배지만 현재 화면 데이터로 갱신 (사이드바 전체를 다시 그리지 않음)
@@ -666,9 +667,9 @@ function updateSelectedVersionBadge() {
   let badge = item.querySelector('.version-open-count');
   if (!badge) {
     badge = document.createElement('span');
-    badge.dataset.i18nTitle = 'version_count_tooltip';
-    badge.title = t('version_count_tooltip');
-    badge.setAttribute('aria-label', badge.title);
+    badge.dataset.i18nTip = 'version_count_tooltip';
+    badge.setAttribute('data-tip', t('version_count_tooltip'));
+    badge.setAttribute('aria-label', t('version_count_tooltip'));
     item.appendChild(badge);
   }
   badge.className = 'version-open-count' + (n === 0 ? ' is-zero' : '') + (v && v.status === '완료' ? ' is-done' : '');
@@ -1911,6 +1912,8 @@ async function refreshList() {
 // ─── 커스텀 툴팁 ([data-tip] 요소 위쪽 표시, table-scroll 클리핑 회피) ───────────
 // native title은 커서 아래에만 떠서 글씨를 가림 → body에 붙인 div로 요소 위쪽에 표시.
 
+let hideAppTooltip = () => {};   // setupTooltips()가 실제 숨김 함수로 교체 — 사이드바가 다시 그려질 때 툴팁이 남지 않게 호출
+
 function setupTooltips() {
   const tip = document.createElement('div');
   tip.className = 'app-tooltip';
@@ -1929,6 +1932,7 @@ function setupTooltips() {
     tip.style.top  = top + 'px';
   };
   const hide = () => tip.classList.remove('show');
+  hideAppTooltip = hide;
 
   document.addEventListener('mouseover', e => {
     const el = e.target.closest('[data-tip]');
@@ -2276,9 +2280,10 @@ function applyTranslations() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     el.placeholder = t(el.dataset.i18nPlaceholder);
   });
-  document.querySelectorAll('[data-i18n-title]').forEach(el => {
-    const txt = t(el.dataset.i18nTitle);
-    el.title = txt;
+  // 커스텀 툴팁 문구([data-tip])를 현재 언어로 갱신 (네이티브 title은 포인터 밑에 떠서 가려지므로 쓰지 않음)
+  document.querySelectorAll('[data-i18n-tip]').forEach(el => {
+    const txt = t(el.dataset.i18nTip);
+    el.setAttribute('data-tip', txt);
     if (el.classList.contains('version-open-count')) el.setAttribute('aria-label', txt);
   });
   document.title = t('app_title');
