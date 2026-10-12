@@ -1,260 +1,45 @@
-# DQA Ticket Manager 프로젝트 규칙
-
-## 현재 버전
-
-**v0.3.0** (2026-06-28)
-
-## 버전 관리 규칙 (SemVer)
-
-`MAJOR.MINOR.PATCH` 형식으로 관리한다.
-
-| 변경 규모 | 올릴 숫자 | 예시 |
-|-----------|-----------|------|
-| 버그 수정 | PATCH (세 번째) | 1.0.0 → 1.0.1 |
-| 기능 추가 | MINOR (두 번째) | 1.0.0 → 1.1.0 |
-| 대규모 변경 | MAJOR (첫 번째) | 1.0.0 → 2.0.0 |
-
-버전 업 시 반드시 아래를 함께 갱신한다:
-1. **CLAUDE.md** 상단 "현재 버전" 숫자
-2. **수정히스토리.md**에 `## vX.Y.Z` 릴리즈 기록 추가
-
----
-
-## 프로젝트 정보
-
-- **GAS URL** (회사 계정 배포 = PROD_GAS_URL): https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec
-- **GAS URL** (dev 문서 계정 배포 = DEV_GAS_URL): https://script.google.com/macros/s/AKfycbwULFEhn_BEJVoYKE8Ki4XPJ2VtBFj7q3klc2TSQT1oKGQjzPRDIueM0t46IZWIu7DCCA/exec
-- **GAS_URL 자동 선택**: `js/api.js`가 접속 hostname으로 런타임에 결정. **운영 GAS는 `hmdqa20.github.io`에서 열었을 때만 사용되고, 그 외 모든 환경(로컬 127.0.0.1, file:// 등)은 dev GAS**(안전 기본값). 브랜치별로 값을 바꾸지 않으므로 master/dev의 api.js는 항상 동일 — 머지 시 GAS_URL 확인 불필요.
-  - dev 테스트: 로컬(예: `127.0.0.1:5500`)로 열기 → 자동으로 dev GAS + 빨간 테스트 배너 표시
-  - 운영 확인: `hmdqa20.github.io`로 열기
-- **GitHub Pages URL**: https://hmdqa20.github.io/dqa-ticket
-- **Google Sheets**: tickets 시트 + versions 시트
-- **GAS 수정 시**: Code.gs 복붙 → 저장 → 배포 관리 → **기존 배포 편집 → 새 버전**으로 재배포 (액세스: 모든 사용자). ⚠️ "새 배포"를 누르면 URL이 새로 생기므로 반드시 **기존 배포를 편집**할 것
-
----
-
-## dev용 GAS 프로젝트 생성 규칙 (재발 방지)
-
-- 새로운 dev/테스트용 GAS가 필요하면, 반드시 **테스트용 사본 시트를 먼저 만들고**, 그 사본 시트를 연 상태에서 "확장 프로그램 → Apps Script"로 GAS 프로젝트를 생성할 것. **독립적으로 새 Apps Script 프로젝트를 만든 뒤 나중에 시트를 연결하는 방식은 금지.**
-- 이렇게 컨테이너 바인딩으로 만든 dev GAS는 스크립트 속성에 **SPREADSHEET_ID를 절대 추가하지 말 것**. `getSheet()`의 fallback(`getActiveSpreadsheet`)이 자동으로 자신이 속한 사본 시트를 보게 되며, 이게 원본 오염을 막는 핵심 안전장치임.
-- ~~`GAS_URL`은 브랜치별로 값이 다름 — 머지 시 `git diff`로 확인~~ → **hostname 자동 선택 방식으로 대체됨 (2026-07-10)**. `js/api.js`에 PROD/DEV URL을 둘 다 상수로 두고 `location.hostname === 'hmdqa20.github.io'`일 때만 운영 GAS를 사용. master/dev의 api.js는 동일 내용을 유지하며, 머지 시 GAS_URL 관련 확인 절차 불필요.
-- Code.gs가 포함된 push 이후에는 해당 브랜치가 가리키는 GAS(운영 또는 dev)를 재배포해야 실제로 반영됨 — push만으로는 GAS 코드가 갱신되지 않는다는 점 항상 안내할 것.
-
----
-
-## GAS 규칙
-
-- `.gs` 파일 수정 후에는 반드시 **재배포** 필요: 배포 → 배포 관리 → 새 버전
-- 모든 datetime은 **JST (UTC+9)**: `new Date(new Date().getTime() + 9*60*60*1000)`
-- 인증 정보는 **PropertiesService.getScriptProperties()** 에 저장
-- doPost 라우팅 필드명은 **`type`** (action 아님)
-- 모든 응답: `ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON)`
-- 모든 쓰기 작업은 `LockService.getScriptLock()` 으로 감싸기
-
----
-
-## Script Properties (GAS 편집기에서 설정)
-
-| 키 | 설명 |
-|----|------|
-| `JIRA_BASE_URL` | 예) `https://wjira.humaxdigital.com` |
-| `JIRA_EMAIL` | JIRA 로그인 ID 또는 이메일 |
-| `JIRA_PASSWORD` | JIRA 로그인 비밀번호 (Server/DC — Basic Auth) |
-| `DRIVE_FOLDER_ID` | 파일 업로드용 Google Drive 폴더 ID |
-| `SPREADSHEET_ID` | Google Sheets 스프레드시트 ID |
-
----
-
-## Sheets 스키마 — tickets 시트
-
-| 열 | 필드 | 비고 |
-|----|------|------|
-| A | ticket_id | 예) XAX2-2667 |
-| B | created_date | ISO 날짜, 등록 시 JST 자동 입력 |
-| C | title | JIRA 이슈 제목, 수동 입력 |
-| D | check_version | 확인버전 (쉼표 구분, 최대 4개) |
-| E | assignee | 박수원 / 홍경두 / MVN |
-| F | priority | 1/2/3, 활성 티켓만, 비활성은 빈칸 |
-| G | status | 진행중 / 진행전 / 완료 / 보류 / N/A |
-| H | verdict | OK / NG / 빈칸 |
-| I | check_content | 확인내용 |
-| J | note | 비고 |
-| K | wjira_updated | "OK" 또는 빈칸 |
-| L | status_changed_at | ISO datetime JST, 상태 변경 시 자동 입력 |
-| M | file_urls | 쉼표 구분, 각 항목 `이름|크기|URL` 형식 |
-| N | row_id | UUID, 등록 시 자동 생성 |
-| O | retest_ref | 복제/재테스트 티켓의 원본 ticket_id |
-| P | version_id | 소속 버전 탭 UUID (versions 시트 참조) |
-
----
-
-## Sheets 스키마 — versions 시트
-
-| 열 | 필드 | 비고 |
-|----|------|------|
-| A | version_id | UUID, 자동 생성 |
-| B | version_name | 예) V09.02.20 |
-| C | status | 진행중 / 완료 |
-| D | created_at | ISO datetime JST, 자동 입력 |
-| E | sort_order | 표시 순서 (숫자) |
-
----
-
-## 버전 탭 동작 규칙
-
-- 실시순서(priority)는 **버전별로 독립 관리**: `renumberActiveGroup(sheet, assignee, versionId)` 가 버전 내 WW/MVN 그룹 재번호 매김
-- `doGet?version_id=…` 는 해당 버전 티켓만 반환 (파라미터 없으면 전체 — 하위 호환)
-- 프론트엔드: "전체" 가상 탭 + 버전별 탭. 선택 상태는 `localStorage['dqa_current_version']` 에 저장
-
----
-
-## 초기 설정 순서
-
-1. `Code.gs` 를 GAS 편집기에 붙여넣기
-2. `setupInitialHeaders()` 1회 수동 실행 → tickets 시트 + versions 시트 자동 생성
-3. 기존 시트가 있으면 `setupVersionHeaders()` 1회 실행 → versions 시트 생성 + tickets 시트에 retest_ref(O) / version_id(P) 헤더 추가
-4. Script Properties 모두 설정
-5. 웹앱으로 배포: 실행 계정=나 / 액세스=모든 사용자
-6. 웹앱 URL을 프론트엔드 `js/api.js` 의 `PROD_GAS_URL`(운영) 또는 `DEV_GAS_URL`(dev)에 설정 — `GAS_URL`은 hostname으로 자동 선택되므로 직접 수정하지 않음
-
----
-
-## 파일 수정 시 필수 규칙
-
-### 1. 파일 내 수정이력 주석 금지 — 커밋 메시지로 대체
-
-`.js`, `.css`, `.html`, `.gs` 등 **모든 파일 내부에 수정이력 주석을 남기지 않는다.**
-변경 내용은 커밋 메시지에 구체적으로 기록한다:
-
-```
-feat: 티켓 편집 잠금 — cascadeShift 우선순위 로직 버그 수정
-```
-
-파일 상단의 `// 수정: YYYY-MM-DD …` / `<!-- 수정: … -->` / `/* 수정: … */` 형태의 주석은 작성하지 않는다.
-
-### 2. 수정히스토리.md — 세션 종료 시 또는 명시적 요청 시에만 갱신
-
-매 수정마다 건드리지 않는다. 세션 중 변경한 내용을 기억해뒀다가, 아래 두 시점 중 하나에 한 번에 몰아서 항목을 추가한다:
-- 세션 종료 트리거 ("마무리하자" / "오늘은 여기까지" / "끝내자" 등)
-- 사용자가 "히스토리 정리해줘"라고 명시적으로 요청할 때
-
-파일 상단 헤더 **바로 아래에 삽입**한다 — 최신 항목이 항상 위에 오도록:
-
-```
-## YYYY-MM-DD HH:MM JST
-- [수정 내용 간단히]
-```
-
-### 3. 숙제.md — 세션 종료 트리거 시에만 갱신
-
-매 수정마다 건드리지 않는다. "마무리하자/오늘은 여기까지/끝내자" 같은 세션 종료 트리거가 있을 때만 그 세션 전체 내용을 정리해서 덮어쓴다.
-
-### 4. 커밋/푸시 정책 — DQA·WisePay 등 전 프로젝트 공통
-
-- **커밋**: 코드 파일을 수정할 때마다 즉시 커밋한다 (로컬 백업 — 자동 실행).
-- **푸시**: 절대 자동으로 실행하지 않는다. 사용자가 아래와 같이 **명확한 push 의도를 표현**할 때만 실행한다.
-  - "오늘 마무리" / "푸쉬해줘" / "마무리 푸쉬" / "올려줘" 등
-  - 애매하거나 추측성으로 push하지 않는다.
-- **Code.gs가 포함된 push 시**: push 직후 반드시 다음을 안내한다.
-  > "Code.gs가 변경됐습니다. GAS 편집기 → 배포 관리 → 기존 배포 편집 → 새 버전으로 재배포가 필요합니다."
-
-
-### 배포 전 체크
-JS 파일을 수정했으면 index.html의 해당 ?v= 버전 숫자도 같이 올릴 것 (전체 일괄 변경도 OK)
-
-### 기타 주의사항
-
-- 날짜/시간은 반드시 **JST(일본 표준시, Asia/Tokyo)** 기준으로 기록한다
-- 코드에서 날짜/시간을 다룰 때는 `Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss")` 사용
-- 내용은 한국어로 작성
-
----
-
-## 숙제(작업 인수인계) 기록 규칙
-
-집 ↔ 회사 등 기기를 오가며 작업을 끊김 없이 이어가기 위한 인수인계 파일이 `숙제.md`이다.
-
-- 사용자가 **"숙제 기록"**(또는 "숙제에 기록", "숙제 정리해" 등 유사 표현)이라고 하면, 지금까지의 작업 상태를 `숙제.md`에 **덮어써서** 정리한다.
-- 다른 기기에서 새 Claude 세션이 **이 파일만 읽어도 작업을 이어갈 수 있을 만큼 누락 없이** 작성한다. 포함할 것:
-  1. 지금 무슨 작업 중인지(목적)
-  2. 확정된 결정·모델·규칙 (되돌리면 안 되는 합의 사항)
-  3. 오늘(이번 세션) 변경한 것 — 무엇을·왜·어떻게 (변경 파일·커밋 해시)
-  4. 남은 할 일(TODO) — 우선순위와 함께
-  5. 주의/보류 사항
-- 완료된 TODO는 `숙제.md`에서 삭제한다 (완료 표시만 남기지 말고 항목 자체를 지운다).
-- 상단에 "최종 갱신: YYYY-MM-DD HH:MM JST"를 적는다.
-- 작성 후 **반드시 커밋**한다 (푸시는 별도 명시적 요청 시에만).
-- 새 세션 시작 시 `숙제.md`가 있으면 먼저 읽고 맥락을 파악한 뒤 작업한다.
-
----
-
-## 세션 시작 규칙
-
-사용자가 작업을 시작하면 (또는 Claude 세션이 새로 열리면)
-**반드시 첫 번째로** 아래를 실행한다:
-
-1. 다음 안내 문구를 표시한다:
-   > "git pull은 집 또는 회사에서 작업한 내용을 불러오는 명령어입니다. 필요하면 터미널에 직접 `git pull origin dev`를 입력하세요."
-2. `숙제.md` 를 읽고 맥락을 파악한다
-
----
-
-## "마무리" 한 방 규칙 (작업 종료 트리거)
-
-사용자가 **"마무리하자"**, **"오늘은 여기까지"**, **"내일 하자"**, **"끝내자"** 등 **작업 종료를 알리는 표현**을 하면, 추가 확인 없이 **아래를 원스텝으로 한 번에** 실행한다:
-
-1. 진행 중이던 변경/논의 내용을 `숙제.md`에 **덮어써서** 정리한다.
-2. 세션 중 변경한 내용을 `수정히스토리.md`에 한 번에 추가한다.
-3. 변경된 **모든 파일을 저장**하고 `git add -A` → **커밋**한다 (push는 별도 명시 필요).
-
-추가로 **"푸쉬해줘"**, **"마무리 푸쉬"**, **"올려줘"** 등 명확한 push 의도가 함께 있을 때만 push를 실행한다.
-
----
-
-## 수정 완료 후 출력 형식
-
-수정이 완료되면 반드시 아래 형식으로 결과를 출력한다:
-
-```
-### 요구사항
-[사용자가 요청한 내용을 그대로 또는 요약하여 기재]
-
-### 수정 내용
-[변경된 파일과 변경 내용을 구체적으로 기재]
-```
-
----
-
-## 수정 이력 (최신이 위)
-
-| 날짜 | 변경 내용 |
-|------|-----------|
-| 2026-06-28 | 티켓 바로가기 버튼 완전 제거, ticket-id-wrap flex:1, vi placeholder 수정 |
-| 2026-06-28 | WJIRA 헤더 물음표 아이콘 추가, 레이블 단축 (WJIRA 결과기재→WJIRA) |
-| 2026-06-28 | 헤더 필터 뱃지 버그 수정: 컬럼명 항상 유지, 활성 필터 × 뱃지 표시 |
-| 2026-06-28 | 그룹헤더 mid 배경, 섹션별 th 색상 계열 연동, 보류&N/A 텍스트 변경 |
-| 2026-06-28 | [롤백] DnD 실시순서 기능 제거 (index.js edfabff 복구, drag-handle CSS 삭제) |
-| 2026-06-28 | 헤더 행 스타일 개선: --text-secondary 추가, 11px/500/0.04em/패딩 6px 14px |
-| 2026-06-28 | [롤백] 드래그 핸들 전용 컬럼 커밋 되돌림 (index.html/css/js 복구) |
-| 2026-06-28 | 목록 헤더 스타일 개선, DnD 실시순서 변경, 실시순서 select → 읽기전용 |
-| 2026-06-28 | WJIRA 바로가기 버튼 신규 모드 전용, 확인내용→확인결과 (4개 언어) |
-| 2026-06-28 | detail.html/css 전체 레이아웃 리디자인: 단일 카드, 메타 3단, 구분선, 버전 뱃지, 하단 버튼 제거 |
-| 2026-06-28 | 실시순서 로직 전면 재작성: Rule1(그룹+버전 max+1), Rule4(연속 cascade), renumberActiveGroup 제거 |
-| 2026-06-28 | detail.js loadTicket data 미정의 버그 수정, GAS renumber 전 flush 추가 (재번호 버그 수정) |
-| 2026-06-28 | th overflow:hidden 추가로 항상 가로 스크롤 버그 수정, min-width 800px, WJIRA 레이블 단축 |
-| 2026-06-28 | 메인 콘텐츠 max-width/margin 제거, padding 축소, 테이블 min-width 750px, 전체 폭 채움 |
-| 2026-06-28 | 티켓 테이블 min-width:950px, 각 컬럼 최소 너비 조정, 가로 스크롤 적용 |
-| 2026-06-28 | index.html/versions.html 로딩 오버레이 스타일 통일 (detail-loading-overlay + "로딩 중..." 텍스트) |
-| 2026-06-28 | 로딩 오버레이 즉시 표시, doGet versions 포함 반환, API 호출 2회→1회 감소 |
-| 2026-06-28 | detail.html/js: 저장 버튼 2개로 분리(저장 후 목록으로/저장 후 계속 등록), 복제 버튼·함수 전체 제거 |
-| 2026-06-28 | versions.html/js/css: 드래그앤드롭 순서 변경(원래대로/순서저장), 헤더 ↕ 정렬(정렬중 드래그 비활성), 컬럼 정렬, 드롭 인디케이터, 하이라이트, 안내 문구 |
-| 2026-06-28 | versions.html/js: 테이블 헤더 정렬 기능(버전명/티켓수/생성일 ▲▼ 토글); 로딩 오버레이 텍스트 추가 |
-| 2026-06-28 | index.html: 사이드바 버튼 텍스트 "새 버전 추가" → "버전 관리" |
-| 2026-06-27 | detail.html/js/css: 3단 그리드 레이아웃 (확인버전/진행정보/버전이동) |
-| 2026-06-27 | detail.js: 버전이동 레이블 현재 버전명 표시, 신규 등록 시 최신 버전 자동 선택 |
-| 2026-06-27 | 사이드탭 폴더 스타일 디자인 적용 |
-| 2026-06-27 | 버전 관리 페이지 추가: versions.html + js/versions.js |
-| 2026-06-27 | GAS: updateVersion / deleteVersion 추가 |
-| 2026-06-27 | 버전 탭 기능: versions 시트, version_id 컬럼(P), getVersions/addVersion/moveTicket |
-| 2026-06-26 | 프론트엔드 초기 구축: index.html, detail.html, css, js 전체 |
-| 2026-06-26 | Code.gs 초기 구축: doGet, addTicket, updateTicket, fetchJira, uploadFile |
+# DQA Ticket Manager — Claude 작업 규칙
+
+QA 티켓 관리 웹앱. 빌드 없는 HTML/CSS/JS + 구글 스프레드시트(GAS) 연동. 화면 언어는 4개 국어(i18n).
+
+## 이 파일들의 목적
+Claude Code는 대화 내용을 자기 PC에만 저장한다. 그래서 CLAUDE.md(고정 정보)와 WORKLOG.md(작업 기록)를 git으로 공유해, 집↔회사 어느 PC에서든 같은 맥락으로 이어서 작업한다.
+- 푸시와 풀은 사용자가 직접 한다 (빠뜨리면 사용자 책임). Claude는 푸시 여부를 걱정하지 않아도 된다
+- Claude의 몫: 작업이 끝나면 (마무리라는 말이 없어도) WORKLOG.md를 최신으로 고쳐 둔다. 사용자가 푸시하기 전에 파일에 반영돼 있어야 다른 PC로 전달된다
+
+## 시작할 때
+1. 작업 브랜치는 `dev`. 먼저 `git pull origin dev` (집↔회사 동기화). 사용자에게는 "필요하면 터미널에 직접 입력하세요"라고 안내만 한다
+2. 이 파일과 WORKLOG.md를 읽는다
+
+## 구조
+- 화면: `index.html`(목록), `detail.html`(티켓 상세), `versions.html`(버전 관리), `css/style.css`
+- `js/` : api(서버 통신·GAS 주소 선택), index(목록), detail(상세), versions(버전 관리), i18n(번역)
+- `Code.gs` : 구글 스프레드시트 쪽 서버 코드 (`.gs`라 `node --check` 불가 → `.js` 사본으로 검사)
+- `bump-cache.ps1` : html의 `js/*.js?v=날짜` 숫자를 일괄 갱신
+- `수정히스토리.md` : 전체 수정 이력 (길어서 필요할 때만)
+
+## 주소·배포
+- 운영: https://hmdqa20.github.io/dqa-ticket (GitHub Pages, master 브랜치)
+- GAS 주소는 `js/api.js`가 접속 주소로 자동 선택: `hmdqa20.github.io`에서만 운영 GAS, 그 외(로컬 127.0.0.1, file://)는 전부 테스트(dev) GAS + 빨간 배너. 브랜치별로 api.js를 다르게 만들지 않는다
+- 시트: tickets 시트(티켓) + versions 시트(버전 탭). 열 구성은 Code.gs 상단 헤더 참고
+- `Code.gs`를 고쳤다면: 편집기에 전체 붙여넣기·저장 → 배포 관리 → **기존 배포 편집 → 새 버전**. "새 배포"는 주소가 바뀌므로 금지. push만으로는 GAS가 갱신되지 않는다
+- 새 dev용 GAS가 필요하면: 테스트용 **사본 시트를 먼저 만들고**, 그 시트에서 확장 프로그램 → Apps Script로 생성. 이 dev GAS의 스크립트 속성에 `SPREADSHEET_ID`는 절대 넣지 않는다 (원본 시트 오염 방지)
+- JS를 고치면 html의 `?v=` 숫자도 같이 올린다 (`bump-cache.ps1`)
+
+## 지킬 규칙
+- 커밋·푸시: 코드를 고칠 때마다 **커밋까지만** 자동. **푸시는 사용자가 "푸쉬해줘", "마무리 푸쉬", "올려줘"라고 분명히 말할 때만**. 푸시 대상은 `origin dev`와 `preview master`(테스트 환경)
+- **`dev` → `master` 머지·푸시는 사용자의 명시적 승인 전까지 절대 금지**
+- Code.gs가 포함된 푸시 뒤에는 꼭 안내: "GAS 편집기 → 배포 관리 → 기존 배포 편집 → 새 버전으로 재배포가 필요합니다"
+- 파일 안에 수정이력 주석 금지. 변경 내용은 커밋 메시지에 구체적으로
+- GAS 코드 규칙: 시간은 JST(`Utilities.formatDate(new Date(), "Asia/Tokyo", ...)`), 인증 정보는 Script Properties, doPost 분기 필드는 `type`, 응답은 JSON, 쓰기 작업은 `LockService.getScriptLock()`으로 감싼다
+- 사용자에게는 한국어로 보고. 수정이 끝나면 `### 요구사항` / `### 수정 내용` 두 항목으로 정리
+- "마무리하자", "오늘은 여기까지" 등 종료 표현이 나오면 확인 없이: ① WORKLOG.md 갱신(미완료 포함) ② 수정히스토리.md 상단에 이번 변경 추가 ③ `git add -A` 후 **커밋** (푸시는 별도 요청이 있을 때만)
+
+## 되돌리면 안 되는 합의
+- 내부 이름 `activeWW`, CSS `--ww` 등은 그대로 둔다 (화면 표시는 이미 DQA. 이름 바꾸기는 위험 대비 이득이 없어 하지 않기로 함)
+- 실시순서: 담당 그룹(DQA/MVN) × 버전이 각각 독립. 그룹·버전을 옮기면 번호는 초기화. 번호 충돌은 드롭다운 변경 시 확인 후 연속 번호만 밀어낸다
+- 완료/보류로 옮긴 직후 목록 맨 앞에 넣는다 (`unshift`, 서버 정렬과 같게). `push`로 되돌리지 말 것
+- 자동 갱신(`refreshList`)과 `fetchFreshList`에는 "현재 버전 탭과 같을 때만 화면 갱신" 확인이 둘 다 있어야 한다
+- 상세 화면 저장 버튼 이름(등록/저장)은 `refreshSaveBtnLabel()` 한 곳에서만 정한다
+- 편집 잠금 5분, heartbeat 2분. `js/index.js`의 `LOCK_EXPIRE_MS`와 Code.gs 값은 항상 같게
+- **터치 드래그 3규칙** (하나라도 되돌리면 버그 재발, 수정 전 실기기 테스트): ① `draggable`을 마크업에 쓰지 말고 핸들 `mousedown` 때만 JS로 켜고 끝나면 끈다 ② 터치로 놓은 위치는 `elementFromPoint`가 아니라 좌표 계산(`resolveTouchDrop`)으로 판정 ③ `touchend` 맨 앞에 `e.preventDefault()` 유지
