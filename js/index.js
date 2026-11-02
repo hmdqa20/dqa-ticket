@@ -1946,8 +1946,8 @@ function setupTooltips() {
     const r  = el.getBoundingClientRect();
     const tr = tip.getBoundingClientRect();
     let left = r.left + r.width / 2 - tr.width / 2;
-    let top  = r.top - tr.height - 8;               // 요소 위쪽
-    if (top < 4) top = r.bottom + 8;                // 위 공간 없으면 아래로
+    let top  = r.top - tr.height - 24;              // 요소 위쪽 (큰 마우스 커서에 안 가리도록 넉넉히)
+    if (top < 4) top = r.bottom + 40;               // 위 공간 없으면 아래로 (커서가 아래로 뻗으므로 더 멀리)
     left = Math.max(4, Math.min(left, window.innerWidth - tr.width - 4));
     tip.style.left = left + 'px';
     tip.style.top  = top + 'px';
