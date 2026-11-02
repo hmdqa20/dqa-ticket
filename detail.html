@@ -59,7 +59,7 @@
   <div class="detail-card">
     <form id="ticket-form" class="ticket-form" onsubmit="return false">
 
-      <!-- 상단 메타 4단: 티켓번호 | 바로가기 | 등록날짜 | WJIRA 결과기재 -->
+      <!-- 상단 메타 4단: 열람 시 티켓번호 | 등록일시 | 완료일시 | WJIRA, 신규 시 티켓번호 | 바로가기 | 등록일시 | WJIRA (link-group/done-date-group를 JS로 번갈아 숨김) -->
       <div class="meta-grid">
         <div class="form-group">
           <label data-i18n="label_ticket_id">티켓번호</label>
@@ -75,14 +75,18 @@
             <button type="button" id="btn-fetch" class="btn btn-secondary" data-i18n="btn_fetch" style="display:none">가져오기</button>
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="link-group">
           <!-- 헤더 텍스트 삭제, 4단 그리드 유지 위해 빈 label로 높이만 확보 -->
           <label>&nbsp;</label>
           <a id="btn-wjira-link" href="#" target="_blank" class="btn btn-secondary btn-link-compact" data-i18n="btn_wjira_link" style="display:none">티켓 바로 가기</a>
         </div>
         <div class="form-group">
-          <label data-i18n="label_created_date">등록날짜</label>
+          <label data-i18n="label_created_date">등록 일시</label>
           <span id="created-date" class="static-value">-</span>
+        </div>
+        <div class="form-group" id="done-date-group">
+          <label data-i18n="label_done_date">완료 일시</label>
+          <span id="done-date" class="static-value">-</span>
         </div>
         <div class="form-group">
           <label data-i18n="label_wjira">WJIRA 결과기재</label>

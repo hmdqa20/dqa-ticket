@@ -244,6 +244,8 @@ async function initNewMode() {
   document.getElementById('ticket-id-edit-wrap').style.display = '';
   document.getElementById('ticket-id-static').style.display = 'none';
   document.getElementById('created-date').textContent = formatDate(new Date());
+  document.getElementById('link-group').style.display = '';          // 신규: 바로가기 버튼 자리 유지
+  document.getElementById('done-date-group').style.display = 'none'; // 신규: 완료 일시 숨김
   document.getElementById('btn-save-top').style.display = '';
   document.getElementById('btn-cancel-top').style.display = '';
   document.getElementById('btn-new-ticket').style.display = 'none'; // 이미 신규 등록 화면이라 재진입 불필요
@@ -467,6 +469,8 @@ function fillForm(ticket) {
 
   // 등록날짜 — 읽기전용
   document.getElementById('created-date').textContent = formatDate(ticket.created_date);
+  document.getElementById('link-group').style.display = 'none'; // 열람/수정: 바로가기 칸 숨겨 등록·완료 일시를 앞으로
+  renderDoneDate(ticket);
 
   // 확인버전 — 최대 4개 입력란
   const versions = (ticket.check_version || '').split('\n').map(v => v.trim());
@@ -905,7 +909,9 @@ async function handleSave() {
 
       const addResult = await addTicket({ ticket_id: ticketId, version_id: currentVersionId, ...formData });
       currentRowId  = addResult.row_id;
-      currentTicket = { row_id: addResult.row_id, ticket_id: ticketId, created_date: new Date().toISOString(), version_id: currentVersionId, ...formData };
+      currentTicket = { row_id: addResult.row_id, ticket_id: ticketId, created_date: new Date().toISOString(), status_changed_at: new Date().toISOString(), version_id: currentVersionId, ...formData };
+      document.getElementById('link-group').style.display = 'none';
+      renderDoneDate(currentTicket);
       isNewMode = false;
       refreshSaveBtnLabel();
 
@@ -919,9 +925,12 @@ async function handleSave() {
       // URL 갱신 — 뒤로가기 시 이 티켓 상세로 진입
       history.replaceState(null, '', 'detail.html?id=' + encodeURIComponent(addResult.row_id));
     } else {
+      const statusChanged = formData.status !== currentTicket.status;
       await updateTicket({ row_id: currentTicket.row_id, ...formData });
       // 취소 시 원복 기준값 갱신
       Object.assign(currentTicket, formData);
+      if (statusChanged) currentTicket.status_changed_at = new Date().toISOString(); // 서버도 상태 변경 시에만 갱신
+      renderDoneDate(currentTicket);
     }
 
     // 삭제 예정 Drive 파일 정리
@@ -968,6 +977,14 @@ function collectFormData() {
 }
 
 // ─── 날짜 포맷 ────────────────────────────────────────────────────────────────
+
+// 완료 일시 — 상태가 '완료'일 때만 표시(그 외 '-'). 서버의 status_changed_at(마지막 상태 변경 시각)을 사용
+function renderDoneDate(ticket) {
+  const grp = document.getElementById('done-date-group');
+  if (grp) grp.style.display = '';
+  const isDone = ticket && ticket.status === '완료' && ticket.status_changed_at;
+  document.getElementById('done-date').textContent = isDone ? formatDate(ticket.status_changed_at) : '-';
+}
 
 function formatDate(raw) {
   if (!raw) return '-';

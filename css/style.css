@@ -1235,6 +1235,7 @@ body.embedded-in-dqa #test-mode-banner { display: none; }
 
 /* ─── 실시순서 비활성 텍스트 ──────────────────────────────────────────────── */
 .order-dash { display: block; text-align: center; color: #d1d5db; }
+.done-date-cell { display: block; text-align: center; font-size: 14px; color: var(--text); white-space: nowrap; }
 
 /* ─── 드래그 핸들 ─────────────────────────────────────────────────────────── */
 .drag-handle-cell {

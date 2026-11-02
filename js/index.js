@@ -482,7 +482,7 @@ function buildHeaderHtml(sectionType = 'active', groupKey = '') {
     <th class="orig-icon-col"></th>
     <th>${t('col_title')}</th>
     <th>${wrap('version', t('col_check_version'), allOpt)}</th>
-    <th>${t('col_order')}</th>
+    <th>${sectionType === 'done' ? t('col_done_date') : t('col_order')}</th>
     <th>${wrap('assignee', t('col_assignee'), allOpt)}</th>
     <th>${wrap('status', t('col_status'), `${allOpt}${statusOpts}`, f.status ? statusLabel(f.status) : '')}</th>
     <th>${wrap('verdict', t('col_verdict'), `${allOpt}<option value="OK"${sel('verdict','OK')}>OK</option><option value="NG"${sel('verdict','NG')}>NG</option>`)}</th>
@@ -1276,6 +1276,15 @@ function attachRowListeners(row, group) {
   });
 }
 
+// 목록용 짧은 날짜: 26/10/31 (값이 없거나 해석 불가면 —)
+function formatShortDate(raw) {
+  if (!raw) return '—';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return '—';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getFullYear() % 100)}/${p(d.getMonth() + 1)}/${p(d.getDate())}`;
+}
+
 function buildRow(ticket, dimmed, group) {
   const pri = String(ticket.priority ?? '');
   const orderClass = pri === '1' ? 'order-1' : pri === '2' ? 'order-2' : pri === '3' ? 'order-3' : '';
@@ -1302,7 +1311,9 @@ function buildRow(ticket, dimmed, group) {
         ).join('');
         return `<select class="inline-select order-select ${orderClass}" data-field="priority" data-row-id="${escHtml(ticket.row_id)}"${dis}>${opts}</select>`;
       })()
-    : `<span class="order-dash">—</span>`;
+    : group === 'done'
+      ? `<span class="done-date-cell">${formatShortDate(ticket.status_changed_at)}</span>`
+      : `<span class="order-dash">—</span>`;
 
   // row-active(진행중 강조) + draggable-row(DnD 대상) + dimmed + locked-row(편집중 잠금) 조합
   const rowClass = [
@@ -1578,6 +1589,7 @@ async function handleInlineChange(e) {
   }
 
   ticket[field] = value;
+  if (field === 'status') ticket.status_changed_at = new Date().toISOString(); // 완료일 표시용(서버 값은 새로고침 시 반영)
 
   if (field === 'status' || field === 'assignee') {
     const newGroup = getTicketGroup(ticket);
