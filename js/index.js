@@ -1277,6 +1277,15 @@ function attachRowListeners(row, group) {
 }
 
 // 목록용 짧은 날짜: 26/10/31 (값이 없거나 해석 불가면 —)
+// 말풍선용 상세 날짜: 2026/10/31 17:30 (상세 화면 완료 일시와 같은 형식, 값 없으면 빈 문자열)
+function formatFullDate(raw) {
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function formatShortDate(raw) {
   if (!raw) return '—';
   const d = new Date(raw);
@@ -1312,7 +1321,7 @@ function buildRow(ticket, dimmed, group) {
         return `<select class="inline-select order-select ${orderClass}" data-field="priority" data-row-id="${escHtml(ticket.row_id)}"${dis}>${opts}</select>`;
       })()
     : group === 'done'
-      ? `<span class="done-date-cell">${formatShortDate(ticket.status_changed_at)}</span>`
+      ? `<span class="done-date-cell"${formatFullDate(ticket.status_changed_at) ? ` data-tip="${formatFullDate(ticket.status_changed_at)}"` : ''}>${formatShortDate(ticket.status_changed_at)}</span>`
       : `<span class="order-dash">—</span>`;
 
   // row-active(진행중 강조) + draggable-row(DnD 대상) + dimmed + locked-row(편집중 잠금) 조합
