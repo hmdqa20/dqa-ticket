@@ -25,11 +25,23 @@ let lockPollDelayTimer = null;  // 폴링 "시작"을 지연시킬 때 쓰는 se
 const LOCK_POLL_MS = 10 * 1000;  // 10초 주기
 
 function markDirty() {
+  if (isLeaving) return;  // 이동 중에 뒤늦게 오는 change 신호로 변경 표시가 다시 켜지지 않게
   isDirty = true;
   ensureBackGuard();  // 바꾼 뒤 브라우저 뒤로가기에도 확인 팝업을 띄우기 위한 준비
   requestEditLock();  // 기존 티켓: 처음 바꾸는 순간 편집 잠금 시도 (신규 등록은 잠금 없음)
 }
 function resetDirty() { isDirty = false; }
+
+// 다른 화면으로 이동을 시작할 때 호출. 이동하는 순간 브라우저가 입력창의 change 신호를 한 번 더 보내
+// 변경 표시가 다시 켜지면 브라우저 기본 경고가 또 뜨므로, 이동 중에는 변경 표시를 잠근다.
+// 이동이 실제로 일어나지 않으면(3초 뒤에도 이 화면이 살아 있으면) 잠금을 푼다.
+let isLeaving = false;
+function startLeaving() {
+  isLeaving = true;
+  resetDirty();
+  pendingFiles = [];
+  setTimeout(() => { isLeaving = false; }, 3000);
+}
 
 // 편집 중 잠금 유지: 주기적으로 서버 LOCKED_AT 갱신. 실패는 조용히 무시(재시도 없음 — 2분 뒤 재시도됨).
 function startHeartbeat(rowId) {
@@ -250,8 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('btn-save-top').addEventListener('click', handleSave);
   const leavePage = (url) => {
-    resetDirty();
-    pendingFiles = [];
+    startLeaving();
     releaseLockNow();
     stopLockPoll();
     location.href = url;
@@ -260,8 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 브라우저 히스토리가 있고 이전 페이지가 index.html인 경우 history.back() 사용하여 상태(검색/필터/스크롤) 유지
     // 그 외의 경우(직접 링크 진입 등)는 index.html로 강제 이동
     if (window.history.length > 1 && document.referrer.includes('index.html')) {
-      resetDirty();
-      pendingFiles = [];
+      startLeaving();
       releaseLockNow();
       stopLockPoll();
       // 뒤로가기 보호용으로 쌓아 둔 기록 칸이 있으면 그것까지 두 칸 되돌아간다
@@ -290,8 +300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
   document.getElementById('btn-new-ticket').addEventListener('click', () => {
     if (!confirmLeave()) return;
-    resetDirty();      // 이동 시 브라우저 기본 경고가 한 번 더 뜨지 않도록
-    pendingFiles = [];
+    startLeaving();    // 이동 시 브라우저 기본 경고가 한 번 더 뜨지 않도록
     const vId = (currentTicket && currentTicket.version_id) || currentVersionId || '';
     const qs = new URLSearchParams();
     if (vId) qs.set('version_id', vId);
@@ -966,7 +975,7 @@ async function handleDelete() {
     stopHeartbeat();
     window.removeEventListener('beforeunload', handleLockBeforeUnload);
     currentRowId = '';
-    resetDirty();
+    startLeaving();
     location.href = 'index.html';
   } catch (err) {
     setDeletingState(false);
@@ -988,6 +997,7 @@ function setSavingState(saving) {
 
 // 저장 중 페이지 이탈 경고
 window.addEventListener('beforeunload', e => {
+  if (isLeaving) return;  // 이미 확인을 받고 이동 중
   if (isSaving || isDirty || pendingFiles.length > 0) {
     e.preventDefault();
     e.returnValue = '';
