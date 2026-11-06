@@ -26,6 +26,7 @@ const LOCK_POLL_MS = 10 * 1000;  // 10초 주기
 
 function markDirty() {
   isDirty = true;
+  ensureBackGuard();  // 바꾼 뒤 브라우저 뒤로가기에도 확인 팝업을 띄우기 위한 준비
   requestEditLock();  // 기존 티켓: 처음 바꾸는 순간 편집 잠금 시도 (신규 등록은 잠금 없음)
 }
 function resetDirty() { isDirty = false; }
@@ -127,6 +128,18 @@ function releaseLockKeepId() {
   window.removeEventListener('beforeunload', handleLockBeforeUnload);
   navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
   isLockHeld = false;
+}
+
+// ─── 브라우저 뒤로가기 보호 ──────────────────────────────────────────────────────
+// 내용을 바꾼 뒤 브라우저(또는 폰)의 뒤로가기를 누르면 우리 확인 팝업을 띄운다.
+// 방법: 처음 바꿀 때 같은 주소의 기록을 한 칸 더 쌓아 두고, 뒤로가기로 그 칸이 빠지면(popstate)
+// 변경 여부를 확인한다. 쌓아 둔 칸이 있는 동안 "목록" 버튼은 두 칸을 되돌아가야 한다(navigateToList).
+// 신규 등록 화면은 쓰지 않는다(등록 직후 replaceState로 주소를 바꾸므로 기록이 어긋남) — 거긴 브라우저 기본 경고.
+let backGuardPushed = false;
+function ensureBackGuard() {
+  if (isNewMode || backGuardPushed) return;
+  history.pushState({ dqaBackGuard: true }, '');
+  backGuardPushed = true;
 }
 
 // ─── 편집 잠금 (처음 바꾸는 순간 획득) ─────────────────────────────────────────
@@ -247,7 +260,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       pendingFiles = [];
       releaseLockNow();
       stopLockPoll();
-      history.back();
+      // 뒤로가기 보호용으로 쌓아 둔 기록 칸이 있으면 그것까지 두 칸 되돌아간다
+      const steps = backGuardPushed ? -2 : -1;
+      backGuardPushed = false;
+      history.go(steps);
     } else {
       leavePage('index.html');
     }
@@ -258,6 +274,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (confirmLeave()) leavePage(returnToRowId ? 'detail.html?id=' + encodeURIComponent(returnToRowId) : 'index.html');
   });
   document.getElementById('btn-back').addEventListener('click', () => { if (isViewMode || confirmLeave()) navigateToList(); });
+  // 브라우저 뒤로가기: 쌓아 둔 기록 칸이 빠졌을 때만 처리 (ensureBackGuard 참고)
+  window.addEventListener('popstate', () => {
+    if (!backGuardPushed) return;
+    backGuardPushed = false;  // 쌓아 둔 칸이 빠져 원래 칸으로 돌아온 상태
+    if (isDirty || pendingFiles.length > 0) {
+      if (!confirm(t('confirm_leave'))) { ensureBackGuard(); return; }  // 머물기: 칸을 다시 쌓아 둔다
+    }
+    navigateToList();  // 이동: "목록" 버튼과 같은 경로 (잠금 해제·검색/필터 상태 유지)
+  });
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
   document.getElementById('btn-new-ticket').addEventListener('click', () => {
     if (!confirmLeave()) return;

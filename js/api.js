@@ -3,9 +3,6 @@
 const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbwIgVHDvVDcS1A6zyopK9NebKD0e2qdWDhLTaK3gR_DY5dQlvE5dLUiv_i89_-TW3QJ7A/exec';
 const DEV_GAS_URL  = 'https://script.google.com/macros/s/AKfycbwULFEhn_BEJVoYKE8Ki4XPJ2VtBFj7q3klc2TSQT1oKGQjzPRDIueM0t46IZWIu7DCCA/exec';
 
-// 배포 시각 — 푸시 전 제미나이가 자동으로 업데이트 (YYYY-MM-DD HH:mm 형식)
-const DEPLOY_TIME = '2026-08-18 20:08';
-
 const GAS_URL = (location.hostname === 'hmdqa20.github.io' && !location.pathname.includes('dqa-ticket-dev'))
   ? PROD_GAS_URL
   : DEV_GAS_URL;
@@ -22,9 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const banner = document.createElement('div');
   banner.id = 'test-mode-banner';
 
-  // 배포 시각이 있으면 문구 뒤에 추가
-  const timeInfo = DEPLOY_TIME ? ` (${DEPLOY_TIME})` : '';
-  banner.textContent = '⚠️ 테스트 모드 - 실제 데이터 아님' + timeInfo;
+  banner.textContent = '⚠️ 테스트 모드 - 실제 데이터 아님';
 
   document.body.prepend(banner);
 
