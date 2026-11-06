@@ -194,6 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 언어 전환 시 UI 텍스트 + 번역 힌트만 갱신 — 잠금(lock) 로직 일체 건드리지 않음
   onLangChange(() => {
     applyTranslations();
+    renderAllDetectedLinks();
     if (currentTicket) updateTitleTranslationHint(currentTicket);
     const vsel = document.getElementById('version-move-select');
     if (vsel) {
@@ -224,6 +225,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupStatusListener();
   setupFileUpload();
   setupLinkListeners();
+  ['check-content', 'note'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => renderDetectedLinks(id));
+  });
 
   document.querySelectorAll('.version-input').forEach(inp => {
     inp.addEventListener('input', () => {
@@ -682,6 +686,7 @@ function applyViewUI() {
   // 확인결과/비고: 텍스트 뷰 표시, textarea 숨김
   renderTextView('check-content');
   renderTextView('note');
+  renderAllDetectedLinks();  // textarea가 숨겨졌으니 인식된 링크 목록은 비워진다
 
   // 파일/링크 재렌더링 (삭제 버튼·X 버튼 없는 버전)
   renderFileList();
@@ -719,6 +724,7 @@ function applyEditUI() {
   document.getElementById('check-content').style.display = '';
   document.getElementById('note-view').style.display = 'none';
   document.getElementById('note').style.display = '';
+  renderAllDetectedLinks();
 
   // 파일/링크 재렌더링 (삭제 버튼·X 버튼 있는 버전)
   renderFileList();
@@ -748,6 +754,35 @@ function renderTextView(fieldId) {
 
   textarea.style.display = 'none';
   view.style.display = '';
+}
+
+// 입력 중(textarea 표시 중)에는 URL이 그냥 글자라 클릭할 수 없으므로, 입력창 아래에
+// 인식된 URL을 클릭 가능한 링크로 나열한다. 읽기 전용(텍스트 뷰)일 땐 뷰 안의 링크를 쓰므로 비운다.
+function renderDetectedLinks(fieldId) {
+  const textarea = document.getElementById(fieldId);
+  const box      = document.getElementById(fieldId + '-links');
+  if (!textarea || !box) return;
+  if (textarea.style.display === 'none') { box.innerHTML = ''; return; }
+
+  const seen = new Set();
+  const items = [];
+  const re = /(?:https?:\/\/|www\.)[^\s<>"']+/g;
+  let m;
+  while ((m = re.exec(textarea.value)) !== null) {
+    const raw = m[0].replace(/[.,;:!?、。]+$/, '');  // 문장 끝 구두점은 URL에서 제외
+    if (!raw || seen.has(raw)) continue;
+    seen.add(raw);
+    items.push({ raw, href: raw.startsWith('www.') ? 'https://' + raw : raw });
+  }
+  box.innerHTML = items.length
+    ? `<span class="detected-links-label">🔗 ${escHtml(t('label_detected_links'))}</span>` +
+      items.map(i => `<a href="${escHtml(i.href)}" target="_blank" rel="noopener" title="${escHtml(i.raw)}">${escHtml(i.raw)}</a>`).join('')
+    : '';
+}
+
+function renderAllDetectedLinks() {
+  renderDetectedLinks('check-content');
+  renderDetectedLinks('note');
 }
 
 // ─── 파일 업로드 ──────────────────────────────────────────────────────────────
@@ -882,6 +917,13 @@ function renderFileList() {
   });
 }
 
+// 주소 앞에 https:// 같은 시작 부분이 없으면(예: www.google.com) 브라우저가 이 사이트 안의 주소로 취급해
+// 열리지 않으므로, 링크로 열 때만 https://를 붙인다. (저장된 값은 입력한 그대로 둔다)
+function toOpenableUrl(url) {
+  const u = String(url || '').trim();
+  return /^[a-z][a-z0-9+.\-]*:/i.test(u) ? u : 'https://' + u;
+}
+
 function renderLinks() {
   const display = document.getElementById('links-display');
   if (!display) return;
@@ -895,7 +937,7 @@ function renderLinks() {
     const text = item.label.trim() || item.url;
     const xBtn = isViewMode ? '' : `<button type="button" class="link-clear-btn" data-link-num="${item.num}" title="링크 삭제">×</button>`;
     return `<div class="links-display-item">
-      <a href="${escHtml(item.url)}" target="_blank" class="link-display-anchor">${escHtml(text)}</a>
+      <a href="${escHtml(toOpenableUrl(item.url))}" target="_blank" rel="noopener" class="link-display-anchor">${escHtml(text)}</a>
       ${xBtn}
     </div>`;
   }).join('');

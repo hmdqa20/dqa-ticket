@@ -167,6 +167,28 @@ async function getTickets(versionId, signal) {
   return { ...(json.data || {}), versions: json.versions || [] };
 }
 
+// 목록 화면용 잠금 현황 { row_id: locked_at } — 서버의 목록 캐시(10분)는 잠금 변화가 늦게 반영되므로
+// 잠금만 캐시 없이 따로 받아 덧씌운다. 실패해도 목록 표시를 막지 않도록 재시도 없음.
+async function getLocks() {
+  const json = await callGAS('getLocks', {}, 0);
+  return json.locks || {};
+}
+
+// 목록 + 최신 잠금 현황. 잠금 조회가 실패하거나 8초 넘게 걸리면 잠금 덧씌우기만 건너뛴다.
+async function getTicketsWithLocks(versionId, signal) {
+  const lockTimeout = new Promise(resolve => setTimeout(() => resolve(null), 8000));
+  const [data, locks] = await Promise.all([
+    getTickets(versionId, signal),
+    Promise.race([getLocks().catch(() => null), lockTimeout])
+  ]);
+  if (locks) {
+    ['activeWW', 'activeMVN', 'done', 'hold'].forEach(k => {
+      (data[k] || []).forEach(tk => { tk.locked_at = locks[tk.row_id] || ''; });
+    });
+  }
+  return data;
+}
+
 // 버전 목록 조회
 async function getVersions() {
   const json = await callGAS('getVersions', {});

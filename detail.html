@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DQA Ticket Manager</title>
   <link rel="icon" type="image/png" href="favicon_32x32.png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261107">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
 </head>
 <body>
@@ -191,6 +191,7 @@
         <label data-i18n="label_check_content">확인결과</label>
         <div id="check-content-view" class="text-view" style="display:none"></div>
         <textarea id="check-content" rows="25" data-i18n-placeholder="placeholder_check_content" placeholder="확인결과를 입력하세요"></textarea>
+        <div id="check-content-links" class="detected-links"></div>
       </div>
 
       <!-- 비고 -->
@@ -198,6 +199,7 @@
         <label data-i18n="label_note">비고</label>
         <div id="note-view" class="text-view" style="display:none"></div>
         <textarea id="note" rows="8" data-i18n-placeholder="placeholder_note" placeholder="비고를 입력하세요"></textarea>
+        <div id="note-links" class="detected-links"></div>
       </div>
       
       <!-- 파일 첨부 -->
@@ -236,8 +238,8 @@
   </div>
 </main>
 
-<script src="js/i18n.js?v=20261106"></script>
-<script src="js/api.js?v=20261106"></script>
-<script src="js/detail.js?v=20261106"></script>
+<script src="js/i18n.js?v=20261107"></script>
+<script src="js/api.js?v=20261107"></script>
+<script src="js/detail.js?v=20261108"></script>
 </body>
 </html>

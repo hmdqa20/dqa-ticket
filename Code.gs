@@ -347,6 +347,7 @@ function doPost(e) {
       case 'lockTicket':   return lockTicket(e);
       case 'unlockTicket': return unlockTicket(e);
       case 'checkLock':    return checkLock(e);
+      case 'getLocks':     return getLocks(e);
       case 'heartbeat':    return heartbeat(e);
       default: return jsonResponse({ success: false, error: 'Unknown type: ' + type });
     }
@@ -1017,6 +1018,31 @@ function checkLock(e) {
       }
     }
     return jsonResponse({ success: false, error: 'Ticket not found: ' + rowId });
+  } catch (err) {
+    return jsonResponse({ success: false, error: err.message });
+  }
+}
+
+// ─── getLocks ─────────────────────────────────────────────────────────────────
+// 목록 화면용: 지금 편집 중(5분 이내 잠금)인 티켓만 { row_id: locked_at } 으로 반환.
+// 목록 데이터(doGet)는 10분 캐시라 잠금 변화가 늦게 반영되므로, 잠금만 캐시 없이
+// 시트에서 직접 읽어 화면에서 덧씌운다. 읽기 전용(시트를 바꾸지 않음) — 2개 열만 읽어 가볍다.
+function getLocks(e) {
+  try {
+    const sheet   = getSheet();
+    const lastRow = sheet.getLastRow();
+    const locks   = {};
+    if (lastRow >= 2) {
+      const ids = sheet.getRange(2, COL.ROW_ID    + 1, lastRow - 1, 1).getValues();
+      const ats = sheet.getRange(2, COL.LOCKED_AT + 1, lastRow - 1, 1).getValues();
+      const now = new Date();
+      for (let i = 0; i < ids.length; i++) {
+        const lockedAt = String(ats[i][0] || '');
+        if (!lockedAt) continue;
+        if (now - new Date(lockedAt) < 5 * 60 * 1000) locks[String(ids[i][0])] = lockedAt;
+      }
+    }
+    return jsonResponse({ success: true, locks: locks });
   } catch (err) {
     return jsonResponse({ success: false, error: err.message });
   }

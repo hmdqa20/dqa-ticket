@@ -548,13 +548,13 @@ async function fetchFreshList(vid, hadCache, mySeq) {
     // 로딩 인디케이터는 재시도 동안 계속 표시 (finally에서만 숨김)
     let data;
     try {
-      data = await getTickets(vid, controller.signal);
+      data = await getTicketsWithLocks(vid, controller.signal);
     } catch (firstErr) {
       if (firstErr.name === 'AbortError') return;          // 의도적 취소 → 조용히 종료
       console.warn('[loadTickets] 1차 실패, 재시도 중...', firstErr.message);
       await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
       if (controller.signal.aborted) return;               // 재시도 대기 중 취소됐을 수 있음
-      data = await getTickets(vid, controller.signal);     // 실패 시 throw → outer catch
+      data = await getTicketsWithLocks(vid, controller.signal);     // 실패 시 throw → outer catch
     }
 
     // 이 응답을 기다리는 동안 더 최신 요청(다른 탭 클릭 등)이 이미 시작됐으면, 이 응답은
@@ -1902,7 +1902,7 @@ async function refreshList() {
 
   let data;
   try {
-    data = await getTickets(vid, controller.signal);
+    data = await getTicketsWithLocks(vid, controller.signal);
   } catch (err) {
     if (err.name === 'AbortError') return;
     return;                         // 실패는 조용히 무시 (다음 주기에 재시도)
