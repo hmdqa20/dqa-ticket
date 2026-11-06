@@ -6,8 +6,8 @@ function escHtml(s) {
 const JP_CHAR_RE = /[぀-ゟ゠-ヿ一-龯　-〿㐀-䶿豈-﫿]/;
 
 let isNewMode = false;
-let isViewMode = false;    // true: 표시(읽기전용) 모드 / false: 편집 모드
-let isLockHeld = false;    // 잠금 획득 여부 (수정 버튼 클릭 시 true)
+let isViewMode = false;    // true: 읽기 전용(다른 사용자가 편집 중) / false: 입력 가능(기본)
+let isLockHeld = false;    // 잠금 획득 여부 (기존 티켓은 처음 내용을 바꾸는 순간 true)
 let currentTicket = null;
 let uploadedFiles = [];    // 이미 Drive에 저장된 {name, size, url} 목록
 let pendingFiles = [];     // 아직 업로드 안 된 File 객체 목록 (저장 시 업로드)
@@ -21,10 +21,13 @@ let returnToRowId = '';     // 신규 모드 취소 시 돌아갈 티켓 row_id 
 let heartbeatTimer = null;  // 편집 잠금 heartbeat interval id
 const HEARTBEAT_MS = 2 * 60 * 1000;  // 2분 주기 (5분 타임아웃의 절반 이하 — 1회 유실돼도 다음 신호가 만료 전 도착)
 let lockPollTimer = null;   // 보기모드 중 "다른 사람이 편집 시작했는지" 폴링 interval id
-let lockPollDelayTimer = null;  // 폴링 "시작"을 지연시킬 때 쓰는 setTimeout id (cancelToViewMode 등)
+let lockPollDelayTimer = null;  // 폴링 "시작"을 지연시킬 때 쓰는 setTimeout id (저장 직후 등)
 const LOCK_POLL_MS = 10 * 1000;  // 10초 주기
 
-function markDirty() { isDirty = true; }
+function markDirty() {
+  isDirty = true;
+  requestEditLock();  // 기존 티켓: 처음 바꾸는 순간 편집 잠금 시도 (신규 등록은 잠금 없음)
+}
 function resetDirty() { isDirty = false; }
 
 // 편집 중 잠금 유지: 주기적으로 서버 LOCKED_AT 갱신. 실패는 조용히 무시(재시도 없음 — 2분 뒤 재시도됨).
@@ -40,7 +43,7 @@ function stopHeartbeat() {
 }
 
 // 보기모드 진입 시 시작: 즉시 1회 확인 + 10초 주기로 "다른 사람이 편집 중인지" 재확인.
-// 편집모드로 전환하면(enterEditMode) 반드시 정지 — heartbeat와 동시에 돌면 안 됨.
+// 잠금을 잡으면(ensureEditLock) 반드시 정지 — heartbeat와 동시에 돌면 안 됨.
 function startLockPoll(rowId) {
   stopLockPoll();  // 중복 시작 방지
   pollLockStatus(rowId);
@@ -54,11 +57,24 @@ function stopLockPoll() {
 async function pollLockStatus(rowId) {
   try {
     const result = await checkLock(rowId);
-    // 응답 대기 중 편집모드로 전환했거나(자신이 방금 잠금 획득) 다른 티켓으로 넘어갔으면
-    // 이 결과는 폐기 — clearInterval은 다음 주기만 막을 뿐 이미 날아간 요청은 못 막기 때문에,
-    // 이 가드가 없으면 편집모드 진입 직후 "편집 중" 뱃지가 잠깐 다시 뜨는 레이스가 생김.
-    if (!isViewMode || rowId !== currentRowId) return;
-    updateLockStatusBadge(result && result.locked);
+    // 응답 대기 중 내가 잠금을 잡았거나(내 잠금을 "편집 중"으로 오인하는 레이스 방지)
+    // 신규 모드/다른 티켓으로 넘어갔으면 이 결과는 폐기.
+    if (isLockHeld || isNewMode || rowId !== currentRowId) return;
+    const locked = !!(result && result.locked);
+    updateLockStatusBadge(locked);
+    // 잠금 요청 중이거나 저장 중이면 화면 전환은 보류
+    if (lockRequest || isSaving) return;
+    if (locked && !isViewMode) {
+      // 다른 사용자가 편집을 시작함 — 내가 아직 아무것도 바꾸지 않았을 때만 읽기 전용으로 전환
+      // (이미 바꾼 게 있으면 그 변경의 잠금 요청이 거절 처리를 한다)
+      if (!isDirty && pendingFiles.length === 0) {
+        isViewMode = true;
+        applyViewUI();
+      }
+    } else if (!locked && isViewMode) {
+      // 다른 사용자의 편집이 끝남 — 최신 내용으로 갱신하고 다시 입력 가능 상태로
+      refreshTicketFresh(rowId, true, true);
+    }
   } catch (err) {
     // 조회 실패는 조용히 무시(재시도 없음 — 다음 10초 주기에 자연 재시도됨)
   }
@@ -111,6 +127,52 @@ function releaseLockKeepId() {
   window.removeEventListener('beforeunload', handleLockBeforeUnload);
   navigator.sendBeacon(GAS_URL, new URLSearchParams({ type: 'unlockTicket', row_id: currentRowId }));
   isLockHeld = false;
+}
+
+// ─── 편집 잠금 (처음 바꾸는 순간 획득) ─────────────────────────────────────────
+// 기존 티켓은 열자마자 입력 가능한 상태로 열리고, 잠금은 처음 내용을 바꿀 때 한 번 건다.
+// 그래서 보기만 하는 사람은 다른 사람의 편집을 막지 않는다.
+let lockRequest = null;  // 잠금 요청 진행 중이면 그 Promise (중복 요청 방지)
+
+// true: 편집 가능(잠금을 잡았거나 잠금이 필요 없음) / false: 다른 사용자가 편집 중이라 거절됨
+function ensureEditLock() {
+  if (isNewMode || isLockHeld) return Promise.resolve(true);
+  if (lockRequest) return lockRequest;
+  lockRequest = (async () => {
+    const rowId = currentRowId;
+    const lockResult = await lockTicket(rowId).catch(() => null);
+    if (lockResult && lockResult.locked) return false;
+    // 통신 실패(null)는 잠금 없이 진행 (기존 "수정" 버튼 때와 동일)
+    if (lockResult && rowId === currentRowId) {
+      isLockHeld = true;
+      window.addEventListener('beforeunload', handleLockBeforeUnload);
+      startHeartbeat(rowId);
+      stopLockPoll();  // heartbeat와 동시에 돌면 안 됨
+      updateLockStatusBadge(false);
+    }
+    return true;
+  })().finally(() => { lockRequest = null; });
+  return lockRequest;
+}
+
+// 처음 내용을 바꾸는 순간 호출(markDirty) — 이미 다른 사용자가 편집 중이면 되돌리고 읽기 전용으로 전환
+async function requestEditLock() {
+  if (isNewMode || isViewMode || isLockHeld || lockRequest || !currentTicket) return;
+  if (!(await ensureEditLock())) revertToLockedView();
+}
+
+// 다른 사용자가 편집 중이라 잠금이 거절됨: 방금 바꾼 내용을 버리고 읽기 전용으로 되돌린다.
+// 여러 곳(입력·저장·삭제·버전 이동)에서 불려도 한 번만 처리되도록 이미 읽기 전용이면 무시.
+function revertToLockedView() {
+  if (isViewMode) return;
+  alert(t('error_ticket_locked'));
+  fillForm(currentTicket);
+  renderVersionSelect(currentTicket.version_id || '');
+  pendingFiles = [];
+  removedFileUrls = [];
+  resetDirty();
+  enterViewMode();
+  updateLockStatusBadge(true);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -190,18 +252,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       leavePage('index.html');
     }
   };
-  document.getElementById('btn-edit').addEventListener('click', enterEditMode);
+  // 취소 버튼은 신규 등록 화면에서만 보인다
   document.getElementById('btn-cancel-top').addEventListener('click', () => {
-    if (isNewMode) {
-      // 티켓 상세에서 "티켓등록"으로 진입한 경우엔 보던 티켓으로 복귀, 아니면 목록으로
-      if (confirmLeave()) leavePage(returnToRowId ? 'detail.html?id=' + encodeURIComponent(returnToRowId) : 'index.html');
-    } else {
-      if (confirmLeave()) cancelToViewMode();
-    }
+    // 티켓 상세에서 "티켓등록"으로 진입한 경우엔 보던 티켓으로 복귀, 아니면 목록으로
+    if (confirmLeave()) leavePage(returnToRowId ? 'detail.html?id=' + encodeURIComponent(returnToRowId) : 'index.html');
   });
   document.getElementById('btn-back').addEventListener('click', () => { if (isViewMode || confirmLeave()) navigateToList(); });
   document.getElementById('btn-delete').addEventListener('click', handleDelete);
   document.getElementById('btn-new-ticket').addEventListener('click', () => {
+    if (!confirmLeave()) return;
+    resetDirty();      // 이동 시 브라우저 기본 경고가 한 번 더 뜨지 않도록
+    pendingFiles = [];
     const vId = (currentTicket && currentTicket.version_id) || currentVersionId || '';
     const qs = new URLSearchParams();
     if (vId) qs.set('version_id', vId);
@@ -330,9 +391,10 @@ async function initNewMode() {
 function loadTicket(rowId) {
   document.getElementById('page-title').textContent = t('page_title_edit');
 
-  // 표시모드로 열림 — 잠금은 "수정" 버튼 클릭 시에만 시도
+  // 입력 가능 상태로 열림 — 잠금은 처음 내용을 바꾸는 순간(ensureEditLock)에 시도.
+  // 다른 사람이 이미 편집 중이면 첫 폴링 결과로 읽기 전용에 전환된다.
   currentRowId = rowId;
-  isViewMode = true;
+  isViewMode = false;
 
   // 캐시 우선 렌더링: 목록에서 이미 받아둔 데이터가 있으면 로딩 오버레이 없이 즉시 표시.
   const cachedHit = findTicketInCaches(rowId);
@@ -342,7 +404,7 @@ function loadTicket(rowId) {
     currentTicket = cachedHit.ticket;
     fillForm(currentTicket);
     renderVersionSelect(currentTicket.version_id || '');
-    enterViewMode();
+    enterEditMode();
     document.getElementById('detail-loading').style.display = 'none';
   } else {
     document.getElementById('detail-loading').style.display = 'flex';
@@ -354,7 +416,8 @@ function loadTicket(rowId) {
   refreshTicketFresh(rowId, !!cachedHit);
 }
 
-async function refreshTicketFresh(rowId, hadCache) {
+// toEdit: 읽기 전용 → 입력 가능으로 되돌리는 경우(다른 사용자의 편집이 끝났을 때)
+async function refreshTicketFresh(rowId, hadCache, toEdit) {
   try {
     const fresh = await getTickets();
     saveTicketsCache('', fresh);
@@ -365,11 +428,12 @@ async function refreshTicketFresh(rowId, hadCache) {
     // 최신 데이터에 없으면(그 사이 삭제됨) 캐시로 그렸더라도 목록으로 되돌림
     if (!freshTicket) throw new Error('티켓을 찾을 수 없습니다: ' + rowId);
     currentTicket = freshTicket;
-    // 사용자가 이미 "수정"으로 들어갔거나 입력을 시작했으면 폼을 덮어쓰지 않음
-    if (isViewMode && !isDirty) {
+    // 사용자가 이미 입력을 시작했거나 잠금을 잡았으면 폼을 덮어쓰지 않음
+    if (!isDirty && !isLockHeld && pendingFiles.length === 0) {
       fillForm(currentTicket);
       renderVersionSelect(currentTicket.version_id || '');
-      enterViewMode();
+      if (toEdit) isViewMode = false;
+      if (isViewMode) enterViewMode(); else enterEditMode();
     }
   } catch (err) {
     // 캐시로 이미 표시된 상태의 일시적 네트워크 오류는 조용히 무시 (티켓 없음은 위에서 throw됨)
@@ -428,7 +492,8 @@ function renderVersionSelect(selectedId) {
       return;
     }
 
-    // 수정 모드: 즉시 이동 처리
+    // 기존 티켓: 즉시 이동 처리 (다른 사용자가 편집 중이면 거절)
+    if (!(await ensureEditLock())) { revertToLockedView(); return; }
     const overlay = document.getElementById('detail-loading');
     if (overlay) overlay.style.display = 'flex';
     try {
@@ -532,27 +597,44 @@ function updatePriorityState() {
 
 // ─── 표시/편집 모드 전환 ──────────────────────────────────────────────────────
 
-// pollDelayMs: 지정 시 화면 전환(폼 비활성화/버튼 전환 등)은 그대로 즉시 실행하되,
-// "다른 사람이 편집 중인지" 폴링의 시작만 그 시간만큼 늦춘다.
-// cancelToViewMode()에서 사용 — sendBeacon으로 쏜 unlock 요청은 완료를 기다릴 수 없는 구조라,
-// 그 직후 바로 폴링을 시작하면 서버가 아직 LOCKED_AT을 못 지운 상태를 읽어 "편집 중"으로
-// 오탐할 수 있다. 서버 처리 시간을 감안한 유예를 준 뒤 폴링을 시작해 오탐을 줄인다.
+// 화면 상태는 두 가지(isViewMode로 구분):
+//  · 입력 가능(isViewMode=false): 기본. 잠금은 처음 바꾸는 순간 ensureEditLock()이 건다
+//  · 읽기 전용(isViewMode=true): 다른 사용자가 편집 중인 티켓
+// applyViewUI/applyEditUI는 화면만 바꾸고 잠금·폴링은 건드리지 않는다.
+
+const UNLOCK_POLL_DELAY_MS = 800;  // 잠금 해제 요청(sendBeacon)이 서버에 반영될 시간
+
+// 내가 잠금을 잡고 있지 않은 동안 "다른 사람이 편집 중인지" 폴링을 시작한다.
+// pollDelayMs: 지정 시 폴링 "시작"만 그 시간만큼 늦춘다. 저장 직후에 사용 — sendBeacon으로 쏜
+// unlock 요청은 완료를 기다릴 수 없는 구조라, 바로 폴링하면 서버가 아직 LOCKED_AT을 못 지운 상태를
+// 읽어 내 잠금을 "편집 중"으로 오탐할 수 있다. 서버 처리 시간을 감안한 유예를 준 뒤 시작한다.
+function scheduleLockPoll(pollDelayMs) {
+  if (isNewMode || isLockHeld || !currentRowId) return;
+  if (pollDelayMs) {
+    stopLockPoll();
+    lockPollDelayTimer = setTimeout(() => {
+      lockPollDelayTimer = null;
+      // 유예 시간 동안 잠금을 잡았거나 페이지를 벗어났으면 시작하지 않음
+      if (!isLockHeld && !isNewMode && currentRowId) startLockPoll(currentRowId);
+    }, pollDelayMs);
+  } else {
+    startLockPoll(currentRowId);
+  }
+}
+
 function enterViewMode(pollDelayMs) {
   isViewMode = true;
+  scheduleLockPoll(pollDelayMs);
+  applyViewUI();
+}
 
-  // 보기모드인 동안 "다른 사람이 편집 중인지" 폴링 시작 (편집모드 전환 시 stopLockPoll로 정지)
-  if (currentRowId) {
-    if (pollDelayMs) {
-      lockPollDelayTimer = setTimeout(() => {
-        lockPollDelayTimer = null;
-        // 유예 시간 동안 다시 편집모드로 들어갔거나 페이지를 벗어났으면 시작하지 않음
-        if (isViewMode && currentRowId) startLockPoll(currentRowId);
-      }, pollDelayMs);
-    } else {
-      startLockPoll(currentRowId);
-    }
-  }
+function enterEditMode(pollDelayMs) {
+  isViewMode = false;
+  scheduleLockPoll(pollDelayMs);
+  applyEditUI();
+}
 
+function applyViewUI() {
   // 모든 폼 요소 비활성화
   document.querySelectorAll('#ticket-form input, #ticket-form select, #ticket-form textarea').forEach(el => {
     el.disabled = true;
@@ -566,7 +648,6 @@ function enterViewMode(pollDelayMs) {
   document.getElementById('btn-clear-title').style.display = 'none';
 
   document.getElementById('page-title').textContent = t('page_title_edit');
-  document.getElementById('btn-edit').style.display = '';
   document.getElementById('btn-save-top').style.display = 'none';
   document.getElementById('btn-cancel-top').style.display = 'none';
   document.getElementById('btn-delete').style.display = 'none';
@@ -582,31 +663,7 @@ function enterViewMode(pollDelayMs) {
   renderLinks();
 }
 
-async function enterEditMode() {
-  const overlay = document.getElementById('detail-loading');
-  if (overlay) overlay.style.display = 'flex';
-
-  const lockResult = await lockTicket(currentRowId).catch(() => null);
-
-  if (overlay) overlay.style.display = 'none';
-
-  if (lockResult && lockResult.locked) {
-    alert(t('error_ticket_locked'));
-    return; // 표시모드 유지
-  }
-
-  if (lockResult) {
-    isLockHeld = true;
-    window.addEventListener('beforeunload', handleLockBeforeUnload);
-    startHeartbeat(currentRowId);
-  }
-
-  // 편집모드로 전환 — 보기모드 잠금 폴링은 정지(heartbeat와 중복 방지)
-  stopLockPoll();
-  updateLockStatusBadge(false);
-
-  isViewMode = false;
-
+function applyEditUI() {
   // 모든 폼 요소 활성화
   document.querySelectorAll('#ticket-form input, #ticket-form select, #ticket-form textarea').forEach(el => {
     el.disabled = false;
@@ -624,13 +681,13 @@ async function enterEditMode() {
   const titleInput = document.getElementById('title-input');
   if (titleInput.value) document.getElementById('btn-clear-title').style.display = '';
 
-  document.getElementById('page-title').textContent = t('page_title_editing');
-  document.getElementById('btn-edit').style.display = 'none';
+  document.getElementById('page-title').textContent = t('page_title_edit');
   document.getElementById('btn-save-top').style.display = '';
   refreshSaveBtnLabel();
-  document.getElementById('btn-cancel-top').style.display = '';
+  document.getElementById('btn-cancel-top').style.display = 'none';  // 취소는 신규 등록 화면에서만
   document.getElementById('btn-delete').style.display = '';
-  document.getElementById('btn-new-ticket').style.display = 'none'; // 편집 중에는 다른 신규 등록으로 이탈 방지
+  document.getElementById('btn-new-ticket').style.display = '';       // 이탈 시에는 클릭 핸들러가 변경 확인
+  document.getElementById('btn-new-ticket').disabled = false;
 
   // 확인결과/비고: textarea 표시, 텍스트 뷰 숨김
   document.getElementById('check-content-view').style.display = 'none';
@@ -641,19 +698,6 @@ async function enterEditMode() {
   // 파일/링크 재렌더링 (삭제 버튼·X 버튼 있는 버전)
   renderFileList();
   renderLinks();
-}
-
-const CANCEL_LOCK_POLL_DELAY_MS = 800;  // releaseLockKeepId의 sendBeacon 서버 처리 유예 시간
-
-function cancelToViewMode() {
-  releaseLockKeepId();
-  fillForm(currentTicket);
-  renderVersionSelect(currentTicket.version_id || '');
-  pendingFiles = [];
-  removedFileUrls = [];
-  resetDirty();
-  // 화면은 즉시 보기모드로 전환하되, 잠금 폴링 시작만 유예(오탐 방지 — 위 enterViewMode 주석 참고)
-  enterViewMode(CANCEL_LOCK_POLL_DELAY_MS);
 }
 
 // URL을 <a> 링크로 변환해 text-view에 렌더링
@@ -845,6 +889,7 @@ async function handleDelete() {
   if (!currentTicket) return;
   const confirmed = confirm(`[${currentTicket.ticket_id}] 티켓을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`);
   if (!confirmed) return;
+  if (!(await ensureEditLock())) { revertToLockedView(); return; }  // 다른 사용자가 편집 중이면 삭제 불가
 
   setDeletingState(true);
   try {
@@ -884,6 +929,8 @@ window.addEventListener('beforeunload', e => {
 
 async function handleSave() {
   if (isSaving) return;
+  if (!(await ensureEditLock())) { revertToLockedView(); return; }  // 다른 사용자가 편집 중이면 저장 불가
+  if (isSaving) return;  // 잠금 대기 중 저장 버튼을 연타해도 한 번만 저장
 
   setSavingState(true);
   try {
@@ -944,7 +991,9 @@ async function handleSave() {
     resetDirty();
     setSavingState(false);
     releaseLockKeepId();  // 편집 잠금 해제 (신규 모드는 isLockHeld=false라 no-op)
-    enterViewMode();
+    // 저장 후에도 화면에 머문다. 잠금은 다음에 바꿀 때 다시 건다.
+    enterEditMode(UNLOCK_POLL_DELAY_MS);
+    showToast(t('toast_saved'), 'btn-save-top');
   } catch (err) {
     alert(t('save_error') + '\n' + err.message);
     setSavingState(false);
@@ -1050,7 +1099,8 @@ function applyTranslations() {
 // ─── 토스트 ───────────────────────────────────────────────────────────────────
 
 let _toastTimer = null;
-function showToast(msg) {
+// anchorId 지정 시: 그 버튼 바로 아래에 초록색(성공)으로 표시
+function showToast(msg, anchorId) {
   let el = document.getElementById('app-toast');
   if (!el) {
     el = document.createElement('div');
@@ -1059,11 +1109,20 @@ function showToast(msg) {
     document.body.appendChild(el);
   }
   el.textContent = msg;
+  el.classList.toggle('app-toast-ok', !!anchorId);
+
+  const anchor = anchorId && document.getElementById(anchorId);
+  if (anchor) {
+    const a = anchor.getBoundingClientRect();
+    el.style.left = (a.left + a.width / 2) + 'px';
+    el.style.top  = (a.bottom + 28) + 'px';
+    el.style.maxWidth = '';
+  }
 
   // 버튼 중앙 X, 카드 상단~버튼 상단 중간 Y에 배치
   const btn  = document.getElementById('btn-wjira-link');
   const card = document.querySelector('.detail-card');
-  if (btn && card) {
+  if (!anchor && btn && card) {
     const b = btn.getBoundingClientRect();
     const c = card.getBoundingClientRect();
     const cx = b.left + b.width / 2;

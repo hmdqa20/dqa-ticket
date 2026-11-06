@@ -1624,6 +1624,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 }
 
 .form-group input[type="text"],
+.form-group input[type="url"],
 .form-group select,
 .form-group textarea {
   padding: 8px 10px;
@@ -1638,6 +1639,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 }
 
 .form-group input[type="text"]:focus,
+.form-group input[type="url"]:focus,
 .form-group select:focus,
 .form-group textarea:focus { border-color: var(--ww); box-shadow: 0 0 0 2px #dbeafe; }
 
@@ -2025,6 +2027,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
   text-align: center;
 }
 .app-toast.app-toast-show { opacity: 1; }
+.app-toast.app-toast-ok { background: #16a34a; color: #fff; box-shadow: 0 4px 14px rgba(22,163,74,0.35); }
 
 /* ─── 반응형 ──────────────────────────────────────────────────────────────── */
 
