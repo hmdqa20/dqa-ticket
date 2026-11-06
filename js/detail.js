@@ -239,6 +239,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupLinkListeners();
   ['check-content', 'note'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => renderDetectedLinks(id));
+    setupCtrlClickLinks(id);
   });
 
   document.querySelectorAll('.version-input').forEach(inp => {
@@ -748,12 +749,12 @@ function renderTextView(fieldId) {
 
   const text = textarea.value;
   // https?:// 또는 www. 로 시작하는 URL 매칭. www.은 href에 https:// 를 붙여 생성.
-  const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/g;
+  const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
   let result = '', lastIdx = 0, m;
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(text)) !== null) {
     const raw  = m[0];
-    const href = raw.startsWith('www.') ? 'https://' + raw : raw;
+    const href = /^www\./i.test(raw) ? 'https://' + raw : raw;
     result += escHtml(text.slice(lastIdx, m.index));
     result += `<a href="${escHtml(href)}" target="_blank" rel="noopener">${escHtml(raw)}</a>`;
     lastIdx = m.index + m[0].length;
@@ -775,18 +776,104 @@ function renderDetectedLinks(fieldId) {
 
   const seen = new Set();
   const items = [];
-  const re = /(?:https?:\/\/|www\.)[^\s<>"']+/g;
+  const re = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
   let m;
   while ((m = re.exec(textarea.value)) !== null) {
     const raw = m[0].replace(/[.,;:!?、。]+$/, '');  // 문장 끝 구두점은 URL에서 제외
     if (!raw || seen.has(raw)) continue;
     seen.add(raw);
-    items.push({ raw, href: raw.startsWith('www.') ? 'https://' + raw : raw });
+    items.push({ raw, href: /^www\./i.test(raw) ? 'https://' + raw : raw });
   }
   box.innerHTML = items.length
     ? `<span class="detected-links-label">🔗 ${escHtml(t('label_detected_links'))}</span>` +
       items.map(i => `<a href="${escHtml(i.href)}" target="_blank" rel="noopener" title="${escHtml(i.raw)}">${escHtml(i.raw)}</a>`).join('')
     : '';
+}
+
+// ─── 입력칸 안 URL: Ctrl(맥은 Cmd)+클릭으로 열기 + 커서를 올리면 안내 말풍선 ──────────
+// textarea는 글자 일부를 링크로 만들 수 없으므로, 같은 모양의 보이지 않는 복사본(mirror)에
+// URL을 span으로 감싸 그 위치를 계산해, 마우스가 URL 위에 있는지 판정한다.
+let ctrlTipEl = null;
+function hideCtrlTip() { if (ctrlTipEl) ctrlTipEl.classList.remove('show'); }
+function showCtrlTip(x, y) {
+  if (!ctrlTipEl) {
+    ctrlTipEl = document.createElement('div');
+    ctrlTipEl.className = 'app-tooltip';
+    document.body.appendChild(ctrlTipEl);
+  }
+  ctrlTipEl.textContent = t('tip_ctrl_click');
+  ctrlTipEl.classList.add('show');
+  const tr = ctrlTipEl.getBoundingClientRect();
+  let left = Math.max(4, Math.min(x - tr.width / 2, window.innerWidth - tr.width - 4));
+  let top  = y - tr.height - 24;           // 마우스 커서 위쪽 (커서에 가리지 않게)
+  if (top < 4) top = y + 40;
+  ctrlTipEl.style.left = left + 'px';
+  ctrlTipEl.style.top  = top + 'px';
+}
+
+function urlAtPoint(textarea, clientX, clientY) {
+  const text = textarea.value;
+  if (!/(?:https?:\/\/|www\.)/i.test(text)) return null;
+  const cs = getComputedStyle(textarea);
+  const mir = document.createElement('div');
+  ['fontFamily','fontSize','fontWeight','fontStyle','letterSpacing','lineHeight','textTransform','textIndent',
+   'paddingTop','paddingLeft','paddingBottom','borderTopWidth','borderLeftWidth','borderRightWidth','borderBottomWidth','tabSize']
+    .forEach(k => { mir.style[k] = cs[k]; });
+  const r = textarea.getBoundingClientRect();
+  const sb = textarea.offsetWidth - textarea.clientWidth -
+             (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0);
+  mir.style.paddingRight = ((parseFloat(cs.paddingRight) || 0) + Math.max(0, sb)) + 'px';
+  mir.style.cssText += ';position:fixed;visibility:hidden;pointer-events:none;overflow:hidden;box-sizing:border-box;' +
+    'white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word;' +
+    `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;`;
+
+  const re = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+  let html = '', last = 0, m, hrefs = [];
+  while ((m = re.exec(text)) !== null) {
+    const raw = m[0].replace(/[.,;:!?、。]+$/, '');
+    if (!raw) continue;
+    html += escHtml(text.slice(last, m.index)) + `<span data-i="${hrefs.length}">${escHtml(raw)}</span>`;
+    hrefs.push(/^www\./i.test(raw) ? 'https://' + raw : raw);
+    last = m.index + raw.length;
+  }
+  html += escHtml(text.slice(last)) + '\n';
+  mir.innerHTML = html;
+  document.body.appendChild(mir);
+  mir.scrollTop = textarea.scrollTop;
+  let found = null;
+  mir.querySelectorAll('span').forEach(sp => {
+    if (found !== null) return;
+    for (const q of sp.getClientRects()) {
+      if (clientX >= q.left && clientX <= q.right && clientY >= q.top && clientY <= q.bottom) { found = hrefs[+sp.dataset.i]; break; }
+    }
+  });
+  mir.remove();
+  return found;
+}
+
+function setupCtrlClickLinks(fieldId) {
+  const ta = document.getElementById(fieldId);
+  if (!ta) return;
+  ta.addEventListener('mousemove', e => {
+    const href = urlAtPoint(ta, e.clientX, e.clientY);
+    if (href) {
+      ta.style.cursor = (e.ctrlKey || e.metaKey) ? 'pointer' : '';
+      showCtrlTip(e.clientX, e.clientY);
+    } else {
+      ta.style.cursor = '';
+      hideCtrlTip();
+    }
+  });
+  ta.addEventListener('mouseleave', () => { ta.style.cursor = ''; hideCtrlTip(); });
+  ta.addEventListener('input', hideCtrlTip);
+  ta.addEventListener('scroll', hideCtrlTip);
+  ta.addEventListener('mousedown', e => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const href = urlAtPoint(ta, e.clientX, e.clientY);
+    if (!href) return;
+    e.preventDefault();                       // 글자 선택·커서 이동 대신 링크 열기
+    window.open(href, '_blank', 'noopener');
+  });
 }
 
 function renderAllDetectedLinks() {
