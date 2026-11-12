@@ -1649,7 +1649,7 @@ tr.drag-over-bottom td { border-bottom: 2px solid var(--ww) !important; }
 .form-group textarea[readonly] { background: #f9fafb; color: var(--muted); cursor: default; }
 
 .form-group select:disabled { background: #f9fafb; color: var(--muted); cursor: not-allowed; }
-.form-group input[type="datetime-local"] { width: 100%; min-width: 0; box-sizing: border-box; }
+.form-group input[type="datetime-local"] { width: fit-content; max-width: 100%; min-width: 0; box-sizing: border-box; }
 .form-group input[type="datetime-local"]:disabled { background: #f9fafb; color: var(--text); cursor: default; }
 
 .form-group textarea { resize: vertical; }
