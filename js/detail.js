@@ -572,7 +572,7 @@ function fillForm(ticket) {
   updateTitleTranslationHint(ticket);
 
   // 등록날짜 — 읽기전용
-  document.getElementById('created-date').textContent = formatDate(ticket.created_date);
+  renderCreatedDate(ticket);
   document.getElementById('link-group').style.display = 'none'; // 열람/수정: 바로가기 칸 숨겨 등록·완료 일시를 앞으로
   renderDoneDate(ticket);
 
@@ -1112,6 +1112,20 @@ async function handleSave() {
     }
 
     const formData = collectFormData();
+    Object.assign(formData, collectDateChanges());
+
+    // 완료 일시가 등록 일시보다 앞서면 저장하지 않는다
+    {
+      const cIn = document.getElementById('created-date-input');
+      const dIn = document.getElementById('done-date-input');
+      const cVal = (!isNewMode && cIn.style.display !== 'none') ? cIn.value : '';
+      const dVal = (!isNewMode && dIn.style.display !== 'none') ? dIn.value : '';
+      if (cVal && dVal && new Date(dVal) < new Date(cVal)) {
+        alert(t('err_date_order'));
+        setSavingState(false);
+        return;
+      }
+    }
 
     if (isNewMode) {
       const numPart = document.getElementById('ticket-id-num').value.trim();
@@ -1141,6 +1155,7 @@ async function handleSave() {
       // 취소 시 원복 기준값 갱신
       Object.assign(currentTicket, formData);
       if (statusChanged) currentTicket.status_changed_at = new Date().toISOString(); // 서버도 상태 변경 시에만 갱신
+      renderCreatedDate(currentTicket);
       renderDoneDate(currentTicket);
     }
 
@@ -1196,7 +1211,71 @@ function renderDoneDate(ticket) {
   const grp = document.getElementById('done-date-group');
   if (grp) grp.style.display = '';
   const isDone = ticket && ticket.status === '완료' && ticket.status_changed_at;
-  document.getElementById('done-date').textContent = isDone ? formatDate(ticket.status_changed_at) : '-';
+  const span = document.getElementById('done-date');
+  const inp  = document.getElementById('done-date-input');
+  if (isDone && toLocalInputValue(ticket.status_changed_at)) {
+    // 완료 상태에서는 날짜를 직접 고칠 수 있다
+    inp.value = toLocalInputValue(ticket.status_changed_at);
+    inp.dataset.orig = inp.value;
+    inp.style.display = '';
+    span.style.display = 'none';
+  } else {
+    inp.value = '';
+    inp.dataset.orig = '';
+    inp.style.display = 'none';
+    span.style.display = '';
+    span.textContent = '-';
+  }
+}
+
+// 등록 일시 — 기존 티켓은 날짜 입력칸으로 표시(고칠 수 있음)
+function renderCreatedDate(ticket) {
+  const span = document.getElementById('created-date');
+  const inp  = document.getElementById('created-date-input');
+  const v = toLocalInputValue(ticket && ticket.created_date);
+  if (v) {
+    inp.value = v;
+    inp.dataset.orig = v;
+    inp.style.display = '';
+    span.style.display = 'none';
+  } else {
+    inp.style.display = 'none';
+    span.style.display = '';
+    span.textContent = formatDate(ticket && ticket.created_date);
+  }
+}
+
+// 서버 값(ISO 문자열) → 입력칸 값 (yyyy-MM-ddTHH:mm, 화면 표시와 같은 현지 시각)
+function toLocalInputValue(raw) {
+  if (!raw) return '';
+  const d = (raw instanceof Date) ? raw : new Date(raw);
+  if (isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// 입력칸 값 → 서버에 보낼 일본 시각(JST) ISO 문자열
+function localInputToJstIso(val) {
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return '';
+  return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().replace('Z', '+09:00');
+}
+
+// 사용자가 바꾼 등록·완료 일시만 모은다 (안 바꿨으면 보내지 않아 서버 값이 그대로 유지됨)
+function collectDateChanges() {
+  const out = {};
+  if (isNewMode || !currentTicket) return out;
+  const c = document.getElementById('created-date-input');
+  if (c.style.display !== 'none' && c.value && c.value !== c.dataset.orig) {
+    out.created_date = localInputToJstIso(c.value);
+  }
+  const d = document.getElementById('done-date-input');
+  const status = document.getElementById('status').value;
+  // 완료 상태를 그대로 둔 채 고친 경우만 (상태를 바꾸면 서버가 그 시각으로 새로 기록)
+  if (d.style.display !== 'none' && d.value && d.value !== d.dataset.orig && status === currentTicket.status && status === '완료') {
+    out.status_changed_at = localInputToJstIso(d.value);
+  }
+  return out;
 }
 
 function formatDate(raw) {

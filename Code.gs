@@ -500,6 +500,12 @@ function updateTicket(e) {
     const titleKo = titleChanged ? buildTranslatedTitle(newTitle, 'ko') : String(old[COL.TITLE_KO] || '');
     const titleVi = titleChanged ? buildTranslatedTitle(newTitle, 'vi') : String(old[COL.TITLE_VI] || '');
 
+    // 화면에서 완료 일시를 직접 고친 경우(날짜 형식이 올바를 때만) 그 값을 쓰고, 아니면 상태가 바뀔 때만 현재 시각으로 갱신
+    const sentChangedAt = p.status_changed_at !== undefined ? String(p.status_changed_at) : '';
+    const newStatusChangedAt = (sentChangedAt && !isNaN(new Date(sentChangedAt).getTime()))
+      ? sentChangedAt
+      : (statusChanged ? getJSTISOString() : old[COL.STATUS_CHANGED_AT]);
+
     const updatedRow = [
       pick('ticket_id',     COL.TICKET_ID),
       pick('created_date',  COL.CREATED_DATE),
@@ -512,7 +518,7 @@ function updateTicket(e) {
       pick('check_content', COL.CHECK_CONTENT),
       pick('note',          COL.NOTE),
       pick('wjira_updated', COL.WJIRA_UPDATED),
-      statusChanged ? getJSTISOString() : old[COL.STATUS_CHANGED_AT],
+      newStatusChangedAt,
       pick('file_urls',     COL.FILE_URLS),
       rowId,
       pick('retest_ref',    COL.RETEST_REF) || '',
