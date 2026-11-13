@@ -1422,7 +1422,9 @@ function buildAssigneeSelectHtml(av, rowId, locked = false) {
   ).join('');
   if (showCustom) opts += `<option value="${escHtml(av)}" selected>${escHtml(av)}</option>`;
   opts += `<option value="__custom__">직접입력...</option>`;
-  return `<select class="inline-select assignee-select" data-field="assignee" data-row-id="${escHtml(rowId)}"${locked ? ' disabled' : ''}>${opts}</select>`;
+  // 이름이 길어 잘려 보일 때를 위해 마우스를 올리면 전체 이름을 말풍선으로 보여 준다
+  const tip = av ? ` data-tip="${escHtml(av)}"` : '';
+  return `<select class="inline-select assignee-select" data-field="assignee" data-row-id="${escHtml(rowId)}"${tip}${locked ? ' disabled' : ''}>${opts}</select>`;
 }
 
 function activateCustomAssignee(select) {
@@ -1598,6 +1600,7 @@ async function handleInlineChange(e) {
   }
 
   ticket[field] = value;
+  if (field === 'assignee') { if (value) el.setAttribute('data-tip', value); else el.removeAttribute('data-tip'); }
   if (field === 'status') ticket.status_changed_at = new Date().toISOString(); // 완료일 표시용(서버 값은 새로고침 시 반영)
 
   if (field === 'status' || field === 'assignee') {

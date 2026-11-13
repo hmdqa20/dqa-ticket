@@ -310,6 +310,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     location.href = q ? `detail.html?${q}` : 'detail.html';
   });
 
+  setupCustomAssignee();
+
   // 폼 변경 감지
   document.getElementById('ticket-form').addEventListener('input',  markDirty);
   document.getElementById('ticket-form').addEventListener('change', markDirty);
@@ -581,7 +583,7 @@ function fillForm(ticket) {
   document.querySelectorAll('.version-input').forEach((inp, i) => {
     inp.value = versions[i] || '';
   });
-  document.getElementById('assignee').value      = ticket.assignee      || '';
+  setAssigneeValue(ticket.assignee || '');
   populatePriorityOptions(ticket.priority || '');
   document.getElementById('status').value        = ticket.status        || '진행전';
   document.getElementById('verdict').value       = ticket.verdict       || '';
@@ -603,6 +605,62 @@ function fillForm(ticket) {
   updatePriorityState();
   // fillForm이 끝난 뒤 dirty 초기화 (setValue로 발생한 이벤트 무시)
   setTimeout(resetDirty, 0);
+}
+
+// ─── 담당자 직접입력 (목록의 「직접입력...」과 같은 방식) ─────────────────────────
+
+// 담당자 값을 선택칸에 세팅. 목록에 없는 이름(직접 입력했던 이름·옛 담당자)이면 항목을 추가해서 선택한다
+function setAssigneeValue(v) {
+  const sel = document.getElementById('assignee');
+  if (v && !Array.from(sel.options).some(o => o.value === v)) {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    sel.insertBefore(opt, sel.querySelector('option[value="__custom__"]'));
+  }
+  sel.value = v;
+}
+
+function setupCustomAssignee() {
+  const sel = document.getElementById('assignee');
+  const inp = document.getElementById('assignee-custom');
+  let prev = sel.value;
+  let finished = false;
+
+  sel.addEventListener('focus', () => { if (sel.value !== '__custom__') prev = sel.value; });
+
+  sel.addEventListener('change', e => {
+    if (sel.value !== '__custom__') { prev = sel.value; return; }
+    e.stopPropagation();  // 입력칸으로 바꾸는 동작 자체는 '변경'으로 치지 않는다
+    finished = false;
+    sel.style.display = 'none';
+    inp.style.display = '';
+    inp.value = '';
+    inp.focus();
+  });
+
+  function finish(commit) {
+    if (finished) return;
+    finished = true;
+    const v = inp.value.trim();
+    inp.style.display = 'none';
+    sel.style.display = '';
+    if (commit && v) {
+      setAssigneeValue(v);
+      sel.dispatchEvent(new Event('change', { bubbles: true }));  // 저장 대상 표시·실시순서 재계산
+    } else {
+      sel.value = prev;
+    }
+  }
+
+  inp.addEventListener('keydown', e => {
+    e.stopPropagation();  // 폼의 Enter→다음 칸 이동과 겹치지 않게
+    if (e.key === 'Enter')  { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  inp.addEventListener('blur',   () => finish(true));
+  inp.addEventListener('input',  e => e.stopPropagation());
+  inp.addEventListener('change', e => e.stopPropagation());
 }
 
 // Rule 1: 같은 그룹(WW/MVN) + 같은 버전 활성 티켓 중 max priority + 1
@@ -1187,7 +1245,7 @@ function collectFormData() {
     title:         document.getElementById('title-input').value,
     check_version: Array.from(document.querySelectorAll('.version-input'))
       .map(inp => inp.value.trim()).filter(Boolean).join('\n'),
-    assignee:      document.getElementById('assignee').value,
+    assignee:      document.getElementById('assignee').value === '__custom__' ? '' : document.getElementById('assignee').value,
     priority:      isActive ? (document.getElementById('priority').value || '') : '',
     status,
     verdict:       document.getElementById('verdict').value,
